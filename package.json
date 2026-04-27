@@ -1,0 +1,31 @@
+{
+  "name": "snz-rodoved",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @snz-rodoved/shared && npm run build -w @snz-rodoved/db && npm run build -w @snz-rodoved/api && npm run build -w @snz-rodoved/web",
+    "dev": "npm run build -w @snz-rodoved/shared && npm run build -w @snz-rodoved/db && concurrently \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run dev -w @snz-rodoved/api",
+    "dev:web": "npm run dev -w @snz-rodoved/web",
+    "lint": "eslint .",
+    "test": "npm run build -w @snz-rodoved/shared && npm run build -w @snz-rodoved/db && npm run test -w @snz-rodoved/shared && npm run test -w @snz-rodoved/db && npm run test -w @snz-rodoved/api",
+    "typecheck": "npm run build -w @snz-rodoved/shared && npm run build -w @snz-rodoved/db && npm run typecheck -w @snz-rodoved/shared && npm run typecheck -w @snz-rodoved/db && npm run typecheck -w @snz-rodoved/api && npm run typecheck -w @snz-rodoved/web"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^20.0.0",
+    "concurrently": "^9.0.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "globals": "^15.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.0.0"
+  }
+}
