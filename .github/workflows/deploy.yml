@@ -42,6 +42,7 @@ jobs:
 
       - name: Create release archive
         run: |
+          RELEASE_ARCHIVE="$RUNNER_TEMP/release.tgz"
           tar \
             --exclude=.git \
             --exclude=node_modules \
@@ -50,7 +51,8 @@ jobs:
             --exclude=.env \
             --exclude=.env.local \
             --exclude=dev-server.log \
-            -czf release.tgz .
+            -czf "$RELEASE_ARCHIVE" .
+          cp "$RELEASE_ARCHIVE" release.tgz
 
       - name: Configure SSH
         env:
