@@ -80,6 +80,11 @@ function registerApiRoutes(
       return reply.code(400).send({ error: "validation_error", issues: error.issues });
     }
 
+    const statusCode = getHttpStatusCode(error);
+    if (Number.isInteger(statusCode) && statusCode >= 400 && statusCode < 500) {
+      return reply.code(statusCode).send({ error: "bad_request", message: getErrorMessage(error) });
+    }
+
     app.log.error(error);
     return reply.code(500).send({ error: "internal_error" });
   });
@@ -289,6 +294,22 @@ function upsertEnvValue(content: string, key: string, value: string): string {
 
   const separator = content.endsWith("\n") ? "" : "\n";
   return `${content}${separator}${line}\n`;
+}
+
+function getHttpStatusCode(error: unknown): number {
+  if (error && typeof error === "object" && "statusCode" in error) {
+    return Number(error.statusCode);
+  }
+
+  return 500;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Bad request";
 }
 
 function createFakeResponseInput(): SurveyResponseInput {

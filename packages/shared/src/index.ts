@@ -228,7 +228,7 @@ export interface AnalyticsSummary {
 export const warDetailQuickValues = [
   "Великая Отечественная война",
   "Первая мировая война",
-  "Иная война",
+  "Иная",
   "—"
 ] as const;
 
