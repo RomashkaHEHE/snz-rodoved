@@ -11,6 +11,7 @@ const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export interface SessionResponse {
   authenticated: boolean;
+  role: "workspace" | "admin" | null;
 }
 
 export async function getSession(): Promise<SessionResponse> {
@@ -21,6 +22,13 @@ export async function login(username: string, password: string): Promise<Session
   return request<SessionResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ username, password })
+  });
+}
+
+export async function workspaceLogin(password: string): Promise<SessionResponse> {
+  return request<SessionResponse>("/api/auth/workspace-login", {
+    method: "POST",
+    body: JSON.stringify({ password })
   });
 }
 

@@ -13,6 +13,7 @@ Provide persistent survey storage, auth-protected CRUD, filters, and analytics f
 - Drizzle owns typed schema/query construction.
 - Zod schemas in `packages/shared` are the input contract.
 - Single-admin cookie auth is enough for v1 but should not block future multi-user auth.
+- Workspace auth uses password-only access for `/editor` and `/data`.
 - CSV export uses the same filters as response listing.
 
 ## Relevant Files

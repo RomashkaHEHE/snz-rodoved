@@ -124,18 +124,17 @@ export function ResponseForm({ editing, onSaved, onCancelEdit }: ResponseFormPro
                 <div className="war-details">
                   <label>
                     Если да, какая война
-                    <input
-                      list="war-detail-values"
-                      placeholder="ВОв, I Мировая, иная или —"
+                    <select
                       value={form.q11WarDetails ?? ""}
                       onChange={(event) => setForm({ ...form, q11WarDetails: event.target.value })}
-                    />
+                    >
+                      {warDetailQuickValues.map((value) => (
+                        <option key={value} value={value}>
+                          {value}
+                        </option>
+                      ))}
+                    </select>
                   </label>
-                  <datalist id="war-detail-values">
-                    {warDetailQuickValues.map((value) => (
-                      <option key={value} value={value} />
-                    ))}
-                  </datalist>
                 </div>
               ) : null}
             </div>

@@ -24,6 +24,7 @@ DATABASE_URL=/var/lib/snz-rodoved/rodoved.sqlite
 SESSION_SECRET=long-random-secret
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=strong-password
+WORKSPACE_PASSWORD=strong-workspace-password
 ```
 
 ## Backup

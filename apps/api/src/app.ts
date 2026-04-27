@@ -15,11 +15,14 @@ import { buildAnalyticsSummary } from "./analytics.js";
 import {
   clearSessionCookie,
   credentialsMatch,
-  isAuthenticated,
+  getSessionRole,
   loginSchema,
   requireAdmin,
+  requireWorkspace,
   resolveAuthConfig,
   setSessionCookie,
+  workspaceLoginSchema,
+  workspacePasswordMatches,
   type AuthConfig
 } from "./auth.js";
 import { buildResponsesCsv } from "./csv.js";
@@ -81,25 +84,40 @@ function registerApiRoutes(
       return reply.code(401).send({ error: "invalid_credentials" });
     }
 
-    setSessionCookie(reply, authConfig);
-    return { authenticated: true };
+    setSessionCookie(reply, authConfig, "admin");
+    return { authenticated: true, role: "admin" };
+  });
+
+  app.post("/api/auth/workspace-login", async (request, reply) => {
+    const input = workspaceLoginSchema.parse(request.body);
+
+    if (!workspacePasswordMatches(input, authConfig)) {
+      return reply.code(401).send({ error: "invalid_credentials" });
+    }
+
+    setSessionCookie(reply, authConfig, "workspace");
+    return { authenticated: true, role: "workspace" };
   });
 
   app.post("/api/auth/logout", async (_request, reply) => {
     clearSessionCookie(reply);
-    return { authenticated: false };
+    return { authenticated: false, role: null };
   });
 
-  app.get("/api/auth/me", async (request) => ({
-    authenticated: isAuthenticated(request)
-  }));
+  app.get("/api/auth/me", async (request) => {
+    const role = getSessionRole(request);
+    return {
+      authenticated: role !== null,
+      role
+    };
+  });
 
-  app.get("/api/responses", { preHandler: requireAdmin }, async (request) => {
+  app.get("/api/responses", { preHandler: requireWorkspace }, async (request) => {
     const filters = parseFiltersFromQuery(request.query);
     return { responses: repository.list(filters) };
   });
 
-  app.get("/api/responses/export.csv", { preHandler: requireAdmin }, async (request, reply) => {
+  app.get("/api/responses/export.csv", { preHandler: requireWorkspace }, async (request, reply) => {
     const filters = parseFiltersFromQuery(request.query);
     const csv = buildResponsesCsv(repository.list(filters));
 
@@ -109,7 +127,7 @@ function registerApiRoutes(
       .send(csv);
   });
 
-  app.post("/api/responses", { preHandler: requireAdmin }, async (request, reply) => {
+  app.post("/api/responses", { preHandler: requireWorkspace }, async (request, reply) => {
     const input = surveyResponseInputSchema.parse(request.body);
     const response = repository.create(input);
     return reply.code(201).send({ response });
@@ -118,7 +136,7 @@ function registerApiRoutes(
   app.patch<{
     Params: { id: string };
     Body: PartialSurveyResponseInput;
-  }>("/api/responses/:id", { preHandler: requireAdmin }, async (request, reply) => {
+  }>("/api/responses/:id", { preHandler: requireWorkspace }, async (request, reply) => {
     const input = partialSurveyResponseInputSchema.parse(request.body);
     const response = repository.update(request.params.id, input);
 
@@ -131,7 +149,7 @@ function registerApiRoutes(
 
   app.delete<{ Params: { id: string } }>(
     "/api/responses/:id",
-    { preHandler: requireAdmin },
+    { preHandler: requireWorkspace },
     async (request, reply) => {
       const deleted = repository.delete(request.params.id);
 
@@ -143,7 +161,7 @@ function registerApiRoutes(
     }
   );
 
-  app.get("/api/analytics/summary", { preHandler: requireAdmin }, async (request) => {
+  app.get("/api/analytics/summary", { preHandler: requireWorkspace }, async (request) => {
     const filters = parseFiltersFromQuery(request.query);
     const responses = repository.list(filters);
     return { summary: buildAnalyticsSummary(responses) };

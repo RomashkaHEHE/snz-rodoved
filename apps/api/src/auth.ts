@@ -9,9 +9,16 @@ export const loginSchema = z.object({
   password: z.string().min(1)
 });
 
+export const workspaceLoginSchema = z.object({
+  password: z.string().min(1)
+});
+
+export type SessionRole = "workspace" | "admin";
+
 export interface AuthConfig {
   username: string;
   password: string;
+  workspacePassword: string;
   sessionSecret: string;
   secureCookie: boolean;
 }
@@ -20,16 +27,22 @@ export function resolveAuthConfig(overrides: Partial<AuthConfig> = {}): AuthConf
   const isProduction = process.env.NODE_ENV === "production";
   const username = overrides.username ?? process.env.ADMIN_USERNAME ?? "admin";
   const password = overrides.password ?? process.env.ADMIN_PASSWORD ?? "admin";
+  const workspacePassword =
+    overrides.workspacePassword ?? process.env.WORKSPACE_PASSWORD ?? password;
   const sessionSecret =
     overrides.sessionSecret ?? process.env.SESSION_SECRET ?? "dev-session-secret-change-me";
 
-  if (isProduction && (!process.env.ADMIN_PASSWORD || !process.env.SESSION_SECRET)) {
-    throw new Error("Production must set ADMIN_PASSWORD and SESSION_SECRET");
+  if (
+    isProduction &&
+    (!process.env.ADMIN_PASSWORD || !process.env.WORKSPACE_PASSWORD || !process.env.SESSION_SECRET)
+  ) {
+    throw new Error("Production must set ADMIN_PASSWORD, WORKSPACE_PASSWORD and SESSION_SECRET");
   }
 
   return {
     username,
     password,
+    workspacePassword,
     sessionSecret,
     secureCookie: overrides.secureCookie ?? isProduction
   };
@@ -39,8 +52,19 @@ export function credentialsMatch(input: z.infer<typeof loginSchema>, config: Aut
   return safeEqual(input.username, config.username) && safeEqual(input.password, config.password);
 }
 
-export function setSessionCookie(reply: FastifyReply, config: AuthConfig): void {
-  reply.setCookie(sessionCookieName, "authenticated", {
+export function workspacePasswordMatches(
+  input: z.infer<typeof workspaceLoginSchema>,
+  config: AuthConfig
+): boolean {
+  return safeEqual(input.password, config.workspacePassword);
+}
+
+export function setSessionCookie(
+  reply: FastifyReply,
+  config: AuthConfig,
+  role: SessionRole
+): void {
+  reply.setCookie(sessionCookieName, role, {
     httpOnly: true,
     sameSite: "lax",
     secure: config.secureCookie,
@@ -55,17 +79,39 @@ export function clearSessionCookie(reply: FastifyReply): void {
 }
 
 export function isAuthenticated(request: FastifyRequest): boolean {
+  return getSessionRole(request) !== null;
+}
+
+export function isAdminAuthenticated(request: FastifyRequest): boolean {
+  return getSessionRole(request) === "admin";
+}
+
+export function getSessionRole(request: FastifyRequest): SessionRole | null {
   const cookieValue = request.cookies[sessionCookieName];
   if (!cookieValue) {
-    return false;
+    return null;
   }
 
   const unsigned = request.unsignCookie(cookieValue);
-  return unsigned.valid && unsigned.value === "authenticated";
+  if (!unsigned.valid) {
+    return null;
+  }
+
+  if (unsigned.value === "workspace" || unsigned.value === "admin") {
+    return unsigned.value;
+  }
+
+  return null;
+}
+
+export async function requireWorkspace(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  if (!isAuthenticated(request)) {
+    await reply.code(401).send({ error: "unauthorized" });
+  }
 }
 
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  if (!isAuthenticated(request)) {
+  if (!isAdminAuthenticated(request)) {
     await reply.code(401).send({ error: "unauthorized" });
   }
 }

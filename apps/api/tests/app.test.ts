@@ -52,17 +52,23 @@ describe("api app", () => {
   it("logs in, creates responses, filters, and summarizes analytics", async () => {
     app = await buildApp({
       databasePath: ":memory:",
-      auth: { username: "admin", password: "secret", sessionSecret: "test-secret" },
+      auth: {
+        username: "admin",
+        password: "secret",
+        workspacePassword: "workspace-secret",
+        sessionSecret: "test-secret"
+      },
       webDistDir: false
     });
 
     const login = await app.inject({
       method: "POST",
-      url: "/api/auth/login",
-      payload: { username: "admin", password: "secret" }
+      url: "/api/auth/workspace-login",
+      payload: { password: "workspace-secret" }
     });
     const cookie = login.headers["set-cookie"];
     expect(login.statusCode).toBe(200);
+    expect(login.json().role).toBe("workspace");
 
     const create = await app.inject({
       method: "POST",
@@ -114,7 +120,12 @@ describe("api app", () => {
   it("rejects invalid credentials", async () => {
     app = await buildApp({
       databasePath: ":memory:",
-      auth: { username: "admin", password: "secret", sessionSecret: "test-secret" },
+      auth: {
+        username: "admin",
+        password: "secret",
+        workspacePassword: "workspace-secret",
+        sessionSecret: "test-secret"
+      },
       webDistDir: false
     });
 
@@ -125,5 +136,13 @@ describe("api app", () => {
     });
 
     expect(login.statusCode).toBe(401);
+
+    const workspaceLogin = await app.inject({
+      method: "POST",
+      url: "/api/auth/workspace-login",
+      payload: { password: "wrong" }
+    });
+
+    expect(workspaceLogin.statusCode).toBe(401);
   });
 });

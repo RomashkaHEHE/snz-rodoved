@@ -22,10 +22,10 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 ## Stable Product Decisions
 
 - Public `/` does not show survey analytics in v1.
-- `/login` is the editor login page.
+- `/login` is password-only workspace login.
+- `/admin` is a separate username/password admin login.
 - `/editor` is for entering new responses.
 - `/data` is for filters, visualization, table work, editing/deleting, and CSV export.
-- `/admin` is a legacy redirect to `/editor`.
 - Public `/` only shows the work-zone button when the user is already authenticated.
 - Missing or unreadable paper answers are stored as `unknown`.
 - Questions 7 and 8 remain separate because both exist in the paper survey.

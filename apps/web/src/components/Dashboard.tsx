@@ -26,12 +26,6 @@ export function Dashboard({ summary }: DashboardProps) {
     return <section className="dashboard-panel skeleton">Загрузка аналитики...</section>;
   }
 
-  const interestData = summary.interestYesCounts.map((item) => ({
-    name: `${item.questionId.toUpperCase()}`,
-    label: item.label,
-    count: item.count
-  }));
-
   return (
     <section className="dashboard-panel" aria-label="Аналитика">
       <div className="panel-heading">
@@ -68,28 +62,6 @@ export function Dashboard({ summary }: DashboardProps) {
               <YAxis allowDecimals={false} />
               <Tooltip />
               <Bar dataKey="count" name="Анкеты" fill="#b36b34" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-        <ChartCard title="Интересы: ответы «Да»">
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={interestData}>
-              <CartesianGrid strokeDasharray="4 4" />
-              <XAxis dataKey="name" />
-              <YAxis allowDecimals={false} />
-              <Tooltip formatter={(value, _name, props) => [value, props.payload.label]} />
-              <Bar dataKey="count" name="Да" fill="#556f3d" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-        <ChartCard title="Военные действия">
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={summary.warDetails}>
-              <CartesianGrid strokeDasharray="4 4" />
-              <XAxis dataKey="label" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="count" name="Упоминания" fill="#6f4f7f" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>

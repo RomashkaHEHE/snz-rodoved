@@ -12,7 +12,7 @@ Give the operator a readable working surface for entering paper surveys, filteri
 - The operator is likely doing repetitive manual entry.
 - Controls should be large, predictable, and keyboard-friendly.
 - Visual design should be calm and easy to change later.
-- Public, login, editor, and data work are now separate routes.
+- Public, password login, admin login, editor, and data work are now separate routes.
 
 ## Relevant Files
 
@@ -24,13 +24,14 @@ Give the operator a readable working surface for entering paper surveys, filteri
 
 ## Next Steps
 
-1. Review the revised `/`, `/login`, `/editor`, and `/data` screens with the customer.
+1. Review the revised `/`, `/login`, `/admin`, `/editor`, and `/data` screens with the customer.
 2. Add shortcuts or duplicate-last-response behavior only after observing real entry flow.
 3. Consider import after CSV export is validated.
 
 ## Exit Criteria
 
-- `/login` appears for unauthenticated editor/data access.
+- `/login` appears for unauthenticated editor/data access and asks only for a password.
+- `/admin` uses username and password.
 - Operator can create on `/editor`, then edit/delete/filter/analyze/export on `/data`.
 - UI remains usable on desktop and narrow screens.
 

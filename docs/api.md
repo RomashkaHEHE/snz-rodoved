@@ -10,12 +10,22 @@
 { "username": "admin", "password": "..." }
 ```
 
+Админ-вход. Возвращает роль `admin`.
+
+`POST /api/auth/workspace-login`
+
+```json
+{ "password": "..." }
+```
+
+Вход в рабочую зону. Возвращает роль `workspace`.
+
 `POST /api/auth/logout`
 
 `GET /api/auth/me`
 
 ```json
-{ "authenticated": true }
+{ "authenticated": true, "role": "workspace" }
 ```
 
 ## Анкеты
