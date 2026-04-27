@@ -2,6 +2,8 @@
 
 Целевая схема v1 — VPS + Node.js + SQLite.
 
+Автодеплой через GitHub Actions описан отдельно: [autodeploy.md](autodeploy.md).
+
 ## Production build
 
 ```bash

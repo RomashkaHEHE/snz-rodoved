@@ -45,3 +45,5 @@ npm run build
 ```
 
 Подробности см. в [docs/overview.md](docs/overview.md).
+
+Автодеплой и подключение домена описаны в [docs/autodeploy.md](docs/autodeploy.md).

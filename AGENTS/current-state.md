@@ -11,6 +11,7 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - SQLite + Drizzle data layer;
 - shared question catalog and validation;
 - docs and AGENTS handoff layer.
+- GitHub Actions deploy workflow and server bootstrap scripts.
 
 ## Current Priorities
 
@@ -30,6 +31,9 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - Missing or unreadable paper answers are stored as `unknown`.
 - Questions 7 and 8 remain separate because both exist in the paper survey.
 - SQLite is the v1 persistence target for VPS deployment.
+- Production deploy target is isolated under `/home/user1/apps/snz-rodoved` unless changed by `DEPLOY_PATH`.
+- Server `46.16.36.87` has been bootstrapped with user-level service `snz-rodoved`; the app currently runs on `127.0.0.1:4000` behind a future reverse proxy.
+- Domain `snz-rodoved.ru` has an nginx reverse proxy and Let's Encrypt HTTPS certificate on the server. Some local resolvers may still cache the previous parking IP, but authoritative/public DNS points to `46.16.36.87`.
 
 ## Active Tasks
 
@@ -40,6 +44,7 @@ No active implementation task after the initial v1 scaffold. See completed task:
 - [admin-ui.md](tasks/admin-ui.md)
 - [public-page-and-assets.md](tasks/public-page-and-assets.md)
 - [docs-and-handoff.md](tasks/docs-and-handoff.md)
+- [autodeploy.md](tasks/autodeploy.md)
 
 ## Handoff Expectations
 
