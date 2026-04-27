@@ -28,6 +28,21 @@
 { "authenticated": true, "role": "workspace" }
 ```
 
+## Админка
+
+`PATCH /api/admin/passwords`
+
+Требует роль `admin`.
+
+```json
+{
+  "adminPassword": "new-admin-password",
+  "workspacePassword": "new-workspace-password"
+}
+```
+
+Можно передать одно или оба поля. В production изменения сохраняются в `.env` и сразу применяются в текущем процессе.
+
 ## Анкеты
 
 `GET /api/responses`
@@ -47,6 +62,10 @@
 `PATCH /api/responses/:id` обновляет анкету.
 
 `DELETE /api/responses/:id` удаляет анкету.
+
+`POST /api/responses/fake` создает одну фейковую анкету для проверки интерфейса.
+
+`DELETE /api/responses/fake` удаляет только анкеты с признаком `isFake=true`. Реальные анкеты этим endpoint не затрагиваются.
 
 `GET /api/responses/export.csv` выгружает отфильтрованные анкеты в CSV для Excel.
 

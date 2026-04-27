@@ -11,6 +11,7 @@
 - `residence` — `snezhinsk` или `other`.
 - `q4`...`q16` — `yes`, `no`, `unknown`.
 - `q11_war_details` — свободный текст по войне или `—`.
+- `is_fake` — `true` только для тестовых строк, сгенерированных через интерфейс. Реальные анкеты имеют `false`.
 - `created_at`, `updated_at` — ISO-даты.
 
 ## Вопросы
@@ -19,4 +20,7 @@
 
 ## Миграции
 
-Первая миграция хранится в `packages/db/migrations/0001_initial.sql`. При старте API вызывается кодовая миграция из `packages/db/src/migrate.ts`, совпадающая с SQL-файлом.
+Миграции хранятся в `packages/db/migrations`. При старте API вызывается кодовая миграция из `packages/db/src/migrate.ts`.
+
+- `0001_initial` — базовая таблица анкет и индексы.
+- `0002_fake_responses` — признак `is_fake` и индекс для безопасного удаления фейковых строк.

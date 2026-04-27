@@ -39,6 +39,7 @@ describe("SurveyRepository", () => {
     const rows = repository.list();
 
     expect(created.id).toBeTruthy();
+    expect(created.isFake).toBe(false);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.q11WarDetails).toBe("ВОв");
   });
@@ -68,5 +69,18 @@ describe("SurveyRepository", () => {
 
     expect(repository.delete(created.id)).toBe(true);
     expect(repository.list()).toHaveLength(0);
+  });
+
+  it("deletes only fake responses in bulk", () => {
+    connection = createDatabaseConnection({ databasePath: ":memory:" });
+    const repository = new SurveyRepository(connection.db);
+    repository.create(baseInput);
+    repository.create({ ...baseInput, gender: "male" }, { isFake: true });
+
+    expect(repository.deleteFake()).toBe(1);
+
+    const rows = repository.list();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.isFake).toBe(false);
   });
 });

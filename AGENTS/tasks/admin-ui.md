@@ -13,6 +13,9 @@ Give the operator a readable working surface for entering paper surveys, filteri
 - Controls should be large, predictable, and keyboard-friendly.
 - Visual design should be calm and easy to change later.
 - Public, password login, admin login, editor, and data work are now separate routes.
+- `/admin` manages the admin password and the workspace password. The API applies changes immediately and persists them to production `.env`.
+- `/data` auto-refreshes when filters change, when the tab regains focus, and every 30 seconds; there is no manual refresh button.
+- `/data` includes fake-response controls: one click creates one visibly marked fake row, and bulk deletion calls the fake-only endpoint.
 
 ## Relevant Files
 
@@ -31,8 +34,9 @@ Give the operator a readable working surface for entering paper surveys, filteri
 ## Exit Criteria
 
 - `/login` appears for unauthenticated editor/data access and asks only for a password.
-- `/admin` uses username and password.
+- `/admin` uses username and password, then can update both passwords.
 - Operator can create on `/editor`, then edit/delete/filter/analyze/export on `/data`.
+- Fake rows are marked in the table so test data does not blend into real survey data.
 - UI remains usable on desktop and narrow screens.
 
 ## Handoff Notes

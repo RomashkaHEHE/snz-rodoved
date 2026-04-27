@@ -14,6 +14,7 @@ interface CsvColumn {
 
 const columns: CsvColumn[] = [
   { header: "ID", value: (response) => response.id },
+  { header: "Тип строки", value: (response) => (response.isFake ? "Фейковая" : "Реальная") },
   { header: "Дата опроса", value: (response) => response.surveyDate },
   { header: "Пол", value: (response) => genderLabels[response.gender] },
   { header: "Возраст", value: (response) => ageGroupLabels[response.ageGroup] },

@@ -15,6 +15,8 @@ interface ResponsesTableProps {
 }
 
 export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableProps) {
+  const fakeCount = responses.filter((response) => response.isFake).length;
+
   async function handleDelete(response: SurveyResponse) {
     const confirmed = window.confirm(`Удалить анкету от ${response.surveyDate}?`);
     if (!confirmed) {
@@ -31,6 +33,7 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
         <div>
           <p className="eyebrow">Данные</p>
           <h2>Анкеты в базе: {responses.length}</h2>
+          {fakeCount > 0 ? <p className="table-note">Фейковых в текущем срезе: {fakeCount}</p> : null}
         </div>
       </div>
       <div className="table-wrap">
@@ -38,6 +41,7 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
           <thead>
             <tr>
               <th>Дата</th>
+              <th>Тип</th>
               <th>Пол</th>
               <th>Возраст</th>
               <th>Проживание</th>
@@ -50,8 +54,15 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
           </thead>
           <tbody>
             {responses.map((response) => (
-              <tr key={response.id}>
+              <tr className={response.isFake ? "fake-row" : ""} key={response.id}>
                 <td>{response.surveyDate}</td>
+                <td>
+                  {response.isFake ? (
+                    <span className="fake-badge">Фейковая</span>
+                  ) : (
+                    <span className="real-badge">Реальная</span>
+                  )}
+                </td>
                 <td>{genderLabels[response.gender]}</td>
                 <td>{ageGroupLabels[response.ageGroup]}</td>
                 <td>{residenceLabels[response.residence]}</td>
@@ -76,7 +87,7 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
             ))}
             {responses.length === 0 ? (
               <tr>
-                <td colSpan={9}>По текущим фильтрам анкет нет.</td>
+                <td colSpan={10}>По текущим фильтрам анкет нет.</td>
               </tr>
             ) : null}
           </tbody>

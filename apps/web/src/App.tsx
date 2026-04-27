@@ -1,11 +1,14 @@
-import { Download, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Download, Plus, Save, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { AnalyticsSummary, SurveyFilters, SurveyResponse } from "@snz-rodoved/shared";
 import {
   exportResponsesCsv,
+  createFakeResponse,
+  deleteFakeResponses,
   getAnalyticsSummary,
   getSession,
-  listResponses
+  listResponses,
+  updatePasswords
 } from "./api/client";
 import { Dashboard } from "./components/Dashboard";
 import { FilterPanel } from "./components/FilterPanel";
@@ -109,7 +112,7 @@ function PublicPage({
         <img alt="" className="public-hero-bg" src="/images/brand/header.jpg" />
         <div className="public-hero-content">
           <h1>Родовед</h1>
-          <p>{"<описание проекта>"}</p>
+          <p>{"<описание>"}</p>
           {authenticated ? (
             <button className="primary-button" type="button" onClick={() => navigate("/editor")}>
               Перейти в рабочую зону
@@ -118,22 +121,20 @@ function PublicPage({
         </div>
       </section>
 
-      <section className="public-contacts">
-        <div>
-          <p className="eyebrow">Контакты</p>
-        </div>
+      <section className="public-contacts" aria-label="Контакты">
+        <p className="eyebrow">Контакты</p>
         <dl className="contact-list">
           <div>
             <dt>Телефон</dt>
-            <dd>{"<телефон>"}</dd>
+            <dd>+7 (000) 000-00-00</dd>
           </div>
           <div>
             <dt>Telegram</dt>
-            <dd>{"<telegram>"}</dd>
+            <dd>@rodoved_example</dd>
           </div>
           <div>
             <dt>Почта</dt>
-            <dd>{"<почта>"}</dd>
+            <dd>info@example.ru</dd>
           </div>
         </dl>
       </section>
@@ -164,6 +165,8 @@ function DataPage({ navigate }: { navigate: (route: AppRoute) => void }) {
   const [editing, setEditing] = useState<SurveyResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [fakeBusy, setFakeBusy] = useState(false);
+  const [fakeActionStatus, setFakeActionStatus] = useState<string | null>(null);
 
   const refreshData = useCallback(async () => {
     setLoading(true);
@@ -180,7 +183,27 @@ function DataPage({ navigate }: { navigate: (route: AppRoute) => void }) {
   }, [filters]);
 
   useEffect(() => {
+    function handleFocus() {
+      void refreshData();
+    }
+
+    function handleVisibilityChange() {
+      if (!document.hidden) {
+        void refreshData();
+      }
+    }
+
     void refreshData();
+    const intervalId = window.setInterval(() => void refreshData(), 30_000);
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [refreshData]);
 
   async function handleExport() {
@@ -192,8 +215,44 @@ function DataPage({ navigate }: { navigate: (route: AppRoute) => void }) {
     }
   }
 
+  async function handleCreateFake() {
+    setFakeBusy(true);
+    setFakeActionStatus(null);
+    try {
+      await createFakeResponse();
+      setFakeActionStatus("Фейковая анкета добавлена.");
+      await refreshData();
+    } catch {
+      setFakeActionStatus("Не удалось добавить фейковую анкету.");
+    } finally {
+      setFakeBusy(false);
+    }
+  }
+
+  async function handleDeleteFake() {
+    const confirmed = window.confirm(
+      "Удалить все фейковые анкеты? Будут удалены только строки с признаком «Фейковая». Настоящие анкеты не затрагиваются."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setFakeBusy(true);
+    setFakeActionStatus(null);
+    try {
+      const deleted = await deleteFakeResponses();
+      setFakeActionStatus(`Удалено фейковых анкет: ${deleted}.`);
+      await refreshData();
+    } catch {
+      setFakeActionStatus("Не удалось удалить фейковые анкеты.");
+    } finally {
+      setFakeBusy(false);
+    }
+  }
+
   return (
-    <main className="workspace-shell data-shell">
+    <main className="workspace-shell data-shell" aria-busy={loading}>
       <WorkspaceHeader activeRoute="/data" navigate={navigate} />
       <section className="data-toolbar">
         <div>
@@ -201,9 +260,17 @@ function DataPage({ navigate }: { navigate: (route: AppRoute) => void }) {
           <h1>Аналитика и анкеты</h1>
         </div>
         <div className="header-actions">
-          <button className="ghost-button" disabled={loading} onClick={refreshData} type="button">
-            <RefreshCw aria-hidden size={18} />
-            Обновить
+          <button className="ghost-button" onClick={() => navigate("/editor")} type="button">
+            <Plus aria-hidden size={18} />
+            Новая анкета
+          </button>
+          <button className="ghost-button" disabled={fakeBusy} onClick={handleCreateFake} type="button">
+            <Plus aria-hidden size={18} />
+            Фейковая анкета
+          </button>
+          <button className="ghost-button danger-button" disabled={fakeBusy} onClick={handleDeleteFake} type="button">
+            <Trash2 aria-hidden size={18} />
+            Удалить фейковые
           </button>
           <button className="primary-button" disabled={exporting} onClick={handleExport} type="button">
             <Download aria-hidden size={18} />
@@ -211,6 +278,7 @@ function DataPage({ navigate }: { navigate: (route: AppRoute) => void }) {
           </button>
         </div>
       </section>
+      {fakeActionStatus ? <p className="data-status">{fakeActionStatus}</p> : null}
 
       <FilterPanel filters={filters} onChange={setFilters} />
       <Dashboard summary={summary} />
@@ -304,19 +372,133 @@ function normalizeRoute(pathname: string): AppRoute {
 }
 
 function AdminPage({ navigate }: { navigate: (route: AppRoute) => void }) {
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminConfirm, setAdminConfirm] = useState("");
+  const [workspacePassword, setWorkspacePassword] = useState("");
+  const [workspaceConfirm, setWorkspaceConfirm] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setStatus(null);
+
+    if (!adminPassword && !workspacePassword) {
+      setStatus("Укажите хотя бы один новый пароль.");
+      return;
+    }
+
+    if (adminPassword && adminPassword.length < 8) {
+      setStatus("Пароль админки должен быть не короче 8 символов.");
+      return;
+    }
+
+    if (workspacePassword && workspacePassword.length < 8) {
+      setStatus("Пароль рабочей зоны должен быть не короче 8 символов.");
+      return;
+    }
+
+    if (adminPassword !== adminConfirm) {
+      setStatus("Пароль админки и подтверждение не совпадают.");
+      return;
+    }
+
+    if (workspacePassword !== workspaceConfirm) {
+      setStatus("Пароль рабочей зоны и подтверждение не совпадают.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const result = await updatePasswords({
+        adminPassword: adminPassword || undefined,
+        workspacePassword: workspacePassword || undefined
+      });
+
+      setAdminPassword("");
+      setAdminConfirm("");
+      setWorkspacePassword("");
+      setWorkspaceConfirm("");
+      setStatus(result.persisted ? "Пароли обновлены." : "Пароли обновлены до перезапуска.");
+    } catch {
+      setStatus("Не удалось обновить пароли.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <main className="workspace-shell editor-shell">
-      <section className="admin-placeholder">
-        <p className="eyebrow">Админка</p>
-        <h1>Вход выполнен</h1>
-        <div className="header-actions">
-          <button className="ghost-button" onClick={() => navigate("/editor")} type="button">
-            Ввод
-          </button>
-          <button className="ghost-button" onClick={() => navigate("/data")} type="button">
-            Данные
-          </button>
+    <main className="workspace-shell admin-shell">
+      <section className="admin-panel">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Админка</p>
+            <h1>Пароли доступа</h1>
+          </div>
+          <div className="header-actions">
+            <button className="ghost-button" onClick={() => navigate("/editor")} type="button">
+              Ввод
+            </button>
+            <button className="ghost-button" onClick={() => navigate("/data")} type="button">
+              Данные
+            </button>
+          </div>
         </div>
+        <form className="admin-password-form" onSubmit={handleSubmit}>
+          <fieldset>
+            <legend>Админка</legend>
+            <label>
+              Новый пароль
+              <input
+                autoComplete="new-password"
+                minLength={8}
+                type="password"
+                value={adminPassword}
+                onChange={(event) => setAdminPassword(event.target.value)}
+              />
+            </label>
+            <label>
+              Повторите пароль
+              <input
+                autoComplete="new-password"
+                minLength={8}
+                type="password"
+                value={adminConfirm}
+                onChange={(event) => setAdminConfirm(event.target.value)}
+              />
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Рабочая зона</legend>
+            <label>
+              Новый пароль
+              <input
+                autoComplete="new-password"
+                minLength={8}
+                type="password"
+                value={workspacePassword}
+                onChange={(event) => setWorkspacePassword(event.target.value)}
+              />
+            </label>
+            <label>
+              Повторите пароль
+              <input
+                autoComplete="new-password"
+                minLength={8}
+                type="password"
+                value={workspaceConfirm}
+                onChange={(event) => setWorkspaceConfirm(event.target.value)}
+              />
+            </label>
+          </fieldset>
+
+          {status ? <p className="form-status">{status}</p> : null}
+          <button className="primary-button" disabled={saving} type="submit">
+            <Save aria-hidden size={18} />
+            {saving ? "Сохранение..." : "Сохранить пароли"}
+          </button>
+        </form>
       </section>
     </main>
   );

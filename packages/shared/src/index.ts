@@ -203,6 +203,7 @@ export type SurveyFilters = z.infer<typeof surveyFiltersSchema>;
 
 export interface SurveyResponse extends SurveyResponseInput {
   id: string;
+  isFake: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -224,7 +225,12 @@ export interface AnalyticsSummary {
   warDetails: Array<{ label: string; count: number }>;
 }
 
-export const warDetailQuickValues = ["ВОв", "I Мировая", "иная", "—"] as const;
+export const warDetailQuickValues = [
+  "Великая Отечественная война",
+  "Первая мировая война",
+  "Иная война",
+  "—"
+] as const;
 
 export function createEmptyAnswerRecord(): Record<AnswerValue, number> {
   return {

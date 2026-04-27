@@ -37,13 +37,14 @@ const answerColumns: Record<AnswerQuestionId, ResponseColumn> = {
 export class SurveyRepository {
   constructor(private readonly db: AppDatabase) {}
 
-  create(input: SurveyResponseInput): SurveyResponse {
+  create(input: SurveyResponseInput, options: { isFake?: boolean } = {}): SurveyResponse {
     const parsed = surveyResponseInputSchema.parse(input);
     const now = new Date().toISOString();
     const row: NewResponseRow = {
       ...parsed,
       id: randomUUID(),
       q11WarDetails: parsed.q11WarDetails ?? null,
+      isFake: options.isFake ? "true" : "false",
       createdAt: now,
       updatedAt: now
     };
@@ -90,6 +91,11 @@ export class SurveyRepository {
     const result = this.db.delete(responses).where(eq(responses.id, id)).run();
     return result.changes > 0;
   }
+
+  deleteFake(): number {
+    const result = this.db.delete(responses).where(eq(responses.isFake, "true")).run();
+    return result.changes;
+  }
 }
 
 function buildFilterConditions(filters: SurveyFilters): SQL[] {
@@ -128,6 +134,7 @@ function buildFilterConditions(filters: SurveyFilters): SQL[] {
 function toSurveyResponse(row: ResponseRow): SurveyResponse {
   return {
     ...row,
+    isFake: row.isFake === "true",
     q11WarDetails: row.q11WarDetails ?? undefined
   };
 }

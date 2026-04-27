@@ -31,6 +31,22 @@ CREATE INDEX IF NOT EXISTS responses_age_group_idx ON responses (age_group);
 CREATE INDEX IF NOT EXISTS responses_residence_idx ON responses (residence);
 `;
 
+export const fakeResponseMigrationSql = `
+ALTER TABLE responses ADD COLUMN is_fake TEXT NOT NULL DEFAULT 'false';
+CREATE INDEX IF NOT EXISTS responses_is_fake_idx ON responses (is_fake);
+`;
+
+const migrations = [
+  {
+    id: "0001_initial",
+    sql: initialMigrationSql
+  },
+  {
+    id: "0002_fake_responses",
+    sql: fakeResponseMigrationSql
+  }
+] as const;
+
 export function runMigrations(sqlite: Database.Database): void {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS __app_migrations (
@@ -39,20 +55,22 @@ export function runMigrations(sqlite: Database.Database): void {
     );
   `);
 
-  const alreadyApplied = sqlite
-    .prepare("SELECT id FROM __app_migrations WHERE id = ?")
-    .get("0001_initial");
+  for (const migration of migrations) {
+    const alreadyApplied = sqlite
+      .prepare("SELECT id FROM __app_migrations WHERE id = ?")
+      .get(migration.id);
 
-  if (alreadyApplied) {
-    return;
+    if (alreadyApplied) {
+      continue;
+    }
+
+    const apply = sqlite.transaction(() => {
+      sqlite.exec(migration.sql);
+      sqlite
+        .prepare("INSERT INTO __app_migrations (id, applied_at) VALUES (?, ?)")
+        .run(migration.id, new Date().toISOString());
+    });
+
+    apply();
   }
-
-  const apply = sqlite.transaction(() => {
-    sqlite.exec(initialMigrationSql);
-    sqlite
-      .prepare("INSERT INTO __app_migrations (id, applied_at) VALUES (?, ?)")
-      .run("0001_initial", new Date().toISOString());
-  });
-
-  apply();
 }

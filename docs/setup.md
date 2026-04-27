@@ -39,3 +39,5 @@ npm run dev
 ## Локальные учетные данные
 
 В development, если переменные не заданы, используется пароль `admin` для рабочей зоны и `admin` / `admin` для админки. В production нужно явно задать `WORKSPACE_PASSWORD`, `ADMIN_PASSWORD` и `SESSION_SECRET`.
+
+В production администратор может поменять `ADMIN_PASSWORD` и `WORKSPACE_PASSWORD` через `/admin`; сервер сохраняет новые значения в production `.env`.

@@ -5,18 +5,27 @@ import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import { createDatabaseConnection, SurveyRepository, type DatabaseConnection } from "@snz-rodoved/db";
 import {
+  ageGroupValues,
+  answerQuestionIds,
+  answerValues,
+  genderValues,
   partialSurveyResponseInputSchema,
+  residenceValues,
   surveyResponseInputSchema,
-  type PartialSurveyResponseInput
+  warDetailQuickValues,
+  type PartialSurveyResponseInput,
+  type SurveyResponseInput
 } from "@snz-rodoved/shared";
 import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import { buildAnalyticsSummary } from "./analytics.js";
 import {
+  applyPasswordUpdate,
   clearSessionCookie,
   credentialsMatch,
   getSessionRole,
   loginSchema,
+  passwordUpdateSchema,
   requireAdmin,
   requireWorkspace,
   resolveAuthConfig,
@@ -133,6 +142,11 @@ function registerApiRoutes(
     return reply.code(201).send({ response });
   });
 
+  app.post("/api/responses/fake", { preHandler: requireWorkspace }, async (_request, reply) => {
+    const response = repository.create(createFakeResponseInput(), { isFake: true });
+    return reply.code(201).send({ response });
+  });
+
   app.patch<{
     Params: { id: string };
     Body: PartialSurveyResponseInput;
@@ -145,6 +159,11 @@ function registerApiRoutes(
     }
 
     return { response };
+  });
+
+  app.delete("/api/responses/fake", { preHandler: requireWorkspace }, async () => {
+    const deleted = repository.deleteFake();
+    return { deleted };
   });
 
   app.delete<{ Params: { id: string } }>(
@@ -171,6 +190,18 @@ function registerApiRoutes(
     open: connection.sqlite.open,
     readonly: connection.sqlite.readonly
   }));
+
+  app.patch("/api/admin/passwords", { preHandler: requireAdmin }, async (request) => {
+    const input = passwordUpdateSchema.parse(request.body);
+    const persisted = persistPasswordUpdate(input);
+
+    applyPasswordUpdate(authConfig, input);
+
+    return {
+      updated: true,
+      persisted
+    };
+  });
 }
 
 async function registerFrontend(app: FastifyInstance, configuredDir: string | false | undefined) {
@@ -178,7 +209,7 @@ async function registerFrontend(app: FastifyInstance, configuredDir: string | fa
     return;
   }
 
-  const webDistDir = configuredDir ?? path.resolve(process.cwd(), "apps/web/dist");
+  const webDistDir = configuredDir ?? resolveWebDistDir();
 
   if (!fs.existsSync(webDistDir)) {
     return;
@@ -196,4 +227,113 @@ async function registerFrontend(app: FastifyInstance, configuredDir: string | fa
 
     return reply.code(404).send({ error: "not_found" });
   });
+}
+
+function resolveWebDistDir(): string {
+  const candidates = [
+    process.env.RODOVED_WEB_DIST_DIR,
+    process.env.INIT_CWD ? path.resolve(process.env.INIT_CWD, "apps/web/dist") : undefined,
+    path.resolve(process.cwd(), "apps/web/dist"),
+    path.resolve(process.cwd(), "../web/dist")
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
+}
+
+function persistPasswordUpdate(input: { adminPassword?: string; workspacePassword?: string }): boolean {
+  const envFile = resolveWritableEnvFile();
+
+  if (!envFile) {
+    return false;
+  }
+
+  let content = fs.readFileSync(envFile, "utf8");
+
+  if (input.adminPassword) {
+    content = upsertEnvValue(content, "ADMIN_PASSWORD", input.adminPassword);
+  }
+
+  if (input.workspacePassword) {
+    content = upsertEnvValue(content, "WORKSPACE_PASSWORD", input.workspacePassword);
+  }
+
+  fs.writeFileSync(envFile, content, "utf8");
+  return true;
+}
+
+function resolveWritableEnvFile(): string | null {
+  if (process.env.NODE_ENV !== "production" && !process.env.RODOVED_ENV_FILE) {
+    return null;
+  }
+
+  const candidates = [
+    process.env.RODOVED_ENV_FILE,
+    process.env.DATABASE_URL && process.env.DATABASE_URL !== ":memory:"
+      ? path.resolve(path.dirname(process.env.DATABASE_URL), "..", ".env")
+      : undefined,
+    process.env.INIT_CWD ? path.resolve(process.env.INIT_CWD, ".env") : undefined,
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(process.cwd(), "../../.env")
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
+}
+
+function upsertEnvValue(content: string, key: string, value: string): string {
+  const line = `${key}=${value}`;
+  const pattern = new RegExp(`^${key}=.*$`, "m");
+
+  if (pattern.test(content)) {
+    return content.replace(pattern, line);
+  }
+
+  const separator = content.endsWith("\n") ? "" : "\n";
+  return `${content}${separator}${line}\n`;
+}
+
+function createFakeResponseInput(): SurveyResponseInput {
+  const input: SurveyResponseInput = {
+    surveyDate: randomRecentDate(),
+    gender: randomItem(genderValues),
+    ageGroup: randomItem(ageGroupValues),
+    residence: randomItem(residenceValues),
+    q11WarDetails: "—",
+    q4: "unknown",
+    q5: "unknown",
+    q6: "unknown",
+    q7: "unknown",
+    q8: "unknown",
+    q9: "unknown",
+    q10: "unknown",
+    q11: "unknown",
+    q12: "unknown",
+    q13: "unknown",
+    q14: "unknown",
+    q15: "unknown",
+    q16: "unknown"
+  };
+
+  for (const questionId of answerQuestionIds) {
+    input[questionId] = randomItem(answerValues);
+  }
+
+  if (input.q11 === "yes") {
+    input.q11WarDetails = randomItem(warDetailQuickValues);
+  }
+
+  return input;
+}
+
+function randomRecentDate(): string {
+  const date = new Date();
+  date.setDate(date.getDate() - randomInt(0, 45));
+  return date.toISOString().slice(0, 10);
+}
+
+function randomItem<TValue>(values: readonly TValue[]): TValue {
+  return values[randomInt(0, values.length - 1)]!;
+}
+
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }

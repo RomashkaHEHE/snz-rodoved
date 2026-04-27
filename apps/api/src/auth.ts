@@ -13,7 +13,24 @@ export const workspaceLoginSchema = z.object({
   password: z.string().min(1)
 });
 
+const managedPasswordSchema = z
+  .string()
+  .min(8)
+  .max(128)
+  .regex(/^[A-Za-z0-9!@#$%^&*()_+\-=[\]{};:,.?/~]+$/);
+
+export const passwordUpdateSchema = z
+  .object({
+    adminPassword: managedPasswordSchema.optional(),
+    workspacePassword: managedPasswordSchema.optional()
+  })
+  .refine((value) => value.adminPassword || value.workspacePassword, {
+    message: "At least one password must be provided"
+  });
+
 export type SessionRole = "workspace" | "admin";
+
+export type PasswordUpdateInput = z.infer<typeof passwordUpdateSchema>;
 
 export interface AuthConfig {
   username: string;
@@ -57,6 +74,16 @@ export function workspacePasswordMatches(
   config: AuthConfig
 ): boolean {
   return safeEqual(input.password, config.workspacePassword);
+}
+
+export function applyPasswordUpdate(config: AuthConfig, input: PasswordUpdateInput): void {
+  if (input.adminPassword) {
+    config.password = input.adminPassword;
+  }
+
+  if (input.workspacePassword) {
+    config.workspacePassword = input.workspacePassword;
+  }
 }
 
 export function setSessionCookie(

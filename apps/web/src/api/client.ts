@@ -38,6 +38,16 @@ export async function logout(): Promise<SessionResponse> {
   });
 }
 
+export async function updatePasswords(input: {
+  adminPassword?: string;
+  workspacePassword?: string;
+}): Promise<{ updated: boolean; persisted: boolean }> {
+  return request<{ updated: boolean; persisted: boolean }>("/api/admin/passwords", {
+    method: "PATCH",
+    body: JSON.stringify(input)
+  });
+}
+
 export async function listResponses(filters: SurveyFilters): Promise<SurveyResponse[]> {
   const query = buildFilterQuery(filters);
   const result = await request<{ responses: SurveyResponse[] }>(`/api/responses${query}`);
@@ -48,6 +58,13 @@ export async function createResponse(input: SurveyResponseInput): Promise<Survey
   const result = await request<{ response: SurveyResponse }>("/api/responses", {
     method: "POST",
     body: JSON.stringify(input)
+  });
+  return result.response;
+}
+
+export async function createFakeResponse(): Promise<SurveyResponse> {
+  const result = await request<{ response: SurveyResponse }>("/api/responses/fake", {
+    method: "POST"
   });
   return result.response;
 }
@@ -67,6 +84,13 @@ export async function deleteResponse(id: string): Promise<void> {
   await request<void>(`/api/responses/${id}`, {
     method: "DELETE"
   });
+}
+
+export async function deleteFakeResponses(): Promise<number> {
+  const result = await request<{ deleted: number }>("/api/responses/fake", {
+    method: "DELETE"
+  });
+  return result.deleted;
 }
 
 export async function getAnalyticsSummary(filters: SurveyFilters): Promise<AnalyticsSummary> {

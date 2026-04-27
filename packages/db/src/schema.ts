@@ -23,6 +23,7 @@ export const responses = sqliteTable(
     q14: text("q14").$type<AnswerValue>().notNull(),
     q15: text("q15").$type<AnswerValue>().notNull(),
     q16: text("q16").$type<AnswerValue>().notNull(),
+    isFake: text("is_fake").$type<"true" | "false">().notNull().default("false"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull()
   },
@@ -30,7 +31,8 @@ export const responses = sqliteTable(
     surveyDateIdx: index("responses_survey_date_idx").on(table.surveyDate),
     genderIdx: index("responses_gender_idx").on(table.gender),
     ageGroupIdx: index("responses_age_group_idx").on(table.ageGroup),
-    residenceIdx: index("responses_residence_idx").on(table.residence)
+    residenceIdx: index("responses_residence_idx").on(table.residence),
+    isFakeIdx: index("responses_is_fake_idx").on(table.isFake)
   })
 );
 
