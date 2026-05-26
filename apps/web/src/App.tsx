@@ -1,4 +1,4 @@
-import { Download, Plus, Save, Trash2 } from "lucide-react";
+import { Download, Mail, Phone, Plus, Save, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { AnalyticsSummary, SurveyFilters, SurveyResponse } from "@snz-rodoved/shared";
 import {
@@ -112,31 +112,44 @@ function PublicPage({
         <img alt="" className="public-hero-bg" src="/images/brand/header.jpg" />
         <div className="public-hero-content">
           <h1>Родовед</h1>
-          <p>{"<описание>"}</p>
-          {authenticated ? (
-            <button className="primary-button" type="button" onClick={() => navigate("/editor")}>
-              Перейти в рабочую зону
-            </button>
-          ) : null}
+          <div className="public-hero-actions">
+            {authenticated ? (
+              <button className="primary-button" type="button" onClick={() => navigate("/editor")}>
+                Перейти в рабочую зону
+              </button>
+            ) : null}
+            <a className="secondary-button" href="#public-info">
+              Гостевой вход
+            </a>
+          </div>
+          <div className="public-description" id="public-info">
+            <p>Генеалогия доступна каждому.</p>
+          </div>
         </div>
       </section>
 
       <section className="public-contacts" aria-label="Контакты">
         <p className="eyebrow">Контакты</p>
-        <dl className="contact-list">
-          <div>
-            <dt>Телефон</dt>
-            <dd>+7 (000) 000-00-00</dd>
-          </div>
-          <div>
-            <dt>Telegram</dt>
-            <dd>@rodoved_example</dd>
-          </div>
-          <div>
-            <dt>Почта</dt>
-            <dd>info@example.ru</dd>
-          </div>
-        </dl>
+        <div className="contact-list">
+          <a href="https://vk.ru/snz_rodoved" rel="noreferrer" target="_blank">
+            <span className="contact-icon contact-icon-text" aria-hidden>
+              VK
+            </span>
+            <span>Группа ВК</span>
+          </a>
+          <a href="https://t.me/Alyona_Martyanova" rel="noreferrer" target="_blank">
+            <Send aria-hidden size={22} />
+            <span>Telegram</span>
+          </a>
+          <a href="mailto:example@example.ru">
+            <Mail aria-hidden size={22} />
+            <span>Почта</span>
+          </a>
+          <a href="/contacts/rodoved.vcf" download>
+            <Phone aria-hidden size={22} />
+            <span>Визитка</span>
+          </a>
+        </div>
       </section>
     </main>
   );

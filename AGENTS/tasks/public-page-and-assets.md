@@ -1,6 +1,6 @@
 # Task: Public Page And Assets
 
-Status: DONE
+Status: WATCH
 Priority: Medium
 
 ## Goal
@@ -10,28 +10,33 @@ Provide a public first screen at `/` without exposing survey data, and move cust
 ## Current Understanding
 
 - Public statistics are intentionally out of scope for v1.
-- Contact text is placeholder copy until the customer provides final wording.
+- Contacts should be active icon links rather than visible raw phone/email rows.
 - Customer images are useful for brand direction but should remain easy to replace.
-- Public descriptive copy is placeholder-only until project wording is provided.
+- Public descriptive copy remains short until exact VK/group wording is available.
 - The public page must not show a work-zone button unless the user is already authenticated.
+- The "guest entry" on `/` is a safe public-page jump, not access to private survey data.
+- Current public accents use burgundy close to RGB(100, 0, 27).
 
 ## Relevant Files
 
 - `apps/web/src/App.tsx`
 - `apps/web/src/styles.css`
 - `apps/web/public/images/brand/*`
+- `apps/web/public/contacts/rodoved.vcf`
 - `docs/assets.md`
 
 ## Next Steps
 
-1. Replace placeholder contact text and project description when final copy is available.
-2. Decide whether `background-example.jpg` should be used in a future design pass.
+1. Replace the short public description when final VK/group copy is available.
+2. Replace placeholder email in public contacts when the customer provides the real address.
+3. Decide whether `background-example.jpg` should be used in a future design pass.
 
 ## Exit Criteria
 
 - `/` renders a public project page.
 - `/login`, `/editor`, and `/data` are the working routes.
 - Root `images` folder is no longer used.
+- Contact actions link to VK, Telegram, mailto placeholder, and a downloadable vCard.
 
 ## Handoff Notes
 

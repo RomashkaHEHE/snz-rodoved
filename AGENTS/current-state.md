@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-04-27
+Last updated: 2026-05-27
 
 ## Baseline
 
@@ -23,6 +23,7 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 ## Stable Product Decisions
 
 - Public `/` does not show survey analytics in v1.
+- Public `/` uses burgundy accents, a safe guest-entry jump to public info, and active contact icons for VK, Telegram, email, and vCard.
 - `/login` is password-only workspace login.
 - `/admin` is a separate username/password admin login.
 - `/admin` can update both the admin password and the workspace password.

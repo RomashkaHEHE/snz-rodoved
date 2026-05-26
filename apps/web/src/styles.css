@@ -1,4 +1,9 @@
 :root {
+  --color-primary: #64001b;
+  --color-primary-strong: #4d0015;
+  --color-primary-soft: #f3e4e8;
+  --color-text: #22302b;
+  --color-muted: #6c5f63;
   color: #22302b;
   background: #f5f1e9;
   font-family:
@@ -28,7 +33,7 @@ button {
 }
 
 .eyebrow {
-  color: #5f746d;
+  color: var(--color-muted);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -60,7 +65,7 @@ button {
 }
 
 .public-hero::after {
-  background: linear-gradient(90deg, rgba(31, 38, 34, 0.74), rgba(31, 38, 34, 0.28));
+  background: linear-gradient(90deg, rgba(55, 0, 16, 0.78), rgba(55, 0, 16, 0.3));
   content: "";
   inset: 0;
   position: absolute;
@@ -81,8 +86,25 @@ button {
 
 .public-hero p {
   font-size: 1.25rem;
-  margin: 0 0 1.25rem;
+  margin: 0;
   max-width: 540px;
+}
+
+.public-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-bottom: 1.15rem;
+}
+
+.public-description {
+  border-top: 1px solid rgba(255, 250, 240, 0.42);
+  max-width: 560px;
+  padding-top: 1rem;
+}
+
+.public-description p {
+  color: #fff7ea;
 }
 
 .public-template,
@@ -118,32 +140,40 @@ button {
 }
 
 .contact-list {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.contact-list a {
+  align-items: center;
+  background: #fffdf8;
   border: 1px solid #d9cebd;
   border-radius: 4px;
-  display: grid;
-  gap: 0;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 0;
-}
-
-.contact-list div {
-  display: grid;
-  gap: 0.25rem;
-  grid-template-columns: 1fr;
-  padding: 1rem;
-}
-
-.contact-list div + div {
-  border-left: 1px solid #e4dac9;
-}
-
-.contact-list dt {
-  color: #5f746d;
+  color: var(--color-primary);
+  display: flex;
+  gap: 0.7rem;
   font-weight: 700;
+  min-height: 64px;
+  padding: 1rem;
+  text-decoration: none;
 }
 
-.contact-list dd {
-  margin: 0;
+.contact-list a:hover {
+  border-color: var(--color-primary);
+}
+
+.contact-icon-text {
+  align-items: center;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
 }
 
 .workspace-shell {
@@ -191,8 +221,8 @@ button {
 }
 
 .workspace-header nav button.is-active {
-  border-color: #2d6f73;
-  color: #2d6f73;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .editor-intro,
@@ -308,6 +338,7 @@ select {
 }
 
 .primary-button,
+.secondary-button,
 .ghost-button {
   align-items: center;
   border: 0;
@@ -322,8 +353,17 @@ select {
 }
 
 .primary-button {
-  background: #2d6f73;
+  background: var(--color-primary);
   color: #fff;
+}
+
+.primary-button:hover {
+  background: var(--color-primary-strong);
+}
+
+.secondary-button {
+  background: rgba(255, 250, 240, 0.9);
+  color: var(--color-primary);
 }
 
 .ghost-button {
@@ -354,8 +394,8 @@ select {
 
 .segmented button.is-selected,
 .multi-toggle button.is-selected {
-  background: #2d6f73;
-  border-color: #2d6f73;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: #fff;
 }
 
@@ -383,7 +423,7 @@ select {
 .form-status,
 .data-status,
 .table-note {
-  color: #2d6f73;
+  color: var(--color-primary);
   font-weight: 700;
   margin: 0 0 1rem;
 }
@@ -431,7 +471,7 @@ select {
 }
 
 .stat-card span {
-  color: #5f746d;
+  color: var(--color-muted);
   display: block;
 }
 
@@ -474,7 +514,7 @@ select {
 }
 
 .answer-bar i {
-  background: #2d6f73;
+  background: var(--color-primary);
   display: block;
   height: 100%;
 }
@@ -499,7 +539,7 @@ td {
 }
 
 th {
-  color: #5f746d;
+  color: var(--color-muted);
   font-size: 0.85rem;
 }
 
@@ -585,7 +625,7 @@ th {
 }
 
 .skeleton {
-  color: #5f746d;
+  color: var(--color-muted);
 }
 
 @media (max-width: 980px) {
@@ -625,18 +665,8 @@ th {
     padding: 2rem 1.25rem;
   }
 
-  .contact-list div {
-    border-left: 0;
-    grid-template-columns: 1fr;
-  }
-
   .contact-list {
     grid-template-columns: 1fr;
-  }
-
-  .contact-list div + div {
-    border-left: 0;
-    border-top: 1px solid #e4dac9;
   }
 
   .admin-password-form fieldset {
