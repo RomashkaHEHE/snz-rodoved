@@ -30,6 +30,7 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - `/editor` is for entering new responses.
 - `/data` is for filters, PDF files for the selected date period, collapsible visualization, table work, editing/deleting, and CSV export. Data refreshes automatically on filter changes, focus, and a short interval.
 - `/pdf` is the protected PDF archive for uploading, listing, downloading, and deleting scanned paper questionnaires.
+- Workspace pages support a phone-first control mode below tablet widths: fixed bottom navigation, larger stable answer grids, sticky form save action, and mobile card rows for the response table.
 - PDF archive files are one PDF per survey day. The operator manually names files as `YYYYMMDD_анкеты.pdf`; the app derives `surveyDate` from that name.
 - PDF files may contain personal contact data written on paper, so they are never public and are served only through workspace-authenticated API routes.
 - Public `/` only shows the work-zone button when the user is already authenticated.
@@ -51,6 +52,7 @@ No active implementation task after the initial v1 scaffold. See completed task:
 - [admin-ui.md](tasks/admin-ui.md)
 - [public-page-and-assets.md](tasks/public-page-and-assets.md)
 - [pdf-archive.md](tasks/pdf-archive.md)
+- [responsive-workspace.md](tasks/responsive-workspace.md)
 - [docs-and-handoff.md](tasks/docs-and-handoff.md)
 - [autodeploy.md](tasks/autodeploy.md)
 

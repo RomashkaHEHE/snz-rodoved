@@ -1,4 +1,15 @@
-import { Download, FileText, Mail, Phone, Plus, Save, Send, Trash2 } from "lucide-react";
+import {
+  ClipboardList,
+  Database,
+  Download,
+  FileText,
+  Mail,
+  Phone,
+  Plus,
+  Save,
+  Send,
+  Trash2
+} from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { AnalyticsSummary, SurveyFilters, SurveyResponse } from "@snz-rodoved/shared";
 import {
@@ -365,21 +376,24 @@ function WorkspaceHeader({
           onClick={() => navigate("/editor")}
           type="button"
         >
-          Ввод
+          <ClipboardList aria-hidden size={18} />
+          <span>Ввод</span>
         </button>
         <button
           className={activeRoute === "/data" ? "is-active" : ""}
           onClick={() => navigate("/data")}
           type="button"
         >
-          Данные
+          <Database aria-hidden size={18} />
+          <span>Данные</span>
         </button>
         <button
           className={activeRoute === "/pdf" ? "is-active" : ""}
           onClick={() => navigate("/pdf")}
           type="button"
         >
-          PDF-архив
+          <FileText aria-hidden size={18} />
+          <span>PDF</span>
         </button>
       </nav>
     </header>

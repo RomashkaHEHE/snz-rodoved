@@ -141,11 +141,13 @@ export function ResponseForm({ editing, onSaved, onCancelEdit }: ResponseFormPro
           ))}
         </div>
 
-        {status ? <p className="form-status">{status}</p> : null}
-        <button className="primary-button" disabled={saving} type="submit">
-          <Save aria-hidden size={20} />
-          {saving ? "Сохранение..." : editing ? "Сохранить изменения" : "Сохранить анкету"}
-        </button>
+        <div className="form-actions">
+          {status ? <p className="form-status">{status}</p> : null}
+          <button className="primary-button" disabled={saving} type="submit">
+            <Save aria-hidden size={20} />
+            {saving ? "Сохранение..." : editing ? "Сохранить изменения" : "Сохранить анкету"}
+          </button>
+        </div>
       </form>
     </section>
   );

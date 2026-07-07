@@ -55,25 +55,25 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
           <tbody>
             {responses.map((response) => (
               <tr className={response.isFake ? "fake-row" : ""} key={response.id}>
-                <td>{response.surveyDate}</td>
-                <td>
+                <td data-label="Дата">{response.surveyDate}</td>
+                <td data-label="Тип">
                   {response.isFake ? (
                     <span className="fake-badge">Фейковая</span>
                   ) : (
                     <span className="real-badge">Реальная</span>
                   )}
                 </td>
-                <td>{genderLabels[response.gender]}</td>
-                <td>{ageGroupLabels[response.ageGroup]}</td>
-                <td>{residenceLabels[response.residence]}</td>
-                <td>{answerLabels[response.q7]}</td>
-                <td>{answerLabels[response.q8]}</td>
-                <td>
+                <td data-label="Пол">{genderLabels[response.gender]}</td>
+                <td data-label="Возраст">{ageGroupLabels[response.ageGroup]}</td>
+                <td data-label="Проживание">{residenceLabels[response.residence]}</td>
+                <td data-label="Q7">{answerLabels[response.q7]}</td>
+                <td data-label="Q8">{answerLabels[response.q8]}</td>
+                <td data-label="Q11">
                   {answerLabels[response.q11]}
                   {response.q11WarDetails ? `, ${response.q11WarDetails}` : ""}
                 </td>
-                <td>{answerLabels[response.q16]}</td>
-                <td>
+                <td data-label="Помощь">{answerLabels[response.q16]}</td>
+                <td data-label="Действия">
                   <div className="row-actions">
                     <button aria-label="Редактировать" onClick={() => onEdit(response)} type="button">
                       <Pencil aria-hidden size={18} />
@@ -87,7 +87,9 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
             ))}
             {responses.length === 0 ? (
               <tr>
-                <td colSpan={10}>По текущим фильтрам анкет нет.</td>
+                <td className="empty-table-cell" colSpan={10}>
+                  По текущим фильтрам анкет нет.
+                </td>
               </tr>
             ) : null}
           </tbody>
