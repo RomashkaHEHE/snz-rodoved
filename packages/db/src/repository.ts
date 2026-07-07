@@ -2,18 +2,28 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import {
   answerQuestionIds,
+  parseSurveyDateFromPdfFileName,
   partialSurveyResponseInputSchema,
+  surveyPdfFileUploadSchema,
   surveyResponseInputSchema,
   type AnswerQuestionId,
   type AnswerValue,
   type PartialSurveyResponseInput,
   type SurveyFilters,
+  type SurveyPdfFile,
   type SurveyResponse,
   type SurveyResponseInput
 } from "@snz-rodoved/shared";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
-import { responses, type NewResponseRow, type ResponseRow } from "./schema.js";
+import {
+  responses,
+  surveyPdfFiles,
+  type NewResponseRow,
+  type NewSurveyPdfFileRow,
+  type ResponseRow,
+  type SurveyPdfFileRow
+} from "./schema.js";
 
 type AppDatabase = BetterSQLite3Database<typeof schema>;
 type ResponseColumn = (typeof responses)[AnswerQuestionId];
@@ -98,6 +108,64 @@ export class SurveyRepository {
   }
 }
 
+export interface CreateSurveyPdfFileInput {
+  displayName: string;
+  originalFileName: string;
+  storedFileName: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
+export class SurveyPdfFileRepository {
+  constructor(private readonly db: AppDatabase) {}
+
+  create(input: CreateSurveyPdfFileInput): SurveyPdfFile {
+    const parsed = surveyPdfFileUploadSchema.parse({ displayName: input.displayName });
+    const now = new Date().toISOString();
+    const row: NewSurveyPdfFileRow = {
+      id: randomUUID(),
+      surveyDate: parseSurveyDateFromPdfFileName(parsed.displayName),
+      displayName: parsed.displayName,
+      originalFileName: input.originalFileName,
+      storedFileName: input.storedFileName,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    const inserted = this.db.insert(surveyPdfFiles).values(row).returning().get();
+    return toSurveyPdfFile(inserted);
+  }
+
+  list(filters: Pick<SurveyFilters, "dateFrom" | "dateTo"> = {}): SurveyPdfFile[] {
+    const conditions = buildPdfFileFilterConditions(filters);
+    const whereClause = conditions.length > 0 ? and(...conditions) : sql`1 = 1`;
+
+    return this.db
+      .select()
+      .from(surveyPdfFiles)
+      .where(whereClause)
+      .orderBy(desc(surveyPdfFiles.surveyDate), desc(surveyPdfFiles.createdAt))
+      .all()
+      .map(toSurveyPdfFile);
+  }
+
+  get(id: string): SurveyPdfFileRow | null {
+    return this.db.select().from(surveyPdfFiles).where(eq(surveyPdfFiles.id, id)).get() ?? null;
+  }
+
+  delete(id: string): SurveyPdfFileRow | null {
+    const row = this.get(id);
+    if (!row) {
+      return null;
+    }
+
+    this.db.delete(surveyPdfFiles).where(eq(surveyPdfFiles.id, id)).run();
+    return row;
+  }
+}
+
 function buildFilterConditions(filters: SurveyFilters): SQL[] {
   const conditions: SQL[] = [];
 
@@ -131,10 +199,36 @@ function buildFilterConditions(filters: SurveyFilters): SQL[] {
   return conditions;
 }
 
+function buildPdfFileFilterConditions(filters: Pick<SurveyFilters, "dateFrom" | "dateTo">): SQL[] {
+  const conditions: SQL[] = [];
+
+  if (filters.dateFrom) {
+    conditions.push(gte(surveyPdfFiles.surveyDate, filters.dateFrom));
+  }
+
+  if (filters.dateTo) {
+    conditions.push(lte(surveyPdfFiles.surveyDate, filters.dateTo));
+  }
+
+  return conditions;
+}
+
 function toSurveyResponse(row: ResponseRow): SurveyResponse {
   return {
     ...row,
     isFake: row.isFake === "true",
     q11WarDetails: row.q11WarDetails ?? undefined
+  };
+}
+
+function toSurveyPdfFile(row: SurveyPdfFileRow): SurveyPdfFile {
+  return {
+    id: row.id,
+    surveyDate: row.surveyDate,
+    displayName: row.displayName,
+    originalFileName: row.originalFileName,
+    sizeBytes: row.sizeBytes,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
   };
 }

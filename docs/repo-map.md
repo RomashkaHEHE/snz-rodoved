@@ -1,7 +1,7 @@
 # Карта репозитория
 
-- `apps/api` — Fastify API, auth, CRUD и аналитика.
-- `apps/web` — React/Vite фронтенд: `/`, `/login`, `/editor`, `/data`.
+- `apps/api` — Fastify API, auth, CRUD, PDF-архив и аналитика.
+- `apps/web` — React/Vite фронтенд: `/`, `/login`, `/editor`, `/data`, `/pdf`.
 - `packages/shared` — общие типы, Zod-схемы, каталог вопросов.
 - `packages/db` — Drizzle schema, SQLite connection, migrations, repository.
 - `docs` — стабильная документация о том, как проект работает.

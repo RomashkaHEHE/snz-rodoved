@@ -208,6 +208,51 @@ export interface SurveyResponse extends SurveyResponseInput {
   updatedAt: string;
 }
 
+export const surveyPdfFileNameSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{8}_анкеты\.pdf$/u, "Имя PDF должно быть в формате ггггммдд_анкеты.pdf")
+  .refine((value) => isValidSurveyPdfFileDate(value.slice(0, 8)), {
+    message: "Дата в имени PDF должна существовать"
+  });
+
+export const surveyPdfFileUploadSchema = z.object({
+  displayName: surveyPdfFileNameSchema
+});
+
+export type SurveyPdfFileUpload = z.infer<typeof surveyPdfFileUploadSchema>;
+
+export interface SurveyPdfFile {
+  id: string;
+  surveyDate: string;
+  displayName: string;
+  originalFileName: string;
+  sizeBytes: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function parseSurveyDateFromPdfFileName(fileName: string): string {
+  const parsed = surveyPdfFileNameSchema.parse(fileName);
+  const year = parsed.slice(0, 4);
+  const month = parsed.slice(4, 6);
+  const day = parsed.slice(6, 8);
+  return `${year}-${month}-${day}`;
+}
+
+function isValidSurveyPdfFileDate(value: string): boolean {
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(4, 6));
+  const day = Number(value.slice(6, 8));
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
 export interface CountItem<TValue extends string = string> {
   value: TValue;
   label: string;

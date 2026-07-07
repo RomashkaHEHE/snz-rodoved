@@ -1,9 +1,18 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { pipeline } from "node:stream/promises";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
-import { createDatabaseConnection, SurveyRepository, type DatabaseConnection } from "@snz-rodoved/db";
+import multipart from "@fastify/multipart";
+import {
+  createDatabaseConnection,
+  SurveyPdfFileRepository,
+  SurveyRepository,
+  type DatabaseConnection
+} from "@snz-rodoved/db";
 import {
   ageGroupValues,
   answerQuestionIds,
@@ -12,11 +21,12 @@ import {
   partialSurveyResponseInputSchema,
   residenceValues,
   surveyResponseInputSchema,
+  surveyPdfFileUploadSchema,
   warDetailQuickValues,
   type PartialSurveyResponseInput,
   type SurveyResponseInput
 } from "@snz-rodoved/shared";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { ZodError } from "zod";
 import { buildAnalyticsSummary } from "./analytics.js";
 import {
@@ -41,17 +51,25 @@ export interface BuildAppOptions {
   databasePath?: string;
   auth?: Partial<AuthConfig>;
   logger?: boolean;
+  pdfStorageDir?: string;
   webDistDir?: string | false;
 }
+
+const maxPdfFileSizeBytes = 100 * 1024 * 1024;
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
   const connection = createDatabaseConnection({ databasePath: options.databasePath });
   const repository = new SurveyRepository(connection.db);
+  const pdfRepository = new SurveyPdfFileRepository(connection.db);
+  const pdfStorage = resolvePdfStorage(options);
   const authConfig = resolveAuthConfig(options.auth);
   const app = Fastify({ logger: options.logger ?? false });
 
   app.addHook("onClose", async () => {
     connection.close();
+    if (pdfStorage.temporary) {
+      await fs.promises.rm(pdfStorage.dir, { recursive: true, force: true });
+    }
   });
 
   await app.register(cookie, {
@@ -63,7 +81,17 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     credentials: true
   });
 
-  registerApiRoutes(app, repository, authConfig, connection);
+  await app.register(multipart, {
+    limits: {
+      fileSize: maxPdfFileSizeBytes,
+      files: 1,
+      fields: 1,
+      parts: 2
+    },
+    throwFileSizeLimit: true
+  });
+
+  registerApiRoutes(app, repository, pdfRepository, pdfStorage.dir, authConfig, connection);
   await registerFrontend(app, options.webDistDir);
 
   return app;
@@ -72,6 +100,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 function registerApiRoutes(
   app: FastifyInstance,
   repository: SurveyRepository,
+  pdfRepository: SurveyPdfFileRepository,
+  pdfStorageDir: string,
   authConfig: AuthConfig,
   connection: DatabaseConnection
 ): void {
@@ -140,6 +170,85 @@ function registerApiRoutes(
       .header("Content-Disposition", 'attachment; filename="rodoved-responses.csv"')
       .send(csv);
   });
+
+  app.get("/api/pdf-files", { preHandler: requireWorkspace }, async (request) => {
+    const filters = parseFiltersFromQuery(request.query);
+    return { files: pdfRepository.list({ dateFrom: filters.dateFrom, dateTo: filters.dateTo }) };
+  });
+
+  app.post("/api/pdf-files", { preHandler: requireWorkspace }, async (request, reply) => {
+    if (!request.isMultipart()) {
+      return reply.code(400).send({ error: "bad_request", message: "Expected multipart form data" });
+    }
+
+    const upload = await receivePdfUpload(request, pdfStorageDir);
+    const storedFileName = `${randomUUID()}.pdf`;
+    const storedPath = path.join(pdfStorageDir, storedFileName);
+
+    try {
+      await fs.promises.rename(upload.tempPath, storedPath);
+      const file = pdfRepository.create({
+        displayName: upload.displayName,
+        originalFileName: upload.originalFileName,
+        storedFileName,
+        mimeType: upload.mimeType,
+        sizeBytes: upload.sizeBytes
+      });
+
+      return reply.code(201).send({ file });
+    } catch (error) {
+      await fs.promises.rm(upload.tempPath, { force: true });
+      await fs.promises.rm(storedPath, { force: true });
+
+      if (isUniqueConstraintError(error)) {
+        return reply.code(409).send({
+          error: "duplicate_pdf_file",
+          message: "PDF with this name already exists"
+        });
+      }
+
+      throw error;
+    }
+  });
+
+  app.get<{ Params: { id: string } }>(
+    "/api/pdf-files/:id/download",
+    { preHandler: requireWorkspace },
+    async (request, reply) => {
+      const file = pdfRepository.get(request.params.id);
+
+      if (!file) {
+        return reply.code(404).send({ error: "not_found" });
+      }
+
+      const storedPath = path.join(pdfStorageDir, file.storedFileName);
+
+      if (!fs.existsSync(storedPath)) {
+        return reply.code(404).send({ error: "file_missing" });
+      }
+
+      return reply
+        .header("Content-Type", "application/pdf")
+        .header("Content-Length", String(file.sizeBytes))
+        .header("Content-Disposition", buildDownloadDisposition(file.displayName))
+        .send(fs.createReadStream(storedPath));
+    }
+  );
+
+  app.delete<{ Params: { id: string } }>(
+    "/api/pdf-files/:id",
+    { preHandler: requireWorkspace },
+    async (request, reply) => {
+      const deleted = pdfRepository.delete(request.params.id);
+
+      if (!deleted) {
+        return reply.code(404).send({ error: "not_found" });
+      }
+
+      await fs.promises.rm(path.join(pdfStorageDir, deleted.storedFileName), { force: true });
+      return reply.code(204).send();
+    }
+  );
 
   app.post("/api/responses", { preHandler: requireWorkspace }, async (request, reply) => {
     const input = surveyResponseInputSchema.parse(request.body);
@@ -234,6 +343,139 @@ async function registerFrontend(app: FastifyInstance, configuredDir: string | fa
   });
 }
 
+interface PdfStorage {
+  dir: string;
+  temporary: boolean;
+}
+
+interface ReceivedPdfUpload {
+  displayName: string;
+  originalFileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  tempPath: string;
+}
+
+function resolvePdfStorage(options: BuildAppOptions): PdfStorage {
+  const explicitDir = options.pdfStorageDir ?? process.env.RODOVED_PDF_DIR;
+
+  if (explicitDir) {
+    const dir = path.resolve(explicitDir);
+    fs.mkdirSync(dir, { recursive: true });
+    return { dir, temporary: false };
+  }
+
+  const databasePath = options.databasePath ?? process.env.DATABASE_URL;
+
+  if (databasePath && databasePath !== ":memory:") {
+    const dir = path.resolve(path.dirname(databasePath), "pdf-files");
+    fs.mkdirSync(dir, { recursive: true });
+    return { dir, temporary: false };
+  }
+
+  if (databasePath === ":memory:") {
+    return {
+      dir: fs.mkdtempSync(path.join(os.tmpdir(), "snz-rodoved-pdfs-")),
+      temporary: true
+    };
+  }
+
+  const dir = path.resolve(process.cwd(), "data/pdf-files");
+  fs.mkdirSync(dir, { recursive: true });
+  return { dir, temporary: false };
+}
+
+async function receivePdfUpload(
+  request: FastifyRequest,
+  pdfStorageDir: string
+): Promise<ReceivedPdfUpload> {
+  const tempDir = path.join(pdfStorageDir, ".tmp");
+  await fs.promises.mkdir(tempDir, { recursive: true });
+
+  let displayName: string | undefined;
+  let receivedFile: Omit<ReceivedPdfUpload, "displayName"> | undefined;
+
+  try {
+    for await (const part of request.parts()) {
+      if (part.type === "field") {
+        if (part.fieldname === "displayName") {
+          displayName = String(part.value ?? "").trim();
+        }
+        continue;
+      }
+
+      if (part.fieldname !== "file") {
+        part.file.resume();
+        continue;
+      }
+
+      if (receivedFile) {
+        part.file.resume();
+        throw httpError(400, "Only one PDF file can be uploaded");
+      }
+
+      if (!isPdfUpload(part.filename, part.mimetype)) {
+        part.file.resume();
+        throw httpError(400, "Only PDF files are supported");
+      }
+
+      const tempPath = path.join(tempDir, `${randomUUID()}.upload`);
+      let sizeBytes = 0;
+
+      part.file.on("data", (chunk: Buffer) => {
+        sizeBytes += chunk.length;
+      });
+
+      await pipeline(part.file, fs.createWriteStream(tempPath));
+      receivedFile = {
+        originalFileName: part.filename,
+        mimeType: part.mimetype || "application/pdf",
+        sizeBytes,
+        tempPath
+      };
+    }
+  } catch (error) {
+    if (receivedFile) {
+      await fs.promises.rm(receivedFile.tempPath, { force: true });
+    }
+    throw error;
+  }
+
+  if (!displayName) {
+    if (receivedFile) {
+      await fs.promises.rm(receivedFile.tempPath, { force: true });
+    }
+    throw httpError(400, "PDF display name is required");
+  }
+
+  if (!receivedFile) {
+    throw httpError(400, "PDF file is required");
+  }
+
+  let parsed: { displayName: string };
+  try {
+    parsed = surveyPdfFileUploadSchema.parse({ displayName });
+  } catch (error) {
+    await fs.promises.rm(receivedFile.tempPath, { force: true });
+    throw error;
+  }
+
+  return {
+    ...receivedFile,
+    displayName: parsed.displayName
+  };
+}
+
+function isPdfUpload(fileName: string, mimeType: string): boolean {
+  const normalizedName = fileName.toLowerCase();
+  const normalizedMimeType = mimeType.toLowerCase();
+  return normalizedName.endsWith(".pdf") || normalizedMimeType.includes("pdf");
+}
+
+function buildDownloadDisposition(fileName: string): string {
+  return `attachment; filename="rodoved-survey.pdf"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+}
+
 function resolveWebDistDir(): string {
   const candidates = [
     process.env.RODOVED_WEB_DIST_DIR,
@@ -243,6 +485,16 @@ function resolveWebDistDir(): string {
   ].filter((candidate): candidate is string => Boolean(candidate));
 
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
+}
+
+function httpError(statusCode: number, message: string): Error & { statusCode: number } {
+  const error = new Error(message) as Error & { statusCode: number };
+  error.statusCode = statusCode;
+  return error;
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Error && error.message.toLowerCase().includes("unique");
 }
 
 function persistPasswordUpdate(input: { adminPassword?: string; workspacePassword?: string }): boolean {

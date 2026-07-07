@@ -23,11 +23,14 @@ NODE_ENV=production
 PORT=4000
 HOST=0.0.0.0
 DATABASE_URL=/var/lib/snz-rodoved/rodoved.sqlite
+RODOVED_PDF_DIR=/var/lib/snz-rodoved/pdf-files
 SESSION_SECRET=long-random-secret
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=strong-password
 WORKSPACE_PASSWORD=strong-workspace-password
 ```
+
+`RODOVED_PDF_DIR` необязателен. Если он не задан, API хранит загруженные PDF рядом с SQLite-базой в каталоге `pdf-files`.
 
 ## Backup
 
@@ -39,4 +42,6 @@ node scripts/backup-db.mjs
 
 Скрипт берет путь из `DATABASE_URL` или использует `./data/rodoved.sqlite`, а копии кладет в `./backups`.
 
-Рекомендуемый режим для VPS: ежедневный cron/systemd timer и отдельное хранение копий вне сервера.
+PDF-архив нужно копировать отдельно: каталог из `RODOVED_PDF_DIR` или каталог `pdf-files` рядом с SQLite-базой.
+
+Рекомендуемый режим для VPS: ежедневный cron/systemd timer, резервная копия SQLite и PDF-каталога, отдельное хранение копий вне сервера.

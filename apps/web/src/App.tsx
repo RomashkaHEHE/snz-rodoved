@@ -1,4 +1,4 @@
-import { Download, Mail, Phone, Plus, Save, Send, Trash2 } from "lucide-react";
+import { Download, FileText, Mail, Phone, Plus, Save, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { AnalyticsSummary, SurveyFilters, SurveyResponse } from "@snz-rodoved/shared";
 import {
@@ -13,11 +13,12 @@ import {
 import { Dashboard } from "./components/Dashboard";
 import { FilterPanel } from "./components/FilterPanel";
 import { AdminLoginPanel, WorkspaceLoginPanel } from "./components/LoginPanel";
+import { PdfArchive } from "./components/PdfArchive";
 import { ResponseForm } from "./components/ResponseForm";
 import { ResponsesTable } from "./components/ResponsesTable";
 import "./styles.css";
 
-type AppRoute = "/" | "/login" | "/editor" | "/data" | "/admin";
+type AppRoute = "/" | "/login" | "/editor" | "/data" | "/pdf" | "/admin";
 type SessionRole = "workspace" | "admin" | null;
 
 export function App() {
@@ -92,6 +93,14 @@ export function App() {
     return (
       <ProtectedPage sessionRole={sessionRole} navigate={navigate}>
         <DataPage navigate={navigate} />
+      </ProtectedPage>
+    );
+  }
+
+  if (route === "/pdf") {
+    return (
+      <ProtectedPage sessionRole={sessionRole} navigate={navigate}>
+        <PdfArchivePage navigate={navigate} />
       </ProtectedPage>
     );
   }
@@ -270,12 +279,16 @@ function DataPage({ navigate }: { navigate: (route: AppRoute) => void }) {
       <section className="data-toolbar">
         <div>
           <p className="eyebrow">Данные</p>
-          <h1>Аналитика и анкеты</h1>
+          <h1>Данные и анкеты</h1>
         </div>
         <div className="header-actions">
           <button className="ghost-button" onClick={() => navigate("/editor")} type="button">
             <Plus aria-hidden size={18} />
             Новая анкета
+          </button>
+          <button className="ghost-button" onClick={() => navigate("/pdf")} type="button">
+            <FileText aria-hidden size={18} />
+            PDF-архив
           </button>
           <button className="ghost-button" disabled={fakeBusy} onClick={handleCreateFake} type="button">
             <Plus aria-hidden size={18} />
@@ -294,7 +307,11 @@ function DataPage({ navigate }: { navigate: (route: AppRoute) => void }) {
       {fakeActionStatus ? <p className="data-status">{fakeActionStatus}</p> : null}
 
       <FilterPanel filters={filters} onChange={setFilters} />
-      <Dashboard summary={summary} />
+      <PdfArchive filters={filters} mode="data" onOpenManager={() => navigate("/pdf")} />
+      <details className="analytics-details">
+        <summary>Графики и срезы</summary>
+        <Dashboard summary={summary} />
+      </details>
       {editing ? (
         <ResponseForm
           editing={editing}
@@ -306,6 +323,26 @@ function DataPage({ navigate }: { navigate: (route: AppRoute) => void }) {
         />
       ) : null}
       <ResponsesTable responses={responses} onDeleted={refreshData} onEdit={setEditing} />
+    </main>
+  );
+}
+
+function PdfArchivePage({ navigate }: { navigate: (route: AppRoute) => void }) {
+  return (
+    <main className="workspace-shell pdf-shell">
+      <WorkspaceHeader activeRoute="/pdf" navigate={navigate} />
+      <section className="data-toolbar">
+        <div>
+          <p className="eyebrow">PDF-архив</p>
+          <h1>Сканы бумажных анкет</h1>
+        </div>
+        <div className="header-actions">
+          <button className="ghost-button" onClick={() => navigate("/data")} type="button">
+            Данные
+          </button>
+        </div>
+      </section>
+      <PdfArchive filters={{}} mode="manager" />
     </main>
   );
 }
@@ -336,6 +373,13 @@ function WorkspaceHeader({
           type="button"
         >
           Данные
+        </button>
+        <button
+          className={activeRoute === "/pdf" ? "is-active" : ""}
+          onClick={() => navigate("/pdf")}
+          type="button"
+        >
+          PDF-архив
         </button>
       </nav>
     </header>
@@ -377,7 +421,13 @@ function Redirect({
 }
 
 function normalizeRoute(pathname: string): AppRoute {
-  if (pathname === "/login" || pathname === "/editor" || pathname === "/data" || pathname === "/admin") {
+  if (
+    pathname === "/login" ||
+    pathname === "/editor" ||
+    pathname === "/data" ||
+    pathname === "/pdf" ||
+    pathname === "/admin"
+  ) {
     return pathname;
   }
 

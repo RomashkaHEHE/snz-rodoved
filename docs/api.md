@@ -73,6 +73,48 @@
 - Возвращает `text/csv; charset=utf-8`.
 - CSV начинается с UTF-8 BOM, чтобы Excel на Windows корректно открыл русский текст.
 
+## PDF-архив
+
+Все endpoints требуют вход в рабочую зону.
+
+`GET /api/pdf-files`
+
+Возвращает PDF-файлы со сканами бумажных анкет. Учитывает только date-фильтры из query string:
+
+- `dateFrom=2026-05-01`
+- `dateTo=2026-05-31`
+
+Ответ:
+
+```json
+{
+  "files": [
+    {
+      "id": "...",
+      "surveyDate": "2026-05-17",
+      "displayName": "20260517_анкеты.pdf",
+      "originalFileName": "scan.pdf",
+      "sizeBytes": 123456,
+      "createdAt": "...",
+      "updatedAt": "..."
+    }
+  ]
+}
+```
+
+`POST /api/pdf-files`
+
+Принимает `multipart/form-data`:
+
+- `displayName` — имя в формате `ггггммдд_анкеты.pdf`;
+- `file` — PDF-файл.
+
+Один PDF соответствует одному дню опроса. Дата для фильтрации вычисляется из имени файла.
+
+`GET /api/pdf-files/:id/download` скачивает PDF.
+
+`DELETE /api/pdf-files/:id` удаляет запись и физический PDF-файл. Строки анкет в `responses` не затрагиваются.
+
 ## Аналитика
 
 `GET /api/analytics/summary` принимает те же фильтры, что и список анкет.

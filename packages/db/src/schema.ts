@@ -1,4 +1,4 @@
-import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { AgeGroup, AnswerValue, Gender, Residence } from "@snz-rodoved/shared";
 
 export const responses = sqliteTable(
@@ -38,3 +38,26 @@ export const responses = sqliteTable(
 
 export type ResponseRow = typeof responses.$inferSelect;
 export type NewResponseRow = typeof responses.$inferInsert;
+
+export const surveyPdfFiles = sqliteTable(
+  "survey_pdf_files",
+  {
+    id: text("id").primaryKey(),
+    surveyDate: text("survey_date").notNull(),
+    displayName: text("display_name").notNull(),
+    originalFileName: text("original_file_name").notNull(),
+    storedFileName: text("stored_file_name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull()
+  },
+  (table) => ({
+    surveyDateIdx: index("survey_pdf_files_survey_date_idx").on(table.surveyDate),
+    displayNameIdx: uniqueIndex("survey_pdf_files_display_name_idx").on(table.displayName),
+    storedFileNameIdx: uniqueIndex("survey_pdf_files_stored_file_name_idx").on(table.storedFileName)
+  })
+);
+
+export type SurveyPdfFileRow = typeof surveyPdfFiles.$inferSelect;
+export type NewSurveyPdfFileRow = typeof surveyPdfFiles.$inferInsert;

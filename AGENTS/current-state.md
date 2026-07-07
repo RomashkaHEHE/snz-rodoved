@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-05-27
+Last updated: 2026-07-08
 
 ## Baseline
 
@@ -28,7 +28,10 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - `/admin` is a separate username/password admin login.
 - `/admin` can update both the admin password and the workspace password.
 - `/editor` is for entering new responses.
-- `/data` is for filters, visualization, table work, editing/deleting, and CSV export. Data refreshes automatically on filter changes, focus, and a short interval.
+- `/data` is for filters, PDF files for the selected date period, collapsible visualization, table work, editing/deleting, and CSV export. Data refreshes automatically on filter changes, focus, and a short interval.
+- `/pdf` is the protected PDF archive for uploading, listing, downloading, and deleting scanned paper questionnaires.
+- PDF archive files are one PDF per survey day. The operator manually names files as `YYYYMMDD_анкеты.pdf`; the app derives `surveyDate` from that name.
+- PDF files may contain personal contact data written on paper, so they are never public and are served only through workspace-authenticated API routes.
 - Public `/` only shows the work-zone button when the user is already authenticated.
 - Missing or unreadable paper answers are stored as `unknown`.
 - Fake/test questionnaires are stored as normal response rows with `isFake=true`; fake-only bulk deletion must never delete rows where `isFake=false`.
@@ -47,6 +50,7 @@ No active implementation task after the initial v1 scaffold. See completed task:
 - [api-and-data-layer.md](tasks/api-and-data-layer.md)
 - [admin-ui.md](tasks/admin-ui.md)
 - [public-page-and-assets.md](tasks/public-page-and-assets.md)
+- [pdf-archive.md](tasks/pdf-archive.md)
 - [docs-and-handoff.md](tasks/docs-and-handoff.md)
 - [autodeploy.md](tasks/autodeploy.md)
 

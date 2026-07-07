@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createDatabaseConnection, SurveyRepository, type DatabaseConnection } from "../src/index.js";
+import {
+  createDatabaseConnection,
+  SurveyPdfFileRepository,
+  SurveyRepository,
+  type DatabaseConnection
+} from "../src/index.js";
 import type { SurveyResponseInput } from "@snz-rodoved/shared";
 
 const baseInput: SurveyResponseInput = {
@@ -82,5 +87,32 @@ describe("SurveyRepository", () => {
     const rows = repository.list();
     expect(rows).toHaveLength(1);
     expect(rows[0]?.isFake).toBe(false);
+  });
+
+  it("stores and filters survey PDF files by date", () => {
+    connection = createDatabaseConnection({ databasePath: ":memory:" });
+    const repository = new SurveyPdfFileRepository(connection.db);
+
+    repository.create({
+      displayName: "20260427_анкеты.pdf",
+      originalFileName: "scan.pdf",
+      storedFileName: "first.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 128
+    });
+    repository.create({
+      displayName: "20260517_анкеты.pdf",
+      originalFileName: "event.pdf",
+      storedFileName: "second.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 256
+    });
+
+    const rows = repository.list();
+    expect(rows.map((row) => row.displayName)).toEqual(["20260517_анкеты.pdf", "20260427_анкеты.pdf"]);
+
+    const filtered = repository.list({ dateFrom: "2026-05-01", dateTo: "2026-05-31" });
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0]?.surveyDate).toBe("2026-05-17");
   });
 });

@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
@@ -26,10 +29,15 @@ const input: SurveyResponseInput = {
 
 describe("api app", () => {
   let app: FastifyInstance | undefined;
+  let pdfStorageDir: string | undefined;
 
   afterEach(async () => {
     await app?.close();
     app = undefined;
+    if (pdfStorageDir) {
+      fs.rmSync(pdfStorageDir, { recursive: true, force: true });
+      pdfStorageDir = undefined;
+    }
   });
 
   it("protects responses behind login", async () => {
@@ -59,6 +67,12 @@ describe("api app", () => {
       url: "/api/responses/fake"
     });
     expect(fakeDeleteUnauthorized.statusCode).toBe(401);
+
+    const pdfFilesUnauthorized = await app.inject({
+      method: "GET",
+      url: "/api/pdf-files"
+    });
+    expect(pdfFilesUnauthorized.statusCode).toBe(401);
   });
 
   it("logs in, creates responses, filters, and summarizes analytics", async () => {
@@ -188,6 +202,84 @@ describe("api app", () => {
     expect(afterDelete.json().responses[0].isFake).toBe(false);
   });
 
+  it("uploads, filters, downloads, and deletes survey PDF files", async () => {
+    pdfStorageDir = fs.mkdtempSync(path.join(os.tmpdir(), "snz-rodoved-api-pdfs-"));
+    app = await buildApp({
+      databasePath: ":memory:",
+      pdfStorageDir,
+      auth: {
+        username: "admin",
+        password: "secret",
+        workspacePassword: "workspace-secret",
+        sessionSecret: "test-secret"
+      },
+      webDistDir: false
+    });
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/workspace-login",
+      payload: { password: "workspace-secret" }
+    });
+    const cookie = login.headers["set-cookie"];
+
+    const mayPdf = createMultipartPdfBody("20260517_анкеты.pdf");
+    const uploadMay = await app.inject({
+      method: "POST",
+      url: "/api/pdf-files",
+      headers: { cookie, ...mayPdf.headers },
+      payload: mayPdf.payload
+    });
+    expect(uploadMay.statusCode).toBe(201);
+    expect(uploadMay.json().file).toMatchObject({
+      surveyDate: "2026-05-17",
+      displayName: "20260517_анкеты.pdf",
+      originalFileName: "scan.pdf",
+      sizeBytes: 15
+    });
+
+    const aprilPdf = createMultipartPdfBody("20260427_анкеты.pdf");
+    await app.inject({
+      method: "POST",
+      url: "/api/pdf-files",
+      headers: { cookie, ...aprilPdf.headers },
+      payload: aprilPdf.payload
+    });
+
+    const filtered = await app.inject({
+      method: "GET",
+      url: "/api/pdf-files?dateFrom=2026-05-01&dateTo=2026-05-31",
+      headers: { cookie }
+    });
+    expect(filtered.statusCode).toBe(200);
+    expect(filtered.json().files).toHaveLength(1);
+    expect(filtered.json().files[0].displayName).toBe("20260517_анкеты.pdf");
+
+    const download = await app.inject({
+      method: "GET",
+      url: `/api/pdf-files/${uploadMay.json().file.id}/download`,
+      headers: { cookie }
+    });
+    expect(download.statusCode).toBe(200);
+    expect(download.headers["content-type"]).toContain("application/pdf");
+    expect(download.headers["content-disposition"]).toContain("filename*=UTF-8");
+    expect(download.body).toContain("%PDF-1.4");
+
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: `/api/pdf-files/${uploadMay.json().file.id}`,
+      headers: { cookie }
+    });
+    expect(deleted.statusCode).toBe(204);
+
+    const afterDelete = await app.inject({
+      method: "GET",
+      url: "/api/pdf-files?dateFrom=2026-05-01&dateTo=2026-05-31",
+      headers: { cookie }
+    });
+    expect(afterDelete.json().files).toHaveLength(0);
+  });
+
   it("rejects invalid credentials", async () => {
     app = await buildApp({
       databasePath: ":memory:",
@@ -277,3 +369,27 @@ describe("api app", () => {
     expect(newWorkspaceLogin.statusCode).toBe(200);
   });
 });
+
+function createMultipartPdfBody(displayName: string) {
+  const boundary = "----snz-rodoved-test-boundary";
+  const pdfContent = Buffer.from("%PDF-1.4\nsample");
+  const chunks = [
+    Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="displayName"\r\n\r\n${displayName}\r\n`,
+      "utf8"
+    ),
+    Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="scan.pdf"\r\nContent-Type: application/pdf\r\n\r\n`,
+      "utf8"
+    ),
+    pdfContent,
+    Buffer.from(`\r\n--${boundary}--\r\n`, "utf8")
+  ];
+
+  return {
+    headers: {
+      "content-type": `multipart/form-data; boundary=${boundary}`
+    },
+    payload: Buffer.concat(chunks)
+  };
+}

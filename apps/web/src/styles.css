@@ -264,6 +264,8 @@ button {
 
 .entry-panel,
 .filter-panel,
+.pdf-panel,
+.analytics-details,
 .table-panel,
 .admin-panel,
 .login-panel {
@@ -280,6 +282,8 @@ button {
 
 .filter-panel,
 .dashboard-panel,
+.pdf-panel,
+.analytics-details,
 .table-panel,
 .entry-panel {
   margin-bottom: 1rem;
@@ -292,7 +296,8 @@ button {
 }
 
 .form-top-grid,
-.filter-grid {
+.filter-grid,
+.pdf-upload-form {
   display: grid;
   gap: 1rem;
 }
@@ -308,6 +313,12 @@ button {
 
 .filter-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pdf-upload-form {
+  align-items: end;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
+  margin: 1rem 0;
 }
 
 label,
@@ -448,6 +459,27 @@ select {
   font-weight: 700;
 }
 
+.analytics-details {
+  padding: 0;
+}
+
+.analytics-details > summary {
+  cursor: pointer;
+  font-size: 1.25rem;
+  font-weight: 800;
+  list-style-position: inside;
+  padding: 1rem 1.25rem;
+}
+
+.analytics-details[open] > summary {
+  border-bottom: 1px solid #eadfce;
+}
+
+.analytics-details .dashboard-panel {
+  margin: 0;
+  padding: 1.25rem;
+}
+
 .question-filter-grid {
   display: grid;
   gap: 0.75rem;
@@ -522,6 +554,38 @@ select {
 .table-wrap {
   margin-top: 1rem;
   overflow-x: auto;
+}
+
+.pdf-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.pdf-file-row {
+  align-items: center;
+  border: 1px solid #eadfce;
+  border-radius: 4px;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.85rem;
+}
+
+.pdf-file-row strong,
+.pdf-file-row span {
+  display: block;
+}
+
+.pdf-file-row span {
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.pdf-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 table {
@@ -652,6 +716,7 @@ th {
 
   .form-top-grid,
   .filter-grid,
+  .pdf-upload-form,
   .stat-grid {
     grid-template-columns: 1fr;
   }
@@ -671,5 +736,10 @@ th {
 
   .admin-password-form fieldset {
     grid-template-columns: 1fr;
+  }
+
+  .pdf-file-row {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

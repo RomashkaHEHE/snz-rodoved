@@ -3,6 +3,7 @@ import type {
   AnswerQuestionId,
   AnswerValue,
   SurveyFilters,
+  SurveyPdfFile,
   SurveyResponse,
   SurveyResponseInput
 } from "@snz-rodoved/shared";
@@ -93,6 +94,54 @@ export async function deleteFakeResponses(): Promise<number> {
   return result.deleted;
 }
 
+export async function listPdfFiles(filters: SurveyFilters): Promise<SurveyPdfFile[]> {
+  const query = buildFilterQuery(filters);
+  const result = await request<{ files: SurveyPdfFile[] }>(`/api/pdf-files${query}`);
+  return result.files;
+}
+
+export async function uploadPdfFile(input: {
+  displayName: string;
+  file: File;
+}): Promise<SurveyPdfFile> {
+  const formData = new FormData();
+  formData.append("displayName", input.displayName);
+  formData.append("file", input.file);
+
+  const result = await request<{ file: SurveyPdfFile }>("/api/pdf-files", {
+    method: "POST",
+    body: formData
+  });
+
+  return result.file;
+}
+
+export async function deletePdfFile(id: string): Promise<void> {
+  await request<void>(`/api/pdf-files/${id}`, {
+    method: "DELETE"
+  });
+}
+
+export async function downloadPdfFile(file: SurveyPdfFile): Promise<void> {
+  const response = await fetch(`${apiBase}/api/pdf-files/${file.id}/download`, {
+    credentials: "include"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.displayName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export async function getAnalyticsSummary(filters: SurveyFilters): Promise<AnalyticsSummary> {
   const query = buildFilterQuery(filters);
   const result = await request<{ summary: AnalyticsSummary }>(`/api/analytics/summary${query}`);
@@ -123,7 +172,7 @@ export async function exportResponsesCsv(filters: SurveyFilters): Promise<void> 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
 
-  if (init.body && !headers.has("Content-Type")) {
+  if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 

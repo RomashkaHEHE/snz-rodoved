@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   answerQuestionIds,
+  parseSurveyDateFromPdfFileName,
+  surveyPdfFileNameSchema,
   surveyResponseInputSchema,
   warDetailQuickValues
 } from "../src/index.js";
@@ -39,5 +41,12 @@ describe("survey response schema", () => {
 
   it("contains the paper quick value for the war details dash", () => {
     expect(warDetailQuickValues).toContain("—");
+  });
+
+  it("parses survey PDF file names into survey dates", () => {
+    expect(surveyPdfFileNameSchema.parse("20260517_анкеты.pdf")).toBe("20260517_анкеты.pdf");
+    expect(parseSurveyDateFromPdfFileName("20260517_анкеты.pdf")).toBe("2026-05-17");
+    expect(() => surveyPdfFileNameSchema.parse("2026-05-17.pdf")).toThrow();
+    expect(() => surveyPdfFileNameSchema.parse("20261340_анкеты.pdf")).toThrow();
   });
 });
