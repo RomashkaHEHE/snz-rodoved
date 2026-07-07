@@ -88,7 +88,9 @@ describe("api app", () => {
       researchTerritory: "Челябинская область",
       researchPeriodStart: 1850,
       researchPeriodEnd: 1945,
-      freeText: "Свободный комментарий"
+      freeText: "Свободный комментарий",
+      contactName: "Алёна",
+      contactPhone: "+7 900 000-00-00"
     };
     delete onlinePayload.surveyDate;
 
@@ -102,6 +104,8 @@ describe("api app", () => {
     expect(created.json().response.source).toBe("online");
     expect(created.json().response.researchTerritory).toBe("Челябинская область");
     expect(created.json().response.researchPeriodStart).toBe(1850);
+    expect(created.json().response.contactName).toBe("Алёна");
+    expect(created.json().response.contactPhone).toBe("+7 900 000-00-00");
     expect(created.json().response.isFake).toBe(false);
   });
 
@@ -167,6 +171,7 @@ describe("api app", () => {
     expect(exported.statusCode).toBe(200);
     expect(exported.headers["content-type"]).toContain("text/csv");
     expect(exported.body).toContain("Источник");
+    expect(exported.body).toContain("Номер телефона");
     expect(exported.body).toContain("Дата опроса");
     expect(exported.body).toContain("7. Найти предков, живших в 20 в. (СССР)");
     expect(exported.body).toContain("8. Найти предков, живших в 20 в.");

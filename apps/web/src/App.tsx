@@ -33,6 +33,8 @@ import "./styles.css";
 type AppRoute = "/" | "/survey" | "/login" | "/editor" | "/data" | "/pdf" | "/admin";
 type SessionRole = "workspace" | "admin" | null;
 
+const isTestEnvironment = import.meta.env.VITE_APP_ENV === "test";
+
 export function App() {
   const [route, setRoute] = useState<AppRoute>(() => normalizeRoute(window.location.pathname));
   const [sessionRole, setSessionRole] = useState<SessionRole | undefined>(undefined);
@@ -65,69 +67,106 @@ export function App() {
 
   if (route === "/login") {
     if (sessionRole) {
-      return <Redirect to="/editor" navigate={navigate} />;
+      return (
+        <PageFrame>
+          <Redirect to="/editor" navigate={navigate} />
+        </PageFrame>
+      );
     }
 
     return (
-      <WorkspaceLoginPanel
-        onLogin={() => {
-          setSessionRole("workspace");
-          navigate("/editor", { replace: true });
-        }}
-      />
+      <PageFrame>
+        <WorkspaceLoginPanel
+          onLogin={() => {
+            setSessionRole("workspace");
+            navigate("/editor", { replace: true });
+          }}
+        />
+      </PageFrame>
     );
   }
 
   if (route === "/survey") {
     return (
-      <OnlineSurveyPage
-        authenticated={sessionRole !== null && sessionRole !== undefined}
-        onHome={() => navigate("/")}
-        onWorkspace={() => navigate("/editor")}
-      />
+      <PageFrame>
+        <OnlineSurveyPage
+          authenticated={sessionRole !== null && sessionRole !== undefined}
+          onHome={() => navigate("/")}
+          onWorkspace={() => navigate("/editor")}
+        />
+      </PageFrame>
     );
   }
 
   if (route === "/admin") {
     if (sessionRole === "admin") {
-      return <AdminPage navigate={navigate} />;
+      return (
+        <PageFrame>
+          <AdminPage navigate={navigate} />
+        </PageFrame>
+      );
     }
 
     return (
-      <AdminLoginPanel
-        onLogin={() => {
-          setSessionRole("admin");
-          navigate("/admin", { replace: true });
-        }}
-      />
+      <PageFrame>
+        <AdminLoginPanel
+          onLogin={() => {
+            setSessionRole("admin");
+            navigate("/admin", { replace: true });
+          }}
+        />
+      </PageFrame>
     );
   }
 
   if (route === "/editor") {
     return (
-      <ProtectedPage sessionRole={sessionRole} navigate={navigate}>
-        <EditorPage navigate={navigate} />
-      </ProtectedPage>
+      <PageFrame>
+        <ProtectedPage sessionRole={sessionRole} navigate={navigate}>
+          <EditorPage navigate={navigate} />
+        </ProtectedPage>
+      </PageFrame>
     );
   }
 
   if (route === "/data") {
     return (
-      <ProtectedPage sessionRole={sessionRole} navigate={navigate}>
-        <DataPage navigate={navigate} />
-      </ProtectedPage>
+      <PageFrame>
+        <ProtectedPage sessionRole={sessionRole} navigate={navigate}>
+          <DataPage navigate={navigate} />
+        </ProtectedPage>
+      </PageFrame>
     );
   }
 
   if (route === "/pdf") {
     return (
-      <ProtectedPage sessionRole={sessionRole} navigate={navigate}>
-        <PdfArchivePage navigate={navigate} />
-      </ProtectedPage>
+      <PageFrame>
+        <ProtectedPage sessionRole={sessionRole} navigate={navigate}>
+          <PdfArchivePage navigate={navigate} />
+        </ProtectedPage>
+      </PageFrame>
     );
   }
 
-  return <PublicPage authenticated={sessionRole !== null && sessionRole !== undefined} navigate={navigate} />;
+  return (
+    <PageFrame>
+      <PublicPage authenticated={sessionRole !== null && sessionRole !== undefined} navigate={navigate} />
+    </PageFrame>
+  );
+}
+
+function PageFrame({ children }: { children: ReactNode }) {
+  return (
+    <>
+      {isTestEnvironment ? (
+        <div className="environment-banner" role="status">
+          Тестовая версия. Данные и настройки отделены от основного сайта.
+        </div>
+      ) : null}
+      {children}
+    </>
+  );
 }
 
 function PublicPage({

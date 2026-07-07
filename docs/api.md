@@ -58,6 +58,8 @@
   "researchPeriodStart": 1850,
   "researchPeriodEnd": 1945,
   "freeText": "Дополнительный комментарий",
+  "contactName": "Алёна",
+  "contactPhone": "+7 900 000-00-00",
   "q4": "unknown",
   "q5": "yes",
   "q6": "no",
@@ -100,6 +102,7 @@
 `GET /api/responses/export.csv` выгружает отфильтрованные анкеты в CSV для Excel.
 
 - Использует те же query-фильтры, что `GET /api/responses`.
+- Включает контактные поля онлайн-анкет: `Имя`, `Номер телефона`.
 - Возвращает `text/csv; charset=utf-8`.
 - CSV начинается с UTF-8 BOM, чтобы Excel на Windows корректно открыл русский текст.
 

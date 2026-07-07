@@ -24,6 +24,10 @@ interface OnlineSurveyPageProps {
   onWorkspace: () => void;
 }
 
+const experienceQuestions = answerQuestions.filter((question) => question.group === "experience");
+const interestQuestions = answerQuestions.filter((question) => question.group === "interest");
+const helpQuestions = answerQuestions.filter((question) => question.group === "help");
+
 export function OnlineSurveyPage({ authenticated, onHome, onWorkspace }: OnlineSurveyPageProps) {
   const [form, setForm] = useState<SurveyResponseInput>(createDefaultOnlineSurveyValue());
   const [periodStart, setPeriodStart] = useState("");
@@ -35,7 +39,10 @@ export function OnlineSurveyPage({ authenticated, onHome, onWorkspace }: OnlineS
   function setAnswer(questionId: AnswerQuestionId, value: AnswerValue) {
     setForm((current) => ({
       ...current,
-      [questionId]: value
+      [questionId]: value,
+      ...(questionId === "q16" && value !== "yes"
+        ? { contactName: undefined, contactPhone: undefined }
+        : {})
     }));
   }
 
@@ -65,6 +72,68 @@ export function OnlineSurveyPage({ authenticated, onHome, onWorkspace }: OnlineS
     setPeriodEnd("");
     setStatus(null);
     setSubmitted(false);
+  }
+
+  function renderQuestion(question: (typeof answerQuestions)[number]) {
+    return (
+      <div className="question-row" key={question.id}>
+        <SegmentedControl
+          compact
+          label={`${question.number}. ${question.label}`}
+          options={answerValues.map((value) => ({ value, label: answerLabels[value] }))}
+          value={form[question.id]}
+          onChange={(value) => setAnswer(question.id, value)}
+        />
+        {question.id === "q11" ? (
+          <div className="war-details">
+            <label>
+              Если да, какая война
+              <select
+                value={form.q11WarDetails ?? ""}
+                onChange={(event) => setForm({ ...form, q11WarDetails: event.target.value })}
+              >
+                {warDetailQuickValues.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : null}
+        {question.id === "q16" && form.q16 === "yes" ? (
+          <div className="contact-request-grid">
+            <p className="section-note">Контакты нужны только для связи по вашему запросу.</p>
+            <label>
+              Имя
+              <input
+                autoComplete="name"
+                maxLength={120}
+                required
+                value={form.contactName ?? ""}
+                onChange={(event) =>
+                  setForm({ ...form, contactName: event.target.value || undefined })
+                }
+              />
+            </label>
+            <label>
+              Номер телефона
+              <input
+                autoComplete="tel"
+                inputMode="tel"
+                maxLength={40}
+                required
+                type="tel"
+                value={form.contactPhone ?? ""}
+                onChange={(event) =>
+                  setForm({ ...form, contactPhone: event.target.value || undefined })
+                }
+              />
+            </label>
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   return (
@@ -103,112 +172,110 @@ export function OnlineSurveyPage({ authenticated, onHome, onWorkspace }: OnlineS
           </div>
         ) : (
           <form className="response-form online-survey-form" onSubmit={handleSubmit}>
-            <div className="form-top-grid">
-              <SegmentedControl
-                label="1. Пол"
-                options={genderValues.map((value) => ({ value, label: genderLabels[value] }))}
-                value={form.gender}
-                onChange={(gender) => setForm({ ...form, gender })}
-              />
-              <SegmentedControl
-                label="2. Возраст"
-                options={ageGroupValues.map((value) => ({ value, label: ageGroupLabels[value] }))}
-                value={form.ageGroup}
-                onChange={(ageGroup) => setForm({ ...form, ageGroup })}
-              />
-              <SegmentedControl
-                label="3. Место проживания"
-                options={residenceValues.map((value) => ({ value, label: residenceLabels[value] }))}
-                value={form.residence}
-                onChange={(residence) => setForm({ ...form, residence })}
-              />
-            </div>
+            <nav className="survey-progress" aria-label="Разделы анкеты">
+              <a href="#survey-profile">О себе</a>
+              <a href="#survey-search">Запрос</a>
+              <a href="#survey-questions">Вопросы</a>
+              <a href="#survey-help">Помощь</a>
+            </nav>
 
-            <div className="online-extra-grid">
-              <label>
-                Исследуемая территория
-                <input
-                  maxLength={180}
-                  placeholder="Снежинск, Челябинская область"
-                  value={form.researchTerritory ?? ""}
-                  onChange={(event) =>
-                    setForm({ ...form, researchTerritory: event.target.value || undefined })
-                  }
+            <section className="survey-section" id="survey-profile">
+              <h2>О себе</h2>
+              <div className="form-top-grid">
+                <SegmentedControl
+                  label="1. Пол"
+                  options={genderValues.map((value) => ({ value, label: genderLabels[value] }))}
+                  value={form.gender}
+                  onChange={(gender) => setForm({ ...form, gender })}
                 />
-              </label>
-              <fieldset className="period-fields">
-                <legend>Исследуемый период</legend>
-                <div>
-                  <label>
-                    С
-                    <input
-                      inputMode="numeric"
-                      max={2100}
-                      min={1500}
-                      placeholder="1850"
-                      type="number"
-                      value={periodStart}
-                      onChange={(event) => setPeriodStart(event.target.value)}
-                    />
-                  </label>
-                  <label>
-                    По
-                    <input
-                      inputMode="numeric"
-                      max={2100}
-                      min={1500}
-                      placeholder="1945"
-                      type="number"
-                      value={periodEnd}
-                      onChange={(event) => setPeriodEnd(event.target.value)}
-                    />
-                  </label>
-                </div>
-              </fieldset>
-              <label className="online-free-text">
-                Свободный текст
-                <textarea
-                  maxLength={1500}
-                  placeholder="Дополнительные фамилии, населённые пункты, уточнения"
-                  rows={5}
-                  value={form.freeText ?? ""}
-                  onChange={(event) => setForm({ ...form, freeText: event.target.value || undefined })}
+                <SegmentedControl
+                  label="2. Возраст"
+                  options={ageGroupValues.map((value) => ({ value, label: ageGroupLabels[value] }))}
+                  value={form.ageGroup}
+                  onChange={(ageGroup) => setForm({ ...form, ageGroup })}
                 />
-              </label>
-            </div>
+                <SegmentedControl
+                  label="3. Место проживания"
+                  options={residenceValues.map((value) => ({
+                    value,
+                    label: residenceLabels[value]
+                  }))}
+                  value={form.residence}
+                  onChange={(residence) => setForm({ ...form, residence })}
+                />
+              </div>
+            </section>
 
-            <div className="question-list">
-              {answerQuestions.map((question) => (
-                <div className="question-row" key={question.id}>
-                  <SegmentedControl
-                    compact
-                    label={`${question.number}. ${question.label}`}
-                    options={answerValues.map((value) => ({ value, label: answerLabels[value] }))}
-                    value={form[question.id]}
-                    onChange={(value) => setAnswer(question.id, value)}
+            <section className="survey-section" id="survey-search">
+              <h2>Запрос</h2>
+              <div className="online-extra-grid">
+                <label>
+                  Исследуемая территория
+                  <input
+                    maxLength={180}
+                    placeholder="Снежинск, Челябинская область"
+                    value={form.researchTerritory ?? ""}
+                    onChange={(event) =>
+                      setForm({ ...form, researchTerritory: event.target.value || undefined })
+                    }
                   />
-                  {question.id === "q11" ? (
-                    <div className="war-details">
-                      <label>
-                        Если да, какая война
-                        <select
-                          value={form.q11WarDetails ?? ""}
-                          onChange={(event) =>
-                            setForm({ ...form, q11WarDetails: event.target.value })
-                          }
-                        >
-                          {warDetailQuickValues.map((value) => (
-                            <option key={value} value={value}>
-                              {value}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
+                </label>
+                <fieldset className="period-fields">
+                  <legend>Исследуемый период</legend>
+                  <div>
+                    <label>
+                      С
+                      <input
+                        inputMode="numeric"
+                        max={2100}
+                        min={1500}
+                        placeholder="1850"
+                        type="number"
+                        value={periodStart}
+                        onChange={(event) => setPeriodStart(event.target.value)}
+                      />
+                    </label>
+                    <label>
+                      По
+                      <input
+                        inputMode="numeric"
+                        max={2100}
+                        min={1500}
+                        placeholder="1945"
+                        type="number"
+                        value={periodEnd}
+                        onChange={(event) => setPeriodEnd(event.target.value)}
+                      />
+                    </label>
+                  </div>
+                </fieldset>
+                <label className="online-free-text">
+                  Свободный текст
+                  <textarea
+                    maxLength={1500}
+                    placeholder="Дополнительные фамилии, населённые пункты, уточнения"
+                    rows={5}
+                    value={form.freeText ?? ""}
+                    onChange={(event) =>
+                      setForm({ ...form, freeText: event.target.value || undefined })
+                    }
+                  />
+                </label>
+              </div>
+            </section>
+
+            <section className="survey-section" id="survey-questions">
+              <h2>Вопросы</h2>
+              <div className="question-list">
+                {experienceQuestions.map(renderQuestion)}
+                {interestQuestions.map(renderQuestion)}
+              </div>
+            </section>
+
+            <section className="survey-section" id="survey-help">
+              <h2>Помощь</h2>
+              <div className="question-list">{helpQuestions.map(renderQuestion)}</div>
+            </section>
 
             <div className="form-actions">
               {status ? <p className="form-status">{status}</p> : null}

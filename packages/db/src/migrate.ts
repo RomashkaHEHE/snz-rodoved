@@ -63,6 +63,11 @@ ALTER TABLE responses ADD COLUMN free_text TEXT;
 CREATE INDEX IF NOT EXISTS responses_source_idx ON responses (source);
 `;
 
+export const responseContactsMigrationSql = `
+ALTER TABLE responses ADD COLUMN contact_name TEXT;
+ALTER TABLE responses ADD COLUMN contact_phone TEXT;
+`;
+
 const migrations = [
   {
     id: "0001_initial",
@@ -79,6 +84,10 @@ const migrations = [
   {
     id: "0004_online_responses",
     sql: onlineResponsesMigrationSql
+  },
+  {
+    id: "0005_response_contacts",
+    sql: responseContactsMigrationSql
   }
 ] as const;
 

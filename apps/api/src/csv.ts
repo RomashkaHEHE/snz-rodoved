@@ -27,6 +27,8 @@ const columns: CsvColumn[] = [
     value: (response) => formatResearchPeriod(response)
   },
   { header: "Свободный текст", value: (response) => response.freeText ?? "" },
+  { header: "Имя", value: (response) => response.contactName ?? "" },
+  { header: "Номер телефона", value: (response) => response.contactPhone ?? "" },
   ...answerQuestions.flatMap<CsvColumn>((question) => {
     const questionColumn: CsvColumn = {
       header: `${question.number}. ${question.label}`,

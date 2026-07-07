@@ -61,7 +61,7 @@ export function resolveAuthConfig(overrides: Partial<AuthConfig> = {}): AuthConf
     password,
     workspacePassword,
     sessionSecret,
-    secureCookie: overrides.secureCookie ?? isProduction
+    secureCookie: overrides.secureCookie ?? resolveSecureCookieFlag(isProduction)
   };
 }
 
@@ -152,4 +152,16 @@ function safeEqual(left: string, right: string): boolean {
   }
 
   return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function resolveSecureCookieFlag(isProduction: boolean): boolean {
+  if (process.env.COOKIE_SECURE === "false") {
+    return false;
+  }
+
+  if (process.env.COOKIE_SECURE === "true") {
+    return true;
+  }
+
+  return isProduction;
 }

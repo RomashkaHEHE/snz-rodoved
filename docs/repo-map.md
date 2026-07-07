@@ -8,4 +8,5 @@
 - `AGENTS` — контекст для будущих агентов: цели решений, активные задачи, идеи.
 - `scripts` — эксплуатационные скрипты.
 - `.github/workflows/deploy.yml` — автодеплой на production при push в `main`.
+- `.github/workflows/deploy-test.yml` — автодеплой тестового контура при push в `test`.
 - `data` — локальная SQLite-база; сами `.sqlite` файлы не коммитятся.

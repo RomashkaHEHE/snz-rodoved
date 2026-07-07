@@ -20,6 +20,8 @@ Let public visitors submit the same 16-question survey online, while keeping the
 - Manual rows remain `source=paper`.
 - Public submit endpoint does not require workspace auth, but server forces `source=online`.
 - Free text should remain search context, not a request for contact data.
+- If q16 is `yes`, the public survey shows `contactName` and `contactPhone` directly under q16 and the public API requires both fields.
+- Contacts stay workspace-only: protected responses, protected table/edit UI, and CSV export may show them, but the public site must not expose submitted contacts.
 
 ## Relevant files
 
@@ -27,6 +29,7 @@ Let public visitors submit the same 16-question survey online, while keeping the
 - `packages/db/src/schema.ts`
 - `packages/db/src/repository.ts`
 - `packages/db/migrations/0004_online_responses.sql`
+- `packages/db/migrations/0005_response_contacts.sql`
 - `apps/api/src/app.ts`
 - `apps/api/src/filters.ts`
 - `apps/api/src/csv.ts`
@@ -45,5 +48,5 @@ Let public visitors submit the same 16-question survey online, while keeping the
 
 - `/survey` exists and submits without login.
 - `/data` can filter by source and shows online context.
-- CSV export includes source and online context fields.
-- Tests cover public submit, source filtering, and online fields.
+- CSV export includes source, online context fields, name, and phone.
+- Tests cover public submit, source filtering, online fields, and required q16 contact fields.

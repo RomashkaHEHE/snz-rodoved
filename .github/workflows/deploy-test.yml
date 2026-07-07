@@ -1,0 +1,94 @@
+name: Deploy Test
+
+on:
+  push:
+    branches:
+      - test
+  workflow_dispatch:
+
+concurrency:
+  group: test-deploy
+  cancel-in-progress: true
+
+env:
+  VITE_APP_ENV: test
+
+jobs:
+  deploy:
+    name: Build, verify and deploy test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Create release archive
+        run: |
+          RELEASE_ARCHIVE="$RUNNER_TEMP/release-test.tgz"
+          tar \
+            --exclude=.git \
+            --exclude=node_modules \
+            --exclude=data \
+            --exclude=backups \
+            --exclude=.env \
+            --exclude=.env.local \
+            --exclude=dev-server.log \
+            -czf "$RELEASE_ARCHIVE" .
+          cp "$RELEASE_ARCHIVE" release-test.tgz
+
+      - name: Configure SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_SSH_KEY"
+          DEPLOY_PORT="${DEPLOY_PORT:-22}"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$DEPLOY_PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload and activate test release
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_USER"
+          DEPLOY_PORT="${DEPLOY_PORT:-22}"
+          DEPLOY_PATH="/home/$DEPLOY_USER/apps/snz-rodoved-test"
+          DEPLOY_RESTART_COMMAND='XDG_RUNTIME_DIR=/run/user/$(id -u) systemctl --user restart snz-rodoved-test'
+          RELEASE_ID="${GITHUB_SHA::12}"
+          REMOTE_TMP="/tmp/snz-rodoved-test-$RELEASE_ID.tgz"
+          SSH_TARGET="$DEPLOY_USER@$DEPLOY_HOST"
+          SSH_BASE=(ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" "$SSH_TARGET")
+          SCP_BASE=(scp -i ~/.ssh/deploy_key -P "$DEPLOY_PORT")
+
+          "${SSH_BASE[@]}" "mkdir -p '$DEPLOY_PATH/releases' '$DEPLOY_PATH/shared'"
+          "${SCP_BASE[@]}" release-test.tgz "$SSH_TARGET:$REMOTE_TMP"
+          "${SCP_BASE[@]}" scripts/deploy/activate-release.sh "$SSH_TARGET:$DEPLOY_PATH/shared/activate-release.sh"
+          "${SSH_BASE[@]}" "chmod +x '$DEPLOY_PATH/shared/activate-release.sh' && '$DEPLOY_PATH/shared/activate-release.sh' '$REMOTE_TMP' '$DEPLOY_PATH' '$RELEASE_ID' '$DEPLOY_RESTART_COMMAND'"

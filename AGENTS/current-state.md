@@ -28,6 +28,7 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - Public `/survey` lets visitors submit the same 16-question survey without a workspace login.
 - Online survey rows are stored in `responses` with `source=online`; manual paper rows use `source=paper`.
 - Online survey rows may include `researchTerritory`, `researchPeriodStart`, `researchPeriodEnd`, and `freeText`.
+- If q16 is `yes` in the online survey, the UI shows `contactName` and `contactPhone`; these fields are stored on the response row and remain workspace-only.
 - `/login` is password-only workspace login.
 - `/admin` is a separate username/password admin login.
 - `/admin` can update both the admin password and the workspace password.
