@@ -18,12 +18,16 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 1. Keep survey data safe and easy to back up.
 2. Keep manual data entry fast and readable for the operator.
 3. Keep the public page simple until final public copy is approved.
-4. Keep docs and AGENTS updated whenever behavior changes.
+4. Keep public online survey data useful without turning the product into a personal-data intake form.
+5. Keep docs and AGENTS updated whenever behavior changes.
 
 ## Stable Product Decisions
 
 - Public `/` does not show survey analytics in v1.
 - Public `/` uses burgundy accents, a safe guest-entry jump to public info, and active contact icons for VK, Telegram, email, and vCard.
+- Public `/survey` lets visitors submit the same 16-question survey without a workspace login.
+- Online survey rows are stored in `responses` with `source=online`; manual paper rows use `source=paper`.
+- Online survey rows may include `researchTerritory`, `researchPeriodStart`, `researchPeriodEnd`, and `freeText`.
 - `/login` is password-only workspace login.
 - `/admin` is a separate username/password admin login.
 - `/admin` can update both the admin password and the workspace password.
@@ -34,6 +38,7 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - PDF archive files are one PDF per survey day. The operator manually names files as `YYYYMMDD_анкеты.pdf`; the app derives `surveyDate` from that name.
 - PDF files may contain personal contact data written on paper, so they are never public and are served only through workspace-authenticated API routes.
 - Public `/` only shows the work-zone button when the user is already authenticated.
+- Public `/` links to `/survey` for visitors.
 - Missing or unreadable paper answers are stored as `unknown`.
 - Fake/test questionnaires are stored as normal response rows with `isFake=true`; fake-only bulk deletion must never delete rows where `isFake=false`.
 - Questions 7 and 8 remain separate because both exist in the paper survey.
@@ -53,6 +58,7 @@ No active implementation task after the initial v1 scaffold. See completed task:
 - [public-page-and-assets.md](tasks/public-page-and-assets.md)
 - [pdf-archive.md](tasks/pdf-archive.md)
 - [responsive-workspace.md](tasks/responsive-workspace.md)
+- [online-survey.md](tasks/online-survey.md)
 - [docs-and-handoff.md](tasks/docs-and-handoff.md)
 - [autodeploy.md](tasks/autodeploy.md)
 

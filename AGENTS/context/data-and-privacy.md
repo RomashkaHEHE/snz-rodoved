@@ -1,6 +1,8 @@
 # Data And Privacy
 
-V1 does not collect respondent names, phone numbers, addresses, or free personal notes.
+V1 structured paper entry does not collect respondent names, phone numbers, addresses, or free personal notes.
+
+The public online survey has a free-text field because the customer needs search context. UI copy should avoid asking for contacts; treat this field as search notes, not a personal-data collection channel.
 
 Survey answer rules:
 
@@ -8,6 +10,8 @@ Survey answer rules:
 - `unknown` means blank, unclear, or not entered from the paper form;
 - q11 has an optional short text field for the war detail;
 - q7 and q8 are separate by source-paper design.
+- responses have `source=paper` or `source=online`;
+- online responses may have territory, period, and free-text search context.
 
 Public statistics are intentionally absent in v1. Adding them later requires a new privacy/product decision.
 

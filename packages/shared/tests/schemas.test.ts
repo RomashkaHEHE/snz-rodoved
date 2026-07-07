@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   answerQuestionIds,
+  onlineSurveyResponseInputSchema,
   parseSurveyDateFromPdfFileName,
   surveyPdfFileNameSchema,
   surveyResponseInputSchema,
@@ -37,6 +38,64 @@ describe("survey response schema", () => {
   it("keeps questions 7 and 8 as separate fields", () => {
     expect(answerQuestionIds).toContain("q7");
     expect(answerQuestionIds).toContain("q8");
+  });
+
+  it("accepts online survey search context", () => {
+    const parsed = onlineSurveyResponseInputSchema.parse({
+      surveyDate: "2026-07-08",
+      source: "online",
+      gender: "female",
+      ageGroup: "over_40",
+      residence: "other",
+      researchTerritory: "Челябинская область",
+      researchPeriodStart: 1850,
+      researchPeriodEnd: 1945,
+      freeText: "Ищу сведения по фамилии Ивановы",
+      q4: "unknown",
+      q5: "yes",
+      q6: "no",
+      q7: "yes",
+      q8: "yes",
+      q9: "yes",
+      q10: "unknown",
+      q11: "no",
+      q11WarDetails: "—",
+      q12: "yes",
+      q13: "unknown",
+      q14: "no",
+      q15: "yes",
+      q16: "yes"
+    });
+
+    expect(parsed.source).toBe("online");
+    expect(parsed.researchTerritory).toBe("Челябинская область");
+    expect(parsed.researchPeriodStart).toBe(1850);
+  });
+
+  it("rejects a reversed online research period", () => {
+    expect(() =>
+      onlineSurveyResponseInputSchema.parse({
+        surveyDate: "2026-07-08",
+        gender: "female",
+        ageGroup: "over_40",
+        residence: "other",
+        researchPeriodStart: 1945,
+        researchPeriodEnd: 1850,
+        q4: "unknown",
+        q5: "unknown",
+        q6: "unknown",
+        q7: "unknown",
+        q8: "unknown",
+        q9: "unknown",
+        q10: "unknown",
+        q11: "unknown",
+        q12: "unknown",
+        q13: "unknown",
+        q14: "unknown",
+        q15: "unknown",
+        q16: "unknown"
+      })
+    ).toThrow();
   });
 
   it("contains the paper quick value for the war details dash", () => {

@@ -3,6 +3,7 @@ import {
   answerLabels,
   answerQuestions,
   genderLabels,
+  responseSourceLabels,
   residenceLabels,
   type SurveyResponse
 } from "@snz-rodoved/shared";
@@ -15,10 +16,17 @@ interface CsvColumn {
 const columns: CsvColumn[] = [
   { header: "ID", value: (response) => response.id },
   { header: "Тип строки", value: (response) => (response.isFake ? "Фейковая" : "Реальная") },
+  { header: "Источник", value: (response) => responseSourceLabels[response.source] },
   { header: "Дата опроса", value: (response) => response.surveyDate },
   { header: "Пол", value: (response) => genderLabels[response.gender] },
   { header: "Возраст", value: (response) => ageGroupLabels[response.ageGroup] },
   { header: "Место проживания", value: (response) => residenceLabels[response.residence] },
+  { header: "Исследуемая территория", value: (response) => response.researchTerritory ?? "" },
+  {
+    header: "Исследуемый период",
+    value: (response) => formatResearchPeriod(response)
+  },
+  { header: "Свободный текст", value: (response) => response.freeText ?? "" },
   ...answerQuestions.flatMap<CsvColumn>((question) => {
     const questionColumn: CsvColumn = {
       header: `${question.number}. ${question.label}`,
@@ -40,6 +48,14 @@ const columns: CsvColumn[] = [
   { header: "Создано", value: (response) => response.createdAt },
   { header: "Обновлено", value: (response) => response.updatedAt }
 ];
+
+function formatResearchPeriod(response: SurveyResponse): string {
+  if (response.researchPeriodStart && response.researchPeriodEnd) {
+    return `${response.researchPeriodStart}-${response.researchPeriodEnd}`;
+  }
+
+  return String(response.researchPeriodStart ?? response.researchPeriodEnd ?? "");
+}
 
 export function buildResponsesCsv(responses: SurveyResponse[]): string {
   const rows = [

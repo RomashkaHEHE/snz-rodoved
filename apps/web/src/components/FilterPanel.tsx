@@ -7,6 +7,8 @@ import {
   answerValues,
   genderLabels,
   genderValues,
+  responseSourceLabels,
+  responseSourceValues,
   residenceLabels,
   residenceValues,
   type AnswerQuestionId,
@@ -49,6 +51,13 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
             onChange={(event) => onChange({ ...filters, dateTo: event.target.value || undefined })}
           />
         </label>
+        <MultiToggle
+          label="Источник"
+          values={responseSourceValues}
+          selected={filters.source ?? []}
+          labels={responseSourceLabels}
+          onChange={(source) => onChange({ ...filters, source })}
+        />
         <MultiToggle
           label="Пол"
           values={genderValues}

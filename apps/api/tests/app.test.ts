@@ -75,6 +75,36 @@ describe("api app", () => {
     expect(pdfFilesUnauthorized.statusCode).toBe(401);
   });
 
+  it("accepts public online survey responses without workspace login", async () => {
+    app = await buildApp({
+      databasePath: ":memory:",
+      auth: { username: "admin", password: "secret", sessionSecret: "test-secret" },
+      webDistDir: false
+    });
+
+    const onlinePayload: Partial<SurveyResponseInput> = {
+      ...input,
+      source: "paper",
+      researchTerritory: "Челябинская область",
+      researchPeriodStart: 1850,
+      researchPeriodEnd: 1945,
+      freeText: "Свободный комментарий"
+    };
+    delete onlinePayload.surveyDate;
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/public/survey-responses",
+      payload: onlinePayload
+    });
+
+    expect(created.statusCode).toBe(201);
+    expect(created.json().response.source).toBe("online");
+    expect(created.json().response.researchTerritory).toBe("Челябинская область");
+    expect(created.json().response.researchPeriodStart).toBe(1850);
+    expect(created.json().response.isFake).toBe(false);
+  });
+
   it("logs in, creates responses, filters, and summarizes analytics", async () => {
     app = await buildApp({
       databasePath: ":memory:",
@@ -125,6 +155,7 @@ describe("api app", () => {
       headers: { cookie }
     });
     expect(analytics.json().summary.total).toBe(2);
+    expect(analytics.json().summary.bySource.find((item: { value: string }) => item.value === "paper")?.count).toBe(2);
     expect(analytics.json().summary.answerBreakdown.q7.yes).toBe(1);
 
     const exported = await app.inject({
@@ -135,6 +166,7 @@ describe("api app", () => {
 
     expect(exported.statusCode).toBe(200);
     expect(exported.headers["content-type"]).toContain("text/csv");
+    expect(exported.body).toContain("Источник");
     expect(exported.body).toContain("Дата опроса");
     expect(exported.body).toContain("7. Найти предков, живших в 20 в. (СССР)");
     expect(exported.body).toContain("8. Найти предков, живших в 20 в.");

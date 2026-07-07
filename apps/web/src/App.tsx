@@ -24,12 +24,13 @@ import {
 import { Dashboard } from "./components/Dashboard";
 import { FilterPanel } from "./components/FilterPanel";
 import { AdminLoginPanel, WorkspaceLoginPanel } from "./components/LoginPanel";
+import { OnlineSurveyPage } from "./components/OnlineSurveyPage";
 import { PdfArchive } from "./components/PdfArchive";
 import { ResponseForm } from "./components/ResponseForm";
 import { ResponsesTable } from "./components/ResponsesTable";
 import "./styles.css";
 
-type AppRoute = "/" | "/login" | "/editor" | "/data" | "/pdf" | "/admin";
+type AppRoute = "/" | "/survey" | "/login" | "/editor" | "/data" | "/pdf" | "/admin";
 type SessionRole = "workspace" | "admin" | null;
 
 export function App() {
@@ -73,6 +74,16 @@ export function App() {
           setSessionRole("workspace");
           navigate("/editor", { replace: true });
         }}
+      />
+    );
+  }
+
+  if (route === "/survey") {
+    return (
+      <OnlineSurveyPage
+        authenticated={sessionRole !== null && sessionRole !== undefined}
+        onHome={() => navigate("/")}
+        onWorkspace={() => navigate("/editor")}
       />
     );
   }
@@ -138,8 +149,11 @@ function PublicPage({
                 Перейти в рабочую зону
               </button>
             ) : null}
+            <button className="primary-button" type="button" onClick={() => navigate("/survey")}>
+              Пройти опрос
+            </button>
             <a className="secondary-button" href="#public-info">
-              Гостевой вход
+              Контакты
             </a>
           </div>
           <div className="public-description" id="public-info">
@@ -437,6 +451,7 @@ function Redirect({
 function normalizeRoute(pathname: string): AppRoute {
   if (
     pathname === "/login" ||
+    pathname === "/survey" ||
     pathname === "/editor" ||
     pathname === "/data" ||
     pathname === "/pdf" ||

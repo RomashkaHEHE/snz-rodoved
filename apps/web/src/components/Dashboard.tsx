@@ -36,6 +36,8 @@ export function Dashboard({ summary }: DashboardProps) {
       </div>
 
       <div className="stat-grid">
+        <Stat title="Очные" value={findCount(summary.bySource, "paper")} />
+        <Stat title="Онлайн" value={findCount(summary.bySource, "online")} />
         <Stat title="Мужчины" value={findCount(summary.byGender, "male")} />
         <Stat title="Женщины" value={findCount(summary.byGender, "female")} />
         <Stat title="Снежинск" value={findCount(summary.byResidence, "snezhinsk")} />

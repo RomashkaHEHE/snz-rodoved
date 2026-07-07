@@ -1,5 +1,5 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import type { AgeGroup, AnswerValue, Gender, Residence } from "@snz-rodoved/shared";
+import type { AgeGroup, AnswerValue, Gender, Residence, ResponseSource } from "@snz-rodoved/shared";
 
 export const responses = sqliteTable(
   "responses",
@@ -9,6 +9,7 @@ export const responses = sqliteTable(
     gender: text("gender").$type<Gender>().notNull(),
     ageGroup: text("age_group").$type<AgeGroup>().notNull(),
     residence: text("residence").$type<Residence>().notNull(),
+    source: text("source").$type<ResponseSource>().notNull().default("paper"),
     q4: text("q4").$type<AnswerValue>().notNull(),
     q5: text("q5").$type<AnswerValue>().notNull(),
     q6: text("q6").$type<AnswerValue>().notNull(),
@@ -23,6 +24,10 @@ export const responses = sqliteTable(
     q14: text("q14").$type<AnswerValue>().notNull(),
     q15: text("q15").$type<AnswerValue>().notNull(),
     q16: text("q16").$type<AnswerValue>().notNull(),
+    researchTerritory: text("research_territory"),
+    researchPeriodStart: integer("research_period_start"),
+    researchPeriodEnd: integer("research_period_end"),
+    freeText: text("free_text"),
     isFake: text("is_fake").$type<"true" | "false">().notNull().default("false"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull()
@@ -32,6 +37,7 @@ export const responses = sqliteTable(
     genderIdx: index("responses_gender_idx").on(table.gender),
     ageGroupIdx: index("responses_age_group_idx").on(table.ageGroup),
     residenceIdx: index("responses_residence_idx").on(table.residence),
+    sourceIdx: index("responses_source_idx").on(table.source),
     isFakeIdx: index("responses_is_fake_idx").on(table.isFake)
   })
 );

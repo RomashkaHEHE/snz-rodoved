@@ -18,6 +18,7 @@ import {
   answerQuestionIds,
   answerValues,
   genderValues,
+  onlineSurveyResponseInputSchema,
   partialSurveyResponseInputSchema,
   residenceValues,
   surveyResponseInputSchema,
@@ -120,6 +121,15 @@ function registerApiRoutes(
   });
 
   app.get("/api/health", async () => ({ ok: true }));
+
+  app.post("/api/public/survey-responses", async (request, reply) => {
+    const input = onlineSurveyResponseInputSchema.parse({
+      ...(request.body && typeof request.body === "object" ? request.body : {}),
+      surveyDate: readSurveyDate(request.body) ?? createTodayDate()
+    });
+    const response = repository.create(input, { source: "online" });
+    return reply.code(201).send({ response });
+  });
 
   app.post("/api/auth/login", async (request, reply) => {
     const input = loginSchema.parse(request.body);
@@ -562,6 +572,19 @@ function getErrorMessage(error: unknown): string {
   }
 
   return "Bad request";
+}
+
+function readSurveyDate(body: unknown): string | undefined {
+  if (!body || typeof body !== "object" || !("surveyDate" in body)) {
+    return undefined;
+  }
+
+  const value = (body as { surveyDate?: unknown }).surveyDate;
+  return typeof value === "string" && value ? value : undefined;
+}
+
+function createTodayDate(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function createFakeResponseInput(): SurveyResponseInput {

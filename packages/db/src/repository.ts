@@ -9,6 +9,7 @@ import {
   type AnswerQuestionId,
   type AnswerValue,
   type PartialSurveyResponseInput,
+  type ResponseSource,
   type SurveyFilters,
   type SurveyPdfFile,
   type SurveyResponse,
@@ -47,13 +48,21 @@ const answerColumns: Record<AnswerQuestionId, ResponseColumn> = {
 export class SurveyRepository {
   constructor(private readonly db: AppDatabase) {}
 
-  create(input: SurveyResponseInput, options: { isFake?: boolean } = {}): SurveyResponse {
+  create(
+    input: SurveyResponseInput,
+    options: { isFake?: boolean; source?: ResponseSource } = {}
+  ): SurveyResponse {
     const parsed = surveyResponseInputSchema.parse(input);
     const now = new Date().toISOString();
     const row: NewResponseRow = {
       ...parsed,
       id: randomUUID(),
+      source: options.source ?? parsed.source ?? "paper",
       q11WarDetails: parsed.q11WarDetails ?? null,
+      researchTerritory: parsed.researchTerritory ?? null,
+      researchPeriodStart: parsed.researchPeriodStart ?? null,
+      researchPeriodEnd: parsed.researchPeriodEnd ?? null,
+      freeText: parsed.freeText ?? null,
       isFake: options.isFake ? "true" : "false",
       createdAt: now,
       updatedAt: now
@@ -85,6 +94,22 @@ export class SurveyRepository {
 
     if ("q11WarDetails" in parsed) {
       updateData.q11WarDetails = parsed.q11WarDetails ?? null;
+    }
+
+    if ("researchTerritory" in parsed) {
+      updateData.researchTerritory = parsed.researchTerritory ?? null;
+    }
+
+    if ("researchPeriodStart" in parsed) {
+      updateData.researchPeriodStart = parsed.researchPeriodStart ?? null;
+    }
+
+    if ("researchPeriodEnd" in parsed) {
+      updateData.researchPeriodEnd = parsed.researchPeriodEnd ?? null;
+    }
+
+    if ("freeText" in parsed) {
+      updateData.freeText = parsed.freeText ?? null;
     }
 
     const updated = this.db
@@ -177,6 +202,10 @@ function buildFilterConditions(filters: SurveyFilters): SQL[] {
     conditions.push(lte(responses.surveyDate, filters.dateTo));
   }
 
+  if (filters.source?.length) {
+    conditions.push(inArray(responses.source, filters.source));
+  }
+
   if (filters.gender?.length) {
     conditions.push(inArray(responses.gender, filters.gender));
   }
@@ -216,8 +245,13 @@ function buildPdfFileFilterConditions(filters: Pick<SurveyFilters, "dateFrom" | 
 function toSurveyResponse(row: ResponseRow): SurveyResponse {
   return {
     ...row,
+    source: row.source ?? "paper",
     isFake: row.isFake === "true",
-    q11WarDetails: row.q11WarDetails ?? undefined
+    q11WarDetails: row.q11WarDetails ?? undefined,
+    researchTerritory: row.researchTerritory ?? undefined,
+    researchPeriodStart: row.researchPeriodStart ?? undefined,
+    researchPeriodEnd: row.researchPeriodEnd ?? undefined,
+    freeText: row.freeText ?? undefined
   };
 }
 

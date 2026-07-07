@@ -23,6 +23,7 @@ export function parseFiltersFromQuery(query: unknown): SurveyFilters {
   const parsed = surveyFiltersSchema.parse({
     dateFrom: parseSingleValue(source.dateFrom),
     dateTo: parseSingleValue(source.dateTo),
+    source: parseOptionalMultiValue(source.source),
     gender: parseOptionalMultiValue(source.gender),
     ageGroup: parseOptionalMultiValue(source.ageGroup),
     residence: parseOptionalMultiValue(source.residence),

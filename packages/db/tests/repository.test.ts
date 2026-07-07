@@ -63,6 +63,32 @@ describe("SurveyRepository", () => {
     expect(noRows[0]?.gender).toBe("male");
   });
 
+  it("stores online response context and filters by source", () => {
+    connection = createDatabaseConnection({ databasePath: ":memory:" });
+    const repository = new SurveyRepository(connection.db);
+    repository.create(baseInput);
+    repository.create(
+      {
+        ...baseInput,
+        researchTerritory: "Челябинская область",
+        researchPeriodStart: 1850,
+        researchPeriodEnd: 1945,
+        freeText: "Дополнительный комментарий"
+      },
+      { source: "online" }
+    );
+
+    const onlineRows = repository.list({ source: ["online"] });
+    const paperRows = repository.list({ source: ["paper"] });
+
+    expect(onlineRows).toHaveLength(1);
+    expect(onlineRows[0]?.source).toBe("online");
+    expect(onlineRows[0]?.researchTerritory).toBe("Челябинская область");
+    expect(onlineRows[0]?.researchPeriodStart).toBe(1850);
+    expect(paperRows).toHaveLength(1);
+    expect(paperRows[0]?.source).toBe("paper");
+  });
+
   it("updates and deletes responses", () => {
     connection = createDatabaseConnection({ databasePath: ":memory:" });
     const repository = new SurveyRepository(connection.db);

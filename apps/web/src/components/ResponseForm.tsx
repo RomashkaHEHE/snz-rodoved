@@ -8,6 +8,7 @@ import {
   answerValues,
   genderLabels,
   genderValues,
+  responseSourceLabels,
   residenceLabels,
   residenceValues,
   warDetailQuickValues,
@@ -110,6 +111,68 @@ export function ResponseForm({ editing, onSaved, onCancelEdit }: ResponseFormPro
           />
         </div>
 
+        {editing?.source === "online" ? (
+          <div className="online-extra-grid">
+            <p className="online-source-note">Источник: {responseSourceLabels[editing.source]}</p>
+            <label>
+              Исследуемая территория
+              <input
+                maxLength={180}
+                value={form.researchTerritory ?? ""}
+                onChange={(event) =>
+                  setForm({ ...form, researchTerritory: event.target.value || undefined })
+                }
+              />
+            </label>
+            <fieldset className="period-fields">
+              <legend>Исследуемый период</legend>
+              <div>
+                <label>
+                  С
+                  <input
+                    inputMode="numeric"
+                    max={2100}
+                    min={1500}
+                    type="number"
+                    value={form.researchPeriodStart ?? ""}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        researchPeriodStart: parseOptionalNumber(event.target.value)
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  По
+                  <input
+                    inputMode="numeric"
+                    max={2100}
+                    min={1500}
+                    type="number"
+                    value={form.researchPeriodEnd ?? ""}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        researchPeriodEnd: parseOptionalNumber(event.target.value)
+                      })
+                    }
+                  />
+                </label>
+              </div>
+            </fieldset>
+            <label className="online-free-text">
+              Свободный текст
+              <textarea
+                maxLength={1500}
+                rows={4}
+                value={form.freeText ?? ""}
+                onChange={(event) => setForm({ ...form, freeText: event.target.value || undefined })}
+              />
+            </label>
+          </div>
+        ) : null}
+
         <div className="question-list">
           {answerQuestions.map((question) => (
             <div className="question-row" key={question.id}>
@@ -157,6 +220,7 @@ function createDefaultFormValue(): SurveyResponseInput {
   const today = new Date().toISOString().slice(0, 10);
   return {
     surveyDate: today,
+    source: "paper",
     gender: "female",
     ageGroup: "over_40",
     residence: "snezhinsk",
@@ -184,6 +248,7 @@ function toFormValue(editing: SurveyResponse | null): SurveyResponseInput {
 
   return {
     surveyDate: editing.surveyDate,
+    source: editing.source,
     gender: editing.gender,
     ageGroup: editing.ageGroup,
     residence: editing.residence,
@@ -200,6 +265,19 @@ function toFormValue(editing: SurveyResponse | null): SurveyResponseInput {
     q13: editing.q13,
     q14: editing.q14,
     q15: editing.q15,
-    q16: editing.q16
+    q16: editing.q16,
+    researchTerritory: editing.researchTerritory,
+    researchPeriodStart: editing.researchPeriodStart,
+    researchPeriodEnd: editing.researchPeriodEnd,
+    freeText: editing.freeText
   };
+}
+
+function parseOptionalNumber(value: string): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }

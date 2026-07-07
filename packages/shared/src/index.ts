@@ -4,11 +4,13 @@ export const genderValues = ["male", "female"] as const;
 export const ageGroupValues = ["under_18", "18_40", "over_40"] as const;
 export const residenceValues = ["snezhinsk", "other"] as const;
 export const answerValues = ["yes", "no", "unknown"] as const;
+export const responseSourceValues = ["paper", "online"] as const;
 
 export type Gender = (typeof genderValues)[number];
 export type AgeGroup = (typeof ageGroupValues)[number];
 export type Residence = (typeof residenceValues)[number];
 export type AnswerValue = (typeof answerValues)[number];
+export type ResponseSource = (typeof responseSourceValues)[number];
 
 export const genderLabels: Record<Gender, string> = {
   male: "М",
@@ -30,6 +32,11 @@ export const answerLabels: Record<AnswerValue, string> = {
   yes: "Да",
   no: "Нет",
   unknown: "Нет ответа"
+};
+
+export const responseSourceLabels: Record<ResponseSource, string> = {
+  paper: "Очная",
+  online: "Онлайн"
 };
 
 export const answerQuestionIds = [
@@ -148,6 +155,7 @@ export const ageGroupSchema = z.enum(ageGroupValues);
 export const residenceSchema = z.enum(residenceValues);
 export const answerSchema = z.enum(answerValues);
 export const answerQuestionIdSchema = z.enum(answerQuestionIds);
+export const responseSourceSchema = z.enum(responseSourceValues);
 
 const dateSchema = z
   .string()
@@ -169,11 +177,30 @@ const answerFieldSchemas = {
   q16: answerSchema
 };
 
-export const surveyResponseInputSchema = z.object({
+const optionalTextField = (max: number, message: string) =>
+  z
+    .string()
+    .trim()
+    .max(max, message)
+    .optional()
+    .nullable()
+    .transform((value) => value || undefined);
+
+const optionalResearchYearSchema = z
+  .number()
+  .int()
+  .min(1500, "Год должен быть не раньше 1500")
+  .max(2100, "Год должен быть не позже 2100")
+  .optional()
+  .nullable()
+  .transform((value) => value ?? undefined);
+
+const surveyResponseInputObjectSchema = z.object({
   surveyDate: dateSchema,
   gender: genderSchema,
   ageGroup: ageGroupSchema,
   residence: residenceSchema,
+  source: responseSourceSchema.optional(),
   ...answerFieldSchemas,
   q11WarDetails: z
     .string()
@@ -181,16 +208,49 @@ export const surveyResponseInputSchema = z.object({
     .max(120, "Поле про войну должно быть короче 120 символов")
     .optional()
     .nullable()
-    .transform((value) => value || undefined)
+    .transform((value) => value || undefined),
+  researchTerritory: optionalTextField(
+    180,
+    "Исследуемая территория должна быть короче 180 символов"
+  ),
+  researchPeriodStart: optionalResearchYearSchema,
+  researchPeriodEnd: optionalResearchYearSchema,
+  freeText: optionalTextField(1500, "Свободный текст должен быть короче 1500 символов")
 });
 
-export const partialSurveyResponseInputSchema = surveyResponseInputSchema
+function hasValidResearchPeriod(value: {
+  researchPeriodStart?: number;
+  researchPeriodEnd?: number;
+}): boolean {
+  if (!value.researchPeriodStart || !value.researchPeriodEnd) {
+    return true;
+  }
+
+  return value.researchPeriodStart <= value.researchPeriodEnd;
+}
+
+export const surveyResponseInputSchema = surveyResponseInputObjectSchema.refine(
+  hasValidResearchPeriod,
+  {
+    message: "Начало исследуемого периода не может быть позже окончания",
+    path: ["researchPeriodStart"]
+  }
+);
+
+export const onlineSurveyResponseInputSchema = surveyResponseInputSchema;
+
+export const partialSurveyResponseInputSchema = surveyResponseInputObjectSchema
   .partial()
+  .refine(hasValidResearchPeriod, {
+    message: "Начало исследуемого периода не может быть позже окончания",
+    path: ["researchPeriodStart"]
+  })
   .refine((value) => Object.keys(value).length > 0, "Нет полей для обновления");
 
 export const surveyFiltersSchema = z.object({
   dateFrom: dateSchema.optional(),
   dateTo: dateSchema.optional(),
+  source: z.array(responseSourceSchema).optional(),
   gender: z.array(genderSchema).optional(),
   ageGroup: z.array(ageGroupSchema).optional(),
   residence: z.array(residenceSchema).optional(),
@@ -201,8 +261,9 @@ export type SurveyResponseInput = z.infer<typeof surveyResponseInputSchema>;
 export type PartialSurveyResponseInput = z.infer<typeof partialSurveyResponseInputSchema>;
 export type SurveyFilters = z.infer<typeof surveyFiltersSchema>;
 
-export interface SurveyResponse extends SurveyResponseInput {
+export interface SurveyResponse extends Omit<SurveyResponseInput, "source"> {
   id: string;
+  source: ResponseSource;
   isFake: boolean;
   createdAt: string;
   updatedAt: string;
@@ -262,6 +323,7 @@ export interface CountItem<TValue extends string = string> {
 export interface AnalyticsSummary {
   total: number;
   byDate: Array<{ date: string; count: number }>;
+  bySource: Array<CountItem<ResponseSource>>;
   byGender: Array<CountItem<Gender>>;
   byAgeGroup: Array<CountItem<AgeGroup>>;
   byResidence: Array<CountItem<Residence>>;

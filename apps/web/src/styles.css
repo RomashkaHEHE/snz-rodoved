@@ -25,7 +25,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -301,6 +302,86 @@ button {
   margin-top: 1rem;
 }
 
+.online-survey-form .form-top-grid {
+  align-items: start;
+  grid-template-columns: minmax(160px, 0.7fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.online-survey-form .form-top-grid > .segmented {
+  max-width: none;
+}
+
+.public-survey-page {
+  background: #f5f1e9;
+  min-height: 100vh;
+  padding: 1.25rem;
+}
+
+.public-survey-header {
+  align-items: center;
+  border-bottom: 1px solid #d9cebd;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin: 0 auto 1.25rem;
+  max-width: 980px;
+  padding-bottom: 1rem;
+}
+
+.online-survey-panel {
+  background: #fffdf8;
+  border: 1px solid #ded3c1;
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(44, 47, 38, 0.06);
+  margin: 0 auto;
+  max-width: 980px;
+  padding: 1.25rem;
+}
+
+.online-survey-panel h1,
+.online-survey-success h2 {
+  margin: 0;
+}
+
+.online-extra-grid {
+  border-top: 1px solid #eee5d9;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  padding-top: 1rem;
+}
+
+.online-source-note,
+.online-free-text {
+  grid-column: 1 / -1;
+}
+
+.online-source-note {
+  color: var(--color-muted);
+  font-weight: 700;
+  margin: 0;
+}
+
+.period-fields {
+  border: 0;
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+}
+
+.period-fields > div {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.online-survey-success {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
 .form-top-grid,
 .filter-grid,
 .pdf-upload-form {
@@ -344,7 +425,8 @@ legend {
 }
 
 input,
-select {
+select,
+textarea {
   background: #fff;
   border: 1px solid #cfc4b3;
   border-radius: 4px;
@@ -352,6 +434,11 @@ select {
   min-height: 44px;
   padding: 0.65rem 0.75rem;
   width: 100%;
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
 }
 
 .primary-button,
@@ -625,7 +712,8 @@ th {
 }
 
 .fake-badge,
-.real-badge {
+.real-badge,
+.source-badge {
   border-radius: 3px;
   display: inline-flex;
   font-size: 0.85rem;
@@ -641,6 +729,16 @@ th {
 .real-badge {
   background: #e6eee7;
   color: #2d6f45;
+}
+
+.source-paper {
+  background: #eee6d8;
+  color: #5d4a2c;
+}
+
+.source-online {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
 
 .row-actions button {
@@ -795,9 +893,19 @@ th {
 
   .form-top-grid,
   .filter-grid,
+  .online-extra-grid,
   .pdf-upload-form,
   .stat-grid {
     grid-template-columns: 1fr;
+  }
+
+  .public-survey-page {
+    padding: 0.75rem;
+  }
+
+  .public-survey-header,
+  .online-survey-panel {
+    max-width: none;
   }
 
   .form-top-grid > label,
@@ -858,9 +966,28 @@ th {
     margin: 0;
   }
 
+  .online-survey-form .form-actions {
+    border-top: 1px solid #eadfce;
+    bottom: auto;
+    box-shadow: none;
+    margin: 0;
+    padding: 0.75rem 0 0;
+    position: static;
+  }
+
   .public-hero {
     min-height: 62vh;
     padding: 2rem 1.25rem;
+  }
+
+  .public-hero-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .public-hero-actions > button,
+  .public-hero-actions > a {
+    width: 100%;
   }
 
   .contact-list {
@@ -968,6 +1095,10 @@ th {
 
   .segmented.compact .segmented-options {
     gap: 0.35rem;
+  }
+
+  .period-fields > div {
+    grid-template-columns: 1fr;
   }
 
   td {

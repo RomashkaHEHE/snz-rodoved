@@ -1,6 +1,6 @@
 # API
 
-Все рабочие endpoints, кроме `/api/health` и auth, требуют сессионную cookie.
+Все рабочие endpoints, кроме `/api/health`, auth и публичной отправки онлайн-анкеты, требуют сессионную cookie.
 
 ## Auth
 
@@ -45,12 +45,42 @@
 
 ## Анкеты
 
+`POST /api/public/survey-responses`
+
+Публичная отправка онлайн-анкеты без входа в рабочую зону. Сервер всегда сохраняет такую строку с `source=online`.
+
+```json
+{
+  "gender": "female",
+  "ageGroup": "over_40",
+  "residence": "snezhinsk",
+  "researchTerritory": "Челябинская область",
+  "researchPeriodStart": 1850,
+  "researchPeriodEnd": 1945,
+  "freeText": "Дополнительный комментарий",
+  "q4": "unknown",
+  "q5": "yes",
+  "q6": "no",
+  "q7": "yes",
+  "q8": "unknown",
+  "q9": "unknown",
+  "q10": "unknown",
+  "q11": "no",
+  "q12": "yes",
+  "q13": "unknown",
+  "q14": "unknown",
+  "q15": "yes",
+  "q16": "yes"
+}
+```
+
 `GET /api/responses`
 
 Поддерживает фильтры query string:
 
 - `dateFrom=2026-04-01`
 - `dateTo=2026-04-30`
+- `source=paper,online`
 - `gender=male,female`
 - `ageGroup=18_40,over_40`
 - `residence=snezhinsk`

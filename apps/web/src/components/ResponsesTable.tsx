@@ -3,6 +3,7 @@ import {
   ageGroupLabels,
   answerLabels,
   genderLabels,
+  responseSourceLabels,
   residenceLabels,
   type SurveyResponse
 } from "@snz-rodoved/shared";
@@ -42,9 +43,11 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
             <tr>
               <th>Дата</th>
               <th>Тип</th>
+              <th>Источник</th>
               <th>Пол</th>
               <th>Возраст</th>
               <th>Проживание</th>
+              <th>Поиск</th>
               <th>Q7</th>
               <th>Q8</th>
               <th>Q11</th>
@@ -63,9 +66,15 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
                     <span className="real-badge">Реальная</span>
                   )}
                 </td>
+                <td data-label="Источник">
+                  <span className={`source-badge source-${response.source}`}>
+                    {responseSourceLabels[response.source]}
+                  </span>
+                </td>
                 <td data-label="Пол">{genderLabels[response.gender]}</td>
                 <td data-label="Возраст">{ageGroupLabels[response.ageGroup]}</td>
                 <td data-label="Проживание">{residenceLabels[response.residence]}</td>
+                <td data-label="Поиск">{formatResearchInfo(response)}</td>
                 <td data-label="Q7">{answerLabels[response.q7]}</td>
                 <td data-label="Q8">{answerLabels[response.q8]}</td>
                 <td data-label="Q11">
@@ -87,7 +96,7 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
             ))}
             {responses.length === 0 ? (
               <tr>
-                <td className="empty-table-cell" colSpan={10}>
+                <td className="empty-table-cell" colSpan={12}>
                   По текущим фильтрам анкет нет.
                 </td>
               </tr>
@@ -97,4 +106,26 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
       </div>
     </section>
   );
+}
+
+function formatResearchInfo(response: SurveyResponse): string {
+  const period = formatResearchPeriod(response);
+  const parts = [response.researchTerritory, period, response.freeText].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : "—";
+}
+
+function formatResearchPeriod(response: SurveyResponse): string | undefined {
+  if (response.researchPeriodStart && response.researchPeriodEnd) {
+    return `${response.researchPeriodStart}-${response.researchPeriodEnd}`;
+  }
+
+  if (response.researchPeriodStart) {
+    return `с ${response.researchPeriodStart}`;
+  }
+
+  if (response.researchPeriodEnd) {
+    return `до ${response.researchPeriodEnd}`;
+  }
+
+  return undefined;
 }

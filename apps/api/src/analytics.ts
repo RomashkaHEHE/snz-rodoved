@@ -10,6 +10,8 @@ import {
   interestQuestionIds,
   residenceLabels,
   residenceValues,
+  responseSourceLabels,
+  responseSourceValues,
   type AnalyticsSummary,
   type AnswerQuestionId,
   type AnswerValue,
@@ -22,6 +24,7 @@ export function buildAnalyticsSummary(responses: SurveyResponse[]): AnalyticsSum
   const genderCounts = createCountMap(genderValues);
   const ageCounts = createCountMap(ageGroupValues);
   const residenceCounts = createCountMap(residenceValues);
+  const sourceCounts = createCountMap(responseSourceValues);
   const answerBreakdown = createAnswerBreakdown();
   const warDetails = new Map<string, number>();
 
@@ -30,6 +33,7 @@ export function buildAnalyticsSummary(responses: SurveyResponse[]): AnalyticsSum
     increment(genderCounts, response.gender);
     increment(ageCounts, response.ageGroup);
     increment(residenceCounts, response.residence);
+    increment(sourceCounts, response.source);
 
     for (const questionId of answerQuestionIds) {
       const answer = response[questionId];
@@ -49,6 +53,7 @@ export function buildAnalyticsSummary(responses: SurveyResponse[]): AnalyticsSum
     byGender: toCountItems(genderCounts, genderLabels),
     byAgeGroup: toCountItems(ageCounts, ageGroupLabels),
     byResidence: toCountItems(residenceCounts, residenceLabels),
+    bySource: toCountItems(sourceCounts, responseSourceLabels),
     answerBreakdown,
     interestYesCounts: interestQuestionIds.map((questionId) => ({
       questionId,

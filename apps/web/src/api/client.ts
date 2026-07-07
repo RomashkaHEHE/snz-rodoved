@@ -63,6 +63,14 @@ export async function createResponse(input: SurveyResponseInput): Promise<Survey
   return result.response;
 }
 
+export async function submitOnlineSurvey(input: SurveyResponseInput): Promise<SurveyResponse> {
+  const result = await request<{ response: SurveyResponse }>("/api/public/survey-responses", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+  return result.response;
+}
+
 export async function createFakeResponse(): Promise<SurveyResponse> {
   const result = await request<{ response: SurveyResponse }>("/api/responses/fake", {
     method: "POST"
@@ -197,6 +205,7 @@ function buildFilterQuery(filters: SurveyFilters): string {
   const params = new URLSearchParams();
   setParam(params, "dateFrom", filters.dateFrom);
   setParam(params, "dateTo", filters.dateTo);
+  setListParam(params, "source", filters.source);
   setListParam(params, "gender", filters.gender);
   setListParam(params, "ageGroup", filters.ageGroup);
   setListParam(params, "residence", filters.residence);
