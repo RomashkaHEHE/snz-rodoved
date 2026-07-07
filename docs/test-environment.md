@@ -61,6 +61,16 @@ Before DNS is ready, the server can still be checked with a Host header:
 curl -H 'Host: test.snz-rodoved.ru' http://46.16.36.87/api/health
 ```
 
+## Current Server State
+
+As of 2026-07-08:
+
+- `snz-rodoved-test.service` is active.
+- `http://127.0.0.1:4001/api/health` returns `{"ok":true}` on the VPS.
+- nginx has `snz-rodoved-test.conf` and proxies Host `test.snz-rodoved.ru` to `127.0.0.1:4001`.
+- `curl -H 'Host: test.snz-rodoved.ru' http://46.16.36.87/api/health` returns `{"ok":true}`.
+- DNS for `test.snz-rodoved.ru` is not ready yet; the A record still needs to be added before the public URL opens normally.
+
 ## Safety Rules
 
 - Do not point the test service to the production SQLite file.

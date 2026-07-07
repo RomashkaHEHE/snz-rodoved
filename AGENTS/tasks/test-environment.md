@@ -2,7 +2,7 @@
 
 ## Status
 
-IN_PROGRESS
+WATCH
 
 ## Priority
 
@@ -19,7 +19,8 @@ Maintain a separate test deployment for UX experiments, mobile workflow checks, 
 - Test must use its own SQLite database and PDF storage.
 - Test builds use `VITE_APP_ENV=test`; the frontend shows a visible test banner in that build.
 - Test runtime may use `COOKIE_SECURE=false` until DNS/HTTPS are ready; never apply that env value to production.
-- DNS for `test.snz-rodoved.ru` may need to be added by the domain owner before HTTPS can be issued.
+- Server bootstrap is complete: `snz-rodoved-test.service` is active on port `4001`, nginx proxies Host `test.snz-rodoved.ru`, and GitHub Actions `Deploy Test` passed on branch `test`.
+- DNS for `test.snz-rodoved.ru` is not ready yet; the domain owner needs to add the A record before HTTPS can be issued.
 
 ## Relevant files
 
@@ -32,16 +33,15 @@ Maintain a separate test deployment for UX experiments, mobile workflow checks, 
 
 ## Next steps
 
-1. Bootstrap `/home/user1/apps/snz-rodoved-test` on the VPS.
-2. Add a separate nginx config for `test.snz-rodoved.ru` proxying to `127.0.0.1:4001`.
-3. Push branch `test` and verify the `Deploy Test` workflow.
-4. Verify `curl -H 'Host: test.snz-rodoved.ru' http://46.16.36.87/api/health`.
-5. After DNS resolves, issue Let's Encrypt for `test.snz-rodoved.ru`.
+1. Add DNS record: `test A 46.16.36.87`.
+2. After DNS resolves, issue Let's Encrypt for `test.snz-rodoved.ru`.
+3. Re-check mobile and desktop pages on the real HTTPS URL.
 
 ## Exit criteria
 
-- `test` branch deploys automatically through GitHub Actions.
-- `snz-rodoved-test.service` is healthy on the server.
-- Test reverse proxy reaches the app without affecting `snz-rodoved.service`.
-- Test site has a separate database from production.
-- Mobile and desktop smoke checks have been run on `/`, `/survey`, `/editor`, and `/data`.
+- `test` branch deploys automatically through GitHub Actions. Done for commit `9cb3dc5`.
+- `snz-rodoved-test.service` is healthy on the server. Done.
+- Test reverse proxy reaches the app without affecting `snz-rodoved.service`. Done.
+- Test site has a separate database from production. Done: `/home/user1/apps/snz-rodoved-test/shared/data/rodoved.sqlite`.
+- Mobile and desktop smoke checks have been run locally on `/`, `/survey`, `/editor`, and `/data`. Done.
+- Public DNS and HTTPS for `test.snz-rodoved.ru` remain pending.
