@@ -155,6 +155,26 @@ a {
   gap: 1.25rem;
 }
 
+.survey-progress-block {
+  display: grid;
+  gap: 0.45rem;
+  justify-items: end;
+}
+
+.survey-progress {
+  background: #e7ddd3;
+  border-radius: 3px;
+  height: 0.45rem;
+  overflow: hidden;
+  width: min(620px, 100%);
+}
+
+.survey-progress i {
+  background: var(--accent);
+  display: block;
+  height: 100%;
+}
+
 .section-title-row {
   align-items: center;
   display: flex;
@@ -170,6 +190,25 @@ a {
 .section-title-row span {
   color: var(--muted);
   font-weight: 800;
+}
+
+.survey-state {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: flex-end;
+}
+
+.link-button {
+  background: transparent;
+  border: 0;
+  color: var(--accent);
+  font-weight: 900;
+  min-height: auto;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
 }
 
 .step-rail {
@@ -532,6 +571,10 @@ textarea {
   margin-top: 1rem;
 }
 
+.question-breakdown .segmented {
+  max-width: 680px;
+}
+
 .question-breakdown-row {
   background: #fffaf6;
   border: 1px solid var(--line-soft);
@@ -857,6 +900,10 @@ textarea {
     justify-content: flex-start;
   }
 
+  .survey-progress-block {
+    justify-items: stretch;
+  }
+
   .step-rail,
   .summary-grid,
     .data-layout,
@@ -913,6 +960,10 @@ textarea {
 
   .step-rail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .section-title-row {
+    align-items: start;
   }
 
   .question-card {

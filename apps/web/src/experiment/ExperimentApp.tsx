@@ -35,6 +35,8 @@ type Gender = "male" | "female";
 type AgeGroup = "under_18" | "18_40" | "over_40";
 type Residence = "snezhinsk" | "other";
 type ResponseSource = "online" | "paper";
+type QuestionGroup = "experience" | "interest" | "help";
+type QuestionGroupFilter = "all" | QuestionGroup;
 type QuestionId =
   | "q4"
   | "q5"
@@ -118,7 +120,7 @@ const sourceLabels: Record<ResponseSource, string> = {
   paper: "бумага"
 };
 
-const questions: Array<{ id: QuestionId; number: number; label: string; group: string }> = [
+const questions: Array<{ id: QuestionId; number: number; label: string; group: QuestionGroup }> = [
   { id: "q4", number: 4, label: "Вы рисовали в школе схему своей семьи?", group: "experience" },
   { id: "q5", number: 5, label: "Вы знаете имя своей прабабушки?", group: "experience" },
   { id: "q6", number: 6, label: "Вы можете назвать имена всех 4х прадедов?", group: "experience" },
@@ -161,6 +163,7 @@ const routeTitles: Record<RouteId, string> = {
   data: "Данные",
   pdf: "PDF"
 };
+const surveyDraftStorageKey = "rodoved-test-online-draft-v1";
 
 export function ExperimentApp() {
   const [route, setRoute] = useState<RouteId>(() => routeFromPath(window.location.pathname));
@@ -367,9 +370,10 @@ function WorkspaceGate({
 }
 
 function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void> }) {
-  const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<ResponseDraft>(() => createEmptyDraft("online"));
-  const [status, setStatus] = useState("");
+  const [restoredDraft] = useState(() => readSurveyDraftState());
+  const [step, setStep] = useState(restoredDraft.step);
+  const [draft, setDraft] = useState<ResponseDraft>(restoredDraft.draft);
+  const [status, setStatus] = useState(restoredDraft.restored ? "Черновик восстановлен." : "");
   const [saving, setSaving] = useState(false);
 
   const sections = [
@@ -414,6 +418,15 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
     }
   ];
 
+  useEffect(() => {
+    if (hasSurveyDraftContent(draft) || step > 0) {
+      writeSurveyDraftState({ draft, step });
+      return;
+    }
+
+    clearSurveyDraftState();
+  }, [draft, step]);
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (draft.q16 === "yes" && (!draft.contactName?.trim() || !draft.contactPhone?.trim())) {
@@ -424,6 +437,7 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
     setSaving(true);
     try {
       await onSave(draft);
+      clearSurveyDraftState();
       setDraft(createEmptyDraft("online"));
       setStep(0);
       setStatus("Анкета сохранена.");
@@ -434,6 +448,13 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
     }
   }
 
+  function resetSurvey() {
+    clearSurveyDraftState();
+    setDraft(createEmptyDraft("online"));
+    setStep(0);
+    setStatus("");
+  }
+
   return (
     <section className="task-page survey-task">
       <div className="task-heading">
@@ -441,13 +462,25 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
           <p className="eyebrow">Онлайн</p>
           <h1>Опрос</h1>
         </div>
-        <StepRail labels={sections.map((section) => section.title)} step={step} onChange={setStep} />
+        <div className="survey-progress-block">
+          <StepRail labels={sections.map((section) => section.title)} step={step} onChange={setStep} />
+          <div className="survey-progress" aria-hidden>
+            <i style={{ width: `${((step + 1) / sections.length) * 100}%` }} />
+          </div>
+        </div>
       </div>
 
       <form className="task-panel survey-panel" onSubmit={handleSubmit}>
         <div className="section-title-row">
           <h2>{sections[step].title}</h2>
-          <span>{step + 1} / {sections.length}</span>
+          <div className="survey-state">
+            {hasSurveyDraftContent(draft) ? (
+              <button className="link-button" type="button" onClick={resetSurvey}>
+                Сбросить
+              </button>
+            ) : null}
+            <span>{step + 1} / {sections.length}</span>
+          </div>
         </div>
 
         {sections[step].render}
@@ -570,6 +603,7 @@ function DataPage({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailMode, setDetailMode] = useState<"view" | "edit">("view");
   const [detailDraft, setDetailDraft] = useState<ResponseDraft | null>(null);
+  const [questionGroupFilter, setQuestionGroupFilter] = useState<QuestionGroupFilter>("all");
   const filteredResponses = useMemo(
     () => responses.filter((response) => matchesFilters(response, filters)),
     [responses, filters]
@@ -793,7 +827,11 @@ function DataPage({
           <span>Ответы по вопросам</span>
           <b>{filteredResponses.length}</b>
         </summary>
-        <QuestionBreakdown data={summary.questionBars} />
+        <QuestionBreakdown
+          data={summary.questionBars}
+          groupFilter={questionGroupFilter}
+          onGroupChange={setQuestionGroupFilter}
+        />
       </details>
 
       <section className="task-panel">
@@ -1211,13 +1249,39 @@ function BarList({ data }: { data: Array<{ label: string; value: number }> }) {
 }
 
 function QuestionBreakdown({
-  data
+  data,
+  groupFilter,
+  onGroupChange
 }: {
-  data: Array<{ label: string; no: number; number: number; unknown: number; yes: number }>;
+  data: Array<{
+    group: QuestionGroup;
+    label: string;
+    no: number;
+    number: number;
+    unknown: number;
+    yes: number;
+  }>;
+  groupFilter: QuestionGroupFilter;
+  onGroupChange: (group: QuestionGroupFilter) => void;
 }) {
+  const visibleData =
+    groupFilter === "all" ? data : data.filter((item) => item.group === groupFilter);
+
   return (
     <div className="question-breakdown">
-      {data.map((item) => {
+      <SegmentedGroup
+        compact
+        label="Группа"
+        options={[
+          { value: "all", label: "Все" },
+          { value: "experience", label: "Опыт" },
+          { value: "interest", label: "Интересы" },
+          { value: "help", label: "Помощь" }
+        ]}
+        value={groupFilter}
+        onChange={(value) => onGroupChange(value as QuestionGroupFilter)}
+      />
+      {visibleData.map((item) => {
         const total = Math.max(1, item.yes + item.no + item.unknown);
 
         return (
@@ -1518,6 +1582,101 @@ function createEmptyDraft(source: ResponseSource): ResponseDraft {
   };
 }
 
+function readSurveyDraftState(): { draft: ResponseDraft; restored: boolean; step: number } {
+  const fallback = { draft: createEmptyDraft("online"), restored: false, step: 0 };
+
+  try {
+    const raw = window.localStorage.getItem(surveyDraftStorageKey);
+    if (!raw) {
+      return fallback;
+    }
+
+    const parsed = JSON.parse(raw) as { draft?: unknown; step?: unknown };
+    const draft = coerceStoredOnlineDraft(parsed.draft);
+    const step = clampSurveyStep(parsed.step);
+
+    if (!hasSurveyDraftContent(draft) && step === 0) {
+      return fallback;
+    }
+
+    return { draft, restored: true, step };
+  } catch {
+    return fallback;
+  }
+}
+
+function writeSurveyDraftState(input: { draft: ResponseDraft; step: number }): void {
+  try {
+    window.localStorage.setItem(
+      surveyDraftStorageKey,
+      JSON.stringify({ draft: input.draft, savedAt: new Date().toISOString(), step: input.step })
+    );
+  } catch {
+    // Local draft persistence is a convenience; survey submission must keep working without it.
+  }
+}
+
+function clearSurveyDraftState(): void {
+  try {
+    window.localStorage.removeItem(surveyDraftStorageKey);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function hasSurveyDraftContent(draft: ResponseDraft): boolean {
+  const defaults = createEmptyDraft("online");
+
+  return (
+    draft.gender !== defaults.gender ||
+    draft.ageGroup !== defaults.ageGroup ||
+    draft.residence !== defaults.residence ||
+    questions.some((question) => draft[question.id] !== "unknown") ||
+    Boolean(cleanOptional(draft.q11WarDetails) && draft.q11WarDetails !== "—") ||
+    Boolean(cleanOptional(draft.researchTerritory)) ||
+    Boolean(draft.researchPeriodStart) ||
+    Boolean(draft.researchPeriodEnd) ||
+    Boolean(cleanOptional(draft.freeText)) ||
+    Boolean(cleanOptional(draft.contactName)) ||
+    Boolean(cleanOptional(draft.contactPhone))
+  );
+}
+
+function coerceStoredOnlineDraft(value: unknown): ResponseDraft {
+  const fallback = createEmptyDraft("online");
+  if (!isRecord(value)) {
+    return fallback;
+  }
+
+  const draft: ResponseDraft = {
+    ...fallback,
+    ageGroup: isAgeGroup(value.ageGroup) ? value.ageGroup : fallback.ageGroup,
+    contactName: optionalStoredString(value.contactName),
+    contactPhone: optionalStoredString(value.contactPhone),
+    freeText: optionalStoredString(value.freeText),
+    gender: isGender(value.gender) ? value.gender : fallback.gender,
+    q11WarDetails: optionalStoredString(value.q11WarDetails) ?? fallback.q11WarDetails,
+    researchPeriodEnd: optionalStoredNumber(value.researchPeriodEnd),
+    researchPeriodStart: optionalStoredNumber(value.researchPeriodStart),
+    researchTerritory: optionalStoredString(value.researchTerritory),
+    residence: isResidence(value.residence) ? value.residence : fallback.residence,
+    source: "online",
+    surveyDate: isIsoDate(value.surveyDate) ? value.surveyDate : fallback.surveyDate
+  };
+
+  for (const question of questions) {
+    const storedAnswer = value[question.id];
+    draft[question.id] = isAnswer(storedAnswer) ? storedAnswer : fallback[question.id];
+  }
+
+  if (draft.q16 !== "yes") {
+    draft.contactName = undefined;
+    draft.contactPhone = undefined;
+  }
+
+  return draft;
+}
+
 function responseToDraft(response: SurveyResponse): ResponseDraft {
   return {
     ageGroup: response.ageGroup,
@@ -1599,6 +1758,7 @@ function buildSummary(responses: SurveyResponse[]) {
       value: responses.filter((response) => response.ageGroup === ageGroup).length
     })),
     questionBars: questions.map((question) => ({
+      group: question.group,
       label: question.label,
       no: responses.filter((response) => response[question.id] === "no").length,
       number: question.number,
@@ -1682,9 +1842,49 @@ function parseOptionalNumber(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function optionalStoredNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function optionalStoredString(value: unknown): string | undefined {
+  return typeof value === "string" ? cleanOptional(value) : undefined;
+}
+
 function cleanOptional(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed || undefined;
+}
+
+function clampSurveyStep(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    return 0;
+  }
+
+  return Math.min(3, Math.max(0, value));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isAnswer(value: unknown): value is Answer {
+  return value === "yes" || value === "no" || value === "unknown";
+}
+
+function isGender(value: unknown): value is Gender {
+  return value === "male" || value === "female";
+}
+
+function isAgeGroup(value: unknown): value is AgeGroup {
+  return value === "under_18" || value === "18_40" || value === "over_40";
+}
+
+function isResidence(value: unknown): value is Residence {
+  return value === "snezhinsk" || value === "other";
+}
+
+function isIsoDate(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 function isDateInRange(date: string, dateFrom: string, dateTo: string): boolean {

@@ -30,10 +30,10 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - Experimental UI lives under `apps/web/src/experiment`.
 - The visible test site opens as a product UI with working task screens.
 - Current flows use the isolated test backend:
-  - public online survey submits to the server;
+  - public online survey submits to the server and stores a browser-local draft until successful submit;
   - operator entry is behind workspace password login;
   - data filters, summary, row inspector, inline row editing/deletion, demo-row generation, fake-only deletion, and CSV export use server rows;
-  - collapsible question breakdown shows yes/no/unknown counts without dominating the data screen;
+  - collapsible question breakdown shows yes/no/unknown counts and can focus on all questions, experience, interests, or help;
   - PDF upload/list/download/deletion use server PDF storage;
   - PDF upload warns before sending when a file with the derived `YYYYMMDD_анкеты.pdf` name already exists.
 
@@ -47,8 +47,8 @@ The test domain must have its own interface, its own UX decisions, and may use n
 
 ## Next Product Steps
 
-1. Improve the online survey flow after mobile browser review.
-2. Explore a better contact-follow-up workflow for q16.
-3. Improve question filtering so the collapsible breakdown can focus on selected question groups.
-4. Add CSV export controls that make client-side text/contact filters explicit.
-5. Keep reviewing the mobile data workspace on real iPhone/Safari.
+1. Explore a better contact-follow-up workflow for q16.
+2. Add CSV export controls that make client-side text/contact filters explicit.
+3. Review whether the online survey needs a final confirmation screen before submit.
+4. Keep reviewing the mobile data workspace on real iPhone/Safari.
+5. Consider a safer operator workflow for merging duplicated paper/online rows.
