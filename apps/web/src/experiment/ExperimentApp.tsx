@@ -580,10 +580,6 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
 }
 
 function SurveyReview({ draft, onEdit }: { draft: ResponseDraft; onEdit: (step: number) => void }) {
-  const yesAnswers = questions
-    .filter((question) => draft[question.id] === "yes")
-    .map((question) => `${question.number}. ${question.label}`);
-
   return (
     <div className="survey-review">
       <div className="review-block">
@@ -606,6 +602,17 @@ function SurveyReview({ draft, onEdit }: { draft: ResponseDraft; onEdit: (step: 
             <dt>Проживание</dt>
             <dd>{residenceLabels[draft.residence]}</dd>
           </div>
+        </dl>
+      </div>
+
+      <div className="review-block">
+        <div>
+          <span>Поиск</span>
+          <button className="link-button" type="button" onClick={() => onEdit(0)}>
+            Изменить
+          </button>
+        </div>
+        <dl className="review-list">
           <div>
             <dt>Территория</dt>
             <dd>{draft.researchTerritory || "—"}</dd>
@@ -614,25 +621,37 @@ function SurveyReview({ draft, onEdit }: { draft: ResponseDraft; onEdit: (step: 
             <dt>Период</dt>
             <dd>{formatResearchPeriod(draft) || "—"}</dd>
           </div>
+          <div className="review-wide">
+            <dt>Свободный текст</dt>
+            <dd>{draft.freeText || "—"}</dd>
+          </div>
         </dl>
       </div>
 
       <div className="review-block">
         <div>
-          <span>Ответы «Да»</span>
+          <span>Опыт</span>
           <button className="link-button" type="button" onClick={() => onEdit(1)}>
             Изменить
           </button>
         </div>
-        {yesAnswers.length > 0 ? (
-          <ul className="review-answers">
-            {yesAnswers.map((answer) => (
-              <li key={answer}>{answer}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="empty-state">Ответов «Да» нет.</p>
-        )}
+        <ReviewQuestionList
+          draft={draft}
+          questionsToShow={questions.filter((question) => question.group === "experience")}
+        />
+      </div>
+
+      <div className="review-block">
+        <div>
+          <span>Интересы</span>
+          <button className="link-button" type="button" onClick={() => onEdit(2)}>
+            Изменить
+          </button>
+        </div>
+        <ReviewQuestionList
+          draft={draft}
+          questionsToShow={questions.filter((question) => question.group === "interest")}
+        />
       </div>
 
       <div className="review-block">
@@ -655,12 +674,37 @@ function SurveyReview({ draft, onEdit }: { draft: ResponseDraft; onEdit: (step: 
             <dt>Телефон</dt>
             <dd>{draft.contactPhone || "—"}</dd>
           </div>
-          <div>
-            <dt>Комментарий</dt>
-            <dd>{draft.freeText || "—"}</dd>
-          </div>
         </dl>
       </div>
+    </div>
+  );
+}
+
+function ReviewQuestionList({
+  draft,
+  questionsToShow
+}: {
+  draft: ResponseDraft;
+  questionsToShow: typeof questions;
+}) {
+  return (
+    <div className="review-question-list">
+      {questionsToShow.map((question) => {
+        const answer = draft[question.id];
+
+        return (
+          <div className="review-question-row" key={question.id}>
+            <div>
+              <span>{question.number}</span>
+              <p>{question.label}</p>
+              {question.id === "q11" && draft.q11WarDetails && draft.q11WarDetails !== "—" ? (
+                <small>{draft.q11WarDetails}</small>
+              ) : null}
+            </div>
+            <span className={`answer-chip answer-${answer}`}>{answerLabels[answer]}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

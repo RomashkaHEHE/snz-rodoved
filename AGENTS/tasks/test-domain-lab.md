@@ -30,7 +30,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - Experimental UI lives under `apps/web/src/experiment`.
 - The visible test site opens as a product UI with working task screens.
 - Current flows use the isolated test backend:
-  - public online survey has a five-step flow: basic/search fields, experience, interests, help, review;
+  - public online survey has a five-step flow: basic/search fields, experience, interests, help, full-answer review;
   - public online survey submits to the server after the review step, shows a completion screen, and stores a browser-local draft until successful submit;
   - public navigation shows only the online survey and workspace login until the operator signs in;
   - operator entry, data, and PDF archive are behind workspace password login;
@@ -55,7 +55,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
 2. Consider moving CSV export from client-side rows to the backend if the test dataset grows beyond current all-rows loading.
 3. Keep reviewing the mobile data workspace on real iPhone/Safari.
 4. Consider a safer operator workflow for merging duplicated paper/online rows.
-5. Consider whether the online survey review screen should show all non-unknown answers, not only answers marked `yes`.
+5. Consider whether the online survey needs a shorter mode for people who only want help with one narrow topic.
 
 ## Last Verification
 
@@ -69,8 +69,8 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - the built JS contains `Есть контакт`, `Сбросить`, `Проживание`, `Источник`, and `Контакты`;
   - the built CSS contains `filter-choice-grid` and `filter-title-row`.
 - HTTP/asset smoke for the public survey confirmed:
-  - the built JS contains `Проверка`, `Ответы «Да»`, `Отправить`, `Анкета отправлена`, and `Новая анкета`;
-  - the built CSS contains `survey-review` and `survey-success`.
+  - the built JS contains `Проверка`, `Поиск`, `Опыт`, `Интересы`, `Нет ответа`, `Отправить`, `Анкета отправлена`, and `Новая анкета`;
+  - the built CSS contains `survey-review`, `review-question-row`, `answer-chip`, and `survey-success`.
 - HTTP/API smoke for the contact workflow confirmed:
   - a response can be created;
   - workspace PATCH can save `contactStatus` and `contactNote`;

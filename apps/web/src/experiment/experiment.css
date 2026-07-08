@@ -297,6 +297,10 @@ a {
   padding: 0.65rem;
 }
 
+.review-list .review-wide {
+  grid-column: 1 / -1;
+}
+
 .review-list dt {
   color: var(--muted);
   font-size: 0.85rem;
@@ -309,11 +313,81 @@ a {
   overflow-wrap: anywhere;
 }
 
-.review-answers {
+.review-question-list {
   display: grid;
   gap: 0.45rem;
+}
+
+.review-question-row {
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0.7rem;
+}
+
+.review-question-row > div:first-child {
+  align-items: start;
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: 1.7rem minmax(0, 1fr);
+}
+
+.review-question-row > div:first-child span {
+  align-items: center;
+  background: var(--accent-soft);
+  border-radius: 3px;
+  color: var(--accent);
+  display: inline-flex;
+  font-size: 0.85rem;
+  font-weight: 900;
+  height: 1.7rem;
+  justify-content: center;
+  width: 1.7rem;
+}
+
+.review-question-row p,
+.review-question-row small {
   margin: 0;
-  padding-left: 1.2rem;
+}
+
+.review-question-row p {
+  font-weight: 800;
+}
+
+.review-question-row small {
+  color: var(--muted);
+  display: block;
+  grid-column: 2;
+}
+
+.answer-chip {
+  border-radius: 3px;
+  display: inline-flex;
+  font-size: 0.85rem;
+  font-weight: 900;
+  justify-content: center;
+  min-width: 6rem;
+  padding: 0.35rem 0.55rem;
+  white-space: nowrap;
+}
+
+.answer-yes {
+  background: #e3f1e9;
+  color: var(--ok);
+}
+
+.answer-no {
+  background: #f3e7df;
+  color: #743d22;
+}
+
+.answer-unknown {
+  background: #eee8df;
+  color: var(--muted);
 }
 
 .survey-success {
@@ -1136,14 +1210,14 @@ textarea {
 
   .step-rail,
   .summary-grid,
-    .data-layout,
-    .row-workbench,
-    .basic-grid,
-    .search-grid,
-    .compact-grid,
-    .filter-choice-grid,
-    .question-breakdown-row,
-    .help-card {
+  .data-layout,
+  .row-workbench,
+  .basic-grid,
+  .search-grid,
+  .compact-grid,
+  .filter-choice-grid,
+  .question-breakdown-row,
+  .help-card {
     grid-template-columns: 1fr;
   }
 
@@ -1234,6 +1308,15 @@ textarea {
   .pdf-row,
   .review-list {
     grid-template-columns: 1fr;
+  }
+
+  .review-question-row {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .answer-chip {
+    justify-self: start;
   }
 
   .sticky-actions {
