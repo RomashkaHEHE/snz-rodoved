@@ -44,6 +44,7 @@ type ResponseSource = "online" | "paper";
 type ContactStatus = "new" | "in_progress" | "done" | "no_contact";
 type QuestionGroup = "experience" | "interest" | "help";
 type QuestionGroupFilter = "all" | QuestionGroup;
+type DataMode = "contacts" | "rows" | "pdf" | "charts";
 type QuestionId =
   | "q4"
   | "q5"
@@ -374,6 +375,7 @@ export function ExperimentApp() {
           onDelete={removeResponse}
           onDeleteFake={removeFakeResponses}
           onEdit={editResponse}
+          onOpenPdfArchive={() => navigate("pdf")}
           onSaveContact={saveContactWorkflow}
           onSave={saveDraft}
         />
@@ -866,6 +868,7 @@ function DataPage({
   onDelete,
   onDeleteFake,
   onEdit,
+  onOpenPdfArchive,
   onSaveContact,
   onSave
 }: {
@@ -875,6 +878,7 @@ function DataPage({
   onDelete: (id: string) => Promise<void>;
   onDeleteFake: () => Promise<number>;
   onEdit: (id: string) => void;
+  onOpenPdfArchive: () => void;
   onSaveContact: (
     id: string,
     input: { contactNote?: string; contactStatus: ContactStatus }
@@ -890,6 +894,7 @@ function DataPage({
   const [questionGroupFilter, setQuestionGroupFilter] = useState<QuestionGroupFilter>("all");
   const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => readDataFilterPresets());
   const [presetName, setPresetName] = useState("");
+  const [dataMode, setDataMode] = useState<DataMode>("contacts");
   const filteredResponses = useMemo(
     () => responses.filter((response) => matchesFilters(response, filters)),
     [responses, filters]
@@ -906,6 +911,12 @@ function DataPage({
   const selectedResponse = filteredResponses.find((response) => response.id === selectedId) ?? null;
   const filtersActive = hasActiveFilters(filters);
   const activeFilterChips = useMemo(() => buildFilterChips(filters), [filters]);
+  const dataModeItems: Array<{ count: number; icon: typeof Database; id: DataMode; label: string }> = [
+    { count: helpRequests.length, icon: Phone, id: "contacts", label: "Обращения" },
+    { count: filteredResponses.length, icon: Database, id: "rows", label: "Анкеты" },
+    { count: matchingPdfs.length, icon: FileText, id: "pdf", label: "PDF" },
+    { count: filteredResponses.length, icon: Search, id: "charts", label: "Графики" }
+  ];
 
   useEffect(() => {
     function handlePopState() {
@@ -1091,6 +1102,42 @@ function DataPage({
     writeDataFilterPresets(nextPresets);
   }
 
+  function changeDataMode(nextMode: DataMode) {
+    if (nextMode === "contacts" && selectedResponse?.q16 !== "yes") {
+      setSelectedId(null);
+      setDetailMode("view");
+      setDetailDraft(null);
+    }
+
+    setDataMode(nextMode);
+  }
+
+  const responseInspector = (
+    <ResponseInspector
+      busy={busyAction === "row-save"}
+      draft={detailDraft}
+      mode={detailMode}
+      response={selectedResponse}
+      onCancel={() => {
+        if (selectedResponse) {
+          setDetailDraft(responseToDraft(selectedResponse));
+        }
+        setDetailMode("view");
+      }}
+      onChange={setDetailDraft}
+      onClose={() => {
+        setSelectedId(null);
+        setDetailMode("view");
+        setDetailDraft(null);
+      }}
+      onDelete={handleDeleteResponse}
+      onEdit={editResponseInline}
+      onOpenEntry={onEdit}
+      onSaveContact={handleSaveContactWorkflow}
+      onSave={handleSaveSelected}
+    />
+  );
+
   return (
     <section className="task-page data-task">
       <div className="task-heading">
@@ -1271,6 +1318,26 @@ function DataPage({
         </div>
       </section>
 
+      <div className="data-mode-tabs" aria-label="Рабочий режим">
+        {dataModeItems.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <button
+              aria-pressed={dataMode === item.id}
+              className={dataMode === item.id ? "is-active" : ""}
+              key={item.id}
+              type="button"
+              onClick={() => changeDataMode(item.id)}
+            >
+              <Icon aria-hidden size={18} />
+              <span>{item.label}</span>
+              <b>{item.count}</b>
+            </button>
+          );
+        })}
+      </div>
+
       <section className="summary-grid" aria-label="Сводка">
         <Metric icon={Database} label="Анкет" value={filteredResponses.length} />
         <Metric icon={ClipboardList} label="Онлайн" value={summary.online} />
@@ -1280,106 +1347,103 @@ function DataPage({
         <Metric icon={Database} label="Демо" value={summary.fake} />
       </section>
 
-      <section className="task-panel help-queue-panel">
-        <div className="section-title-row">
-          <h2>Обращения</h2>
-          <span>{helpRequests.length}</span>
-        </div>
-        <HelpQueue responses={helpRequests} selectedId={selectedId} onOpen={openResponse} />
-      </section>
+      {dataMode === "contacts" ? (
+        <section className="data-mode-panel contact-mode-panel">
+          <div className="task-panel help-queue-panel">
+            <div className="section-title-row">
+              <h2>Обращения</h2>
+              <span>{helpRequests.length}</span>
+            </div>
+            <HelpQueue responses={helpRequests} selectedId={selectedId} onOpen={openResponse} />
+          </div>
+          {responseInspector}
+        </section>
+      ) : null}
 
-      <section className="data-layout">
-        <div className="task-panel">
+      {dataMode === "rows" ? (
+        <section className="task-panel">
+          <div className="section-title-row">
+            <h2>Анкеты</h2>
+            <span>{filteredResponses.length}</span>
+          </div>
+          <div className="row-workbench">
+            <ResponseRows
+              responses={filteredResponses}
+              selectedId={selectedId}
+              onDelete={handleDeleteResponse}
+              onEdit={editResponseInline}
+              onOpen={openResponse}
+            />
+            {responseInspector}
+          </div>
+        </section>
+      ) : null}
+
+      {dataMode === "pdf" ? (
+        <section className="task-panel pdf-slice-panel">
           <div className="section-title-row">
             <h2>PDF за период</h2>
             <span>{matchingPdfs.length}</span>
           </div>
           <PdfMiniList files={matchingPdfs} />
-        </div>
-
-        <div className="task-panel">
-          <div className="section-title-row">
-            <h2>Возраст</h2>
-            <span>{filteredResponses.length}</span>
+          <div className="form-actions">
+            <button className="ghost-button" type="button" onClick={onOpenPdfArchive}>
+              <FileText aria-hidden size={17} />
+              Открыть архив
+            </button>
           </div>
-          <BarList data={summary.ageBars} />
-        </div>
+        </section>
+      ) : null}
 
-        <div className="task-panel">
-          <div className="section-title-row">
-            <h2>Проживание</h2>
-            <span>{filteredResponses.length}</span>
-          </div>
-          <BarList data={summary.residenceBars} />
-        </div>
+      {dataMode === "charts" ? (
+        <>
+          <section className="data-layout data-charts-grid">
+            <div className="task-panel">
+              <div className="section-title-row">
+                <h2>Возраст</h2>
+                <span>{filteredResponses.length}</span>
+              </div>
+              <BarList data={summary.ageBars} />
+            </div>
 
-        <div className="task-panel">
-          <div className="section-title-row">
-            <h2>Пол</h2>
-            <span>{filteredResponses.length}</span>
-          </div>
-          <BarList data={summary.genderBars} />
-        </div>
+            <div className="task-panel">
+              <div className="section-title-row">
+                <h2>Проживание</h2>
+                <span>{filteredResponses.length}</span>
+              </div>
+              <BarList data={summary.residenceBars} />
+            </div>
 
-        <div className="task-panel">
-          <div className="section-title-row">
-            <h2>Источник</h2>
-            <span>{filteredResponses.length}</span>
-          </div>
-          <BarList data={summary.sourceBars} />
-        </div>
-      </section>
+            <div className="task-panel">
+              <div className="section-title-row">
+                <h2>Пол</h2>
+                <span>{filteredResponses.length}</span>
+              </div>
+              <BarList data={summary.genderBars} />
+            </div>
 
-      <details className="task-panel insight-panel">
-        <summary>
-          <span>Ответы по вопросам</span>
-          <b>{filteredResponses.length}</b>
-        </summary>
-        <QuestionBreakdown
-          data={summary.questionBars}
-          groupFilter={questionGroupFilter}
-          onGroupChange={setQuestionGroupFilter}
-        />
-      </details>
+            <div className="task-panel">
+              <div className="section-title-row">
+                <h2>Источник</h2>
+                <span>{filteredResponses.length}</span>
+              </div>
+              <BarList data={summary.sourceBars} />
+            </div>
+          </section>
 
-      <section className="task-panel">
-        <div className="section-title-row">
-          <h2>Строки</h2>
-          <span>{filteredResponses.length}</span>
-        </div>
-        <div className="row-workbench">
-          <ResponseRows
-            responses={filteredResponses}
-            selectedId={selectedId}
-            onDelete={handleDeleteResponse}
-            onEdit={editResponseInline}
-            onOpen={openResponse}
-          />
-          <ResponseInspector
-            busy={busyAction === "row-save"}
-            draft={detailDraft}
-            mode={detailMode}
-            response={selectedResponse}
-            onCancel={() => {
-              if (selectedResponse) {
-                setDetailDraft(responseToDraft(selectedResponse));
-              }
-              setDetailMode("view");
-            }}
-            onChange={setDetailDraft}
-            onClose={() => {
-              setSelectedId(null);
-              setDetailMode("view");
-              setDetailDraft(null);
-            }}
-            onDelete={handleDeleteResponse}
-            onEdit={editResponseInline}
-            onOpenEntry={onEdit}
-            onSaveContact={handleSaveContactWorkflow}
-            onSave={handleSaveSelected}
-          />
-        </div>
-      </section>
+          <details className="task-panel insight-panel">
+            <summary>
+              <span>Ответы по вопросам</span>
+              <b>{filteredResponses.length}</b>
+            </summary>
+            <QuestionBreakdown
+              data={summary.questionBars}
+              groupFilter={questionGroupFilter}
+              onGroupChange={setQuestionGroupFilter}
+            />
+          </details>
+        </>
+      ) : null}
     </section>
   );
 }
