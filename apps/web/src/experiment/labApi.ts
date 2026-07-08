@@ -1,4 +1,10 @@
-import type { SurveyFilters, SurveyPdfFile, SurveyResponse, SurveyResponseInput } from "@snz-rodoved/shared";
+import type {
+  ContactStatus,
+  SurveyFilters,
+  SurveyPdfFile,
+  SurveyResponse,
+  SurveyResponseInput
+} from "@snz-rodoved/shared";
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -51,6 +57,17 @@ export async function createLabFakeResponse(): Promise<SurveyResponse> {
 export async function updateLabResponse(
   id: string,
   input: SurveyResponseInput
+): Promise<SurveyResponse> {
+  const result = await request<{ response: SurveyResponse }>(`/api/responses/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input)
+  });
+  return result.response;
+}
+
+export async function updateLabContactWorkflow(
+  id: string,
+  input: { contactNote?: string; contactStatus: ContactStatus }
 ): Promise<SurveyResponse> {
   const result = await request<{ response: SurveyResponse }>(`/api/responses/${id}`, {
     method: "PATCH",

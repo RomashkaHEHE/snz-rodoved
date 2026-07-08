@@ -25,8 +25,8 @@ Current flows use the isolated test backend and test SQLite/PDF storage:
 - public online survey with browser-local draft restore, a review step before submit, and a completion screen after successful submit;
 - public navigation shows only the online survey and a workspace login until the operator signs in;
 - password-gated operator entry, data, and PDF archive;
-- data filters for date range, source, gender, age group, residence, help requests, contacts, and free text;
-- data summary, demographic/source bars, q16 help/contact queue, row list, row inspector, inline editing/deletion, demo-row generation, fake-only deletion, CSV export;
+- data filters for date range, source, gender, age group, residence, help requests, contacts, contact workflow status, and free text;
+- data summary, demographic/source bars, q16 help/contact queue with persisted status and operator notes, row list, row inspector, inline editing/deletion, demo-row generation, fake-only deletion, CSV export;
 - collapsible yes/no/unknown question breakdown with group focus;
 - PDF upload/list/download/deletion with duplicate-name warning.
 

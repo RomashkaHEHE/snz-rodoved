@@ -68,6 +68,12 @@ ALTER TABLE responses ADD COLUMN contact_name TEXT;
 ALTER TABLE responses ADD COLUMN contact_phone TEXT;
 `;
 
+export const contactWorkflowMigrationSql = `
+ALTER TABLE responses ADD COLUMN contact_status TEXT NOT NULL DEFAULT 'new';
+ALTER TABLE responses ADD COLUMN contact_note TEXT;
+CREATE INDEX IF NOT EXISTS responses_contact_status_idx ON responses (contact_status);
+`;
+
 const migrations = [
   {
     id: "0001_initial",
@@ -88,6 +94,10 @@ const migrations = [
   {
     id: "0005_response_contacts",
     sql: responseContactsMigrationSql
+  },
+  {
+    id: "0006_contact_workflow",
+    sql: contactWorkflowMigrationSql
   }
 ] as const;
 

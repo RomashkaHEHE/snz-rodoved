@@ -139,6 +139,19 @@ describe("api app", () => {
     expect(create.statusCode).toBe(201);
     expect(create.json().response.isFake).toBe(false);
 
+    const workflow = await app.inject({
+      method: "PATCH",
+      url: `/api/responses/${create.json().response.id}`,
+      headers: { cookie },
+      payload: {
+        contactNote: "Связаться после мероприятия",
+        contactStatus: "in_progress"
+      }
+    });
+    expect(workflow.statusCode).toBe(200);
+    expect(workflow.json().response.contactStatus).toBe("in_progress");
+    expect(workflow.json().response.contactNote).toBe("Связаться после мероприятия");
+
     await app.inject({
       method: "POST",
       url: "/api/responses",
@@ -172,6 +185,9 @@ describe("api app", () => {
     expect(exported.headers["content-type"]).toContain("text/csv");
     expect(exported.body).toContain("Источник");
     expect(exported.body).toContain("Номер телефона");
+    expect(exported.body).toContain("Статус обращения");
+    expect(exported.body).toContain("Заметка по обращению");
+    expect(exported.body).toContain("В работе");
     expect(exported.body).toContain("Дата опроса");
     expect(exported.body).toContain("7. Найти предков, живших в 20 в. (СССР)");
     expect(exported.body).toContain("8. Найти предков, живших в 20 в.");

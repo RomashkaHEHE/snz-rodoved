@@ -26,6 +26,7 @@ import {
   listLabPdfFiles,
   listLabResponses,
   loginLabWorkspace,
+  updateLabContactWorkflow,
   uploadLabPdfFile,
   updateLabResponse,
   type LabSession
@@ -38,6 +39,7 @@ type Gender = "male" | "female";
 type AgeGroup = "under_18" | "18_40" | "over_40";
 type Residence = "snezhinsk" | "other";
 type ResponseSource = "online" | "paper";
+type ContactStatus = "new" | "in_progress" | "done" | "no_contact";
 type QuestionGroup = "experience" | "interest" | "help";
 type QuestionGroupFilter = "all" | QuestionGroup;
 type QuestionId =
@@ -71,12 +73,17 @@ interface SurveyResponse extends AnswerFields {
   freeText?: string;
   contactName?: string;
   contactPhone?: string;
+  contactStatus: ContactStatus;
+  contactNote?: string;
   isFake: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-type ResponseDraft = Omit<SurveyResponse, "id" | "createdAt" | "updatedAt" | "isFake">;
+type ResponseDraft = Omit<
+  SurveyResponse,
+  "contactNote" | "contactStatus" | "createdAt" | "id" | "isFake" | "updatedAt"
+>;
 
 interface PdfRecord {
   id: string;
@@ -91,6 +98,7 @@ interface PdfRecord {
 interface Filters {
   ageGroup: AgeGroup[];
   contactOnly: boolean;
+  contactStatus: ContactStatus[];
   dateFrom: string;
   dateTo: string;
   gender: Gender[];
@@ -125,6 +133,13 @@ const residenceLabels: Record<Residence, string> = {
 const sourceLabels: Record<ResponseSource, string> = {
   online: "онлайн",
   paper: "бумага"
+};
+
+const contactStatusLabels: Record<ContactStatus, string> = {
+  new: "Новое",
+  in_progress: "В работе",
+  done: "Закрыто",
+  no_contact: "Не дозвонились"
 };
 
 const questions: Array<{ id: QuestionId; number: number; label: string; group: QuestionGroup }> = [
@@ -237,6 +252,14 @@ export function ExperimentApp() {
     setEditingId(null);
   }
 
+  async function saveContactWorkflow(
+    id: string,
+    input: { contactNote?: string; contactStatus: ContactStatus }
+  ) {
+    await updateLabContactWorkflow(id, input);
+    await refreshWorkspaceData();
+  }
+
   async function removeResponse(id: string) {
     await deleteLabResponse(id);
     await refreshWorkspaceData();
@@ -336,6 +359,7 @@ export function ExperimentApp() {
           onDelete={removeResponse}
           onDeleteFake={removeFakeResponses}
           onEdit={editResponse}
+          onSaveContact={saveContactWorkflow}
           onSave={saveDraft}
         />
       ) : null}
@@ -723,6 +747,7 @@ function DataPage({
   onDelete,
   onDeleteFake,
   onEdit,
+  onSaveContact,
   onSave
 }: {
   pdfFiles: PdfRecord[];
@@ -731,6 +756,10 @@ function DataPage({
   onDelete: (id: string) => Promise<void>;
   onDeleteFake: () => Promise<number>;
   onEdit: (id: string) => void;
+  onSaveContact: (
+    id: string,
+    input: { contactNote?: string; contactStatus: ContactStatus }
+  ) => Promise<void>;
   onSave: (draft: ResponseDraft, id?: string) => Promise<void>;
 }) {
   const [filters, setFilters] = useState<Filters>(() => createInitialFilters());
@@ -797,6 +826,20 @@ function DataPage({
       setDataStatus("Не удалось сохранить строку.");
     } finally {
       setBusyAction(null);
+    }
+  }
+
+  async function handleSaveContactWorkflow(
+    response: SurveyResponse,
+    input: { contactNote?: string; contactStatus: ContactStatus }
+  ) {
+    setDataStatus("");
+    try {
+      await onSaveContact(response.id, input);
+      setDataStatus("Обращение обновлено.");
+    } catch {
+      setDataStatus("Не удалось обновить обращение.");
+      throw new Error("contact_workflow_update_failed");
     }
   }
 
@@ -968,6 +1011,15 @@ function DataPage({
             values={filters.residence}
             onChange={(values) => setFilters({ ...filters, residence: values as Residence[] })}
           />
+          <MultiSegmentedGroup
+            label="Статус обращения"
+            options={(Object.keys(contactStatusLabels) as ContactStatus[]).map((value) => ({
+              value,
+              label: contactStatusLabels[value]
+            }))}
+            values={filters.contactStatus}
+            onChange={(values) => setFilters({ ...filters, contactStatus: values as ContactStatus[] })}
+          />
         </div>
         <div className="filter-switches">
           <label className="switch-row">
@@ -1093,6 +1145,7 @@ function DataPage({
             onDelete={handleDeleteResponse}
             onEdit={editResponseInline}
             onOpenEntry={onEdit}
+            onSaveContact={handleSaveContactWorkflow}
             onSave={handleSaveSelected}
           />
         </div>
@@ -1591,6 +1644,9 @@ function HelpQueue({
           <div>
             <span className={`source-pill source-${response.source}`}>{sourceLabels[response.source]}</span>
             {response.isFake ? <span className="demo-badge">демо</span> : null}
+            <span className={`workflow-badge workflow-${response.contactStatus}`}>
+              {contactStatusLabels[response.contactStatus]}
+            </span>
             <strong>{response.contactName?.trim() || "Без имени"}</strong>
             <p>
               {response.surveyDate} · {ageLabels[response.ageGroup]} · {residenceLabels[response.residence]}
@@ -1690,6 +1746,7 @@ function ResponseInspector({
   onDelete,
   onEdit,
   onOpenEntry,
+  onSaveContact,
   onSave,
   response
 }: {
@@ -1702,6 +1759,10 @@ function ResponseInspector({
   onDelete: (response: SurveyResponse) => Promise<void>;
   onEdit: (response: SurveyResponse) => void;
   onOpenEntry: (id: string) => void;
+  onSaveContact: (
+    response: SurveyResponse,
+    input: { contactNote?: string; contactStatus: ContactStatus }
+  ) => Promise<void>;
   onSave: () => Promise<void>;
   response: SurveyResponse | null;
 }) {
@@ -1772,11 +1833,17 @@ function ResponseInspector({
         <Detail label="Помощь" value={answerLabels[response.q16]} />
         <Detail label="Имя" value={response.contactName} />
         <Detail label="Телефон" value={response.contactPhone} phone />
+        <Detail label="Статус" value={contactStatusLabels[response.contactStatus]} />
         <Detail label="Территория" value={response.researchTerritory} />
         <Detail label="Период" value={formatResearchPeriod(response)} />
         <Detail label="Война" value={response.q11WarDetails} />
         <Detail label="Комментарий" value={response.freeText} wide />
+        <Detail label="Заметка по обращению" value={response.contactNote} wide />
       </div>
+
+      {response.q16 === "yes" ? (
+        <ContactWorkflowPanel response={response} onSave={onSaveContact} />
+      ) : null}
 
       <div className="yes-list">
         <strong>Ответы «Да»</strong>
@@ -1797,6 +1864,78 @@ function ResponseInspector({
         </button>
       </div>
     </aside>
+  );
+}
+
+function ContactWorkflowPanel({
+  onSave,
+  response
+}: {
+  onSave: (
+    response: SurveyResponse,
+    input: { contactNote?: string; contactStatus: ContactStatus }
+  ) => Promise<void>;
+  response: SurveyResponse;
+}) {
+  const [contactStatus, setContactStatus] = useState<ContactStatus>(response.contactStatus);
+  const [contactNote, setContactNote] = useState(response.contactNote ?? "");
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState("");
+
+  useEffect(() => {
+    setContactStatus(response.contactStatus);
+    setContactNote(response.contactNote ?? "");
+    setStatus("");
+  }, [response.contactNote, response.contactStatus, response.id]);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setStatus("");
+    try {
+      await onSave(response, {
+        contactNote: cleanOptional(contactNote),
+        contactStatus
+      });
+      setStatus("Сохранено.");
+    } catch {
+      setStatus("Не удалось сохранить.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className="contact-workflow" onSubmit={handleSubmit}>
+      <div className="section-title-row">
+        <h3>Обращение</h3>
+        <span>{contactStatusLabels[contactStatus]}</span>
+      </div>
+      <SegmentedGroup
+        label="Статус"
+        options={(Object.keys(contactStatusLabels) as ContactStatus[]).map((value) => ({
+          value,
+          label: contactStatusLabels[value]
+        }))}
+        value={contactStatus}
+        onChange={(value) => setContactStatus(value as ContactStatus)}
+      />
+      <label>
+        Заметка
+        <textarea
+          rows={3}
+          value={contactNote}
+          onChange={(event) => setContactNote(event.target.value)}
+        />
+      </label>
+      <div className="form-actions">
+        {status ? <p className="form-status">{status}</p> : null}
+        <button className="primary-button" disabled={saving} type="submit">
+          <Save aria-hidden size={18} />
+          {saving ? "Сохранение..." : "Сохранить обращение"}
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -2035,6 +2174,7 @@ function createInitialFilters(): Filters {
   return {
     ageGroup: [],
     contactOnly: false,
+    contactStatus: [],
     dateFrom: "",
     dateTo: "",
     gender: [],
@@ -2049,6 +2189,7 @@ function hasActiveFilters(filters: Filters): boolean {
   return (
     filters.ageGroup.length > 0 ||
     filters.contactOnly ||
+    filters.contactStatus.length > 0 ||
     Boolean(filters.dateFrom) ||
     Boolean(filters.dateTo) ||
     filters.gender.length > 0 ||
@@ -2085,6 +2226,13 @@ function matchesFilters(response: SurveyResponse, filters: Filters): boolean {
   }
 
   if (filters.contactOnly && !hasContact(response)) {
+    return false;
+  }
+
+  if (
+    filters.contactStatus.length > 0 &&
+    (response.q16 !== "yes" || !filters.contactStatus.includes(response.contactStatus))
+  ) {
     return false;
   }
 
@@ -2162,7 +2310,9 @@ function downloadCsv(responses: SurveyResponse[]) {
     "Свободный текст",
     "Нужна помощь",
     "Имя",
-    "Телефон"
+    "Телефон",
+    "Статус обращения",
+    "Заметка по обращению"
   ];
   const rows = responses.map((response) => [
     response.surveyDate,
@@ -2175,7 +2325,9 @@ function downloadCsv(responses: SurveyResponse[]) {
     response.freeText ?? "",
     answerLabels[response.q16],
     response.contactName ?? "",
-    response.contactPhone ?? ""
+    response.contactPhone ?? "",
+    contactStatusLabels[response.contactStatus],
+    response.contactNote ?? ""
   ]);
   const csv = `\uFEFF${[headers, ...rows].map((row) => row.map(escapeCsv).join(";")).join("\r\n")}\r\n`;
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));

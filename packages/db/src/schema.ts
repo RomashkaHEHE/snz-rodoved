@@ -1,5 +1,12 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import type { AgeGroup, AnswerValue, Gender, Residence, ResponseSource } from "@snz-rodoved/shared";
+import type {
+  AgeGroup,
+  AnswerValue,
+  ContactStatus,
+  Gender,
+  Residence,
+  ResponseSource
+} from "@snz-rodoved/shared";
 
 export const responses = sqliteTable(
   "responses",
@@ -30,6 +37,8 @@ export const responses = sqliteTable(
     freeText: text("free_text"),
     contactName: text("contact_name"),
     contactPhone: text("contact_phone"),
+    contactStatus: text("contact_status").$type<ContactStatus>().notNull().default("new"),
+    contactNote: text("contact_note"),
     isFake: text("is_fake").$type<"true" | "false">().notNull().default("false"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull()
@@ -40,6 +49,7 @@ export const responses = sqliteTable(
     ageGroupIdx: index("responses_age_group_idx").on(table.ageGroup),
     residenceIdx: index("responses_residence_idx").on(table.residence),
     sourceIdx: index("responses_source_idx").on(table.source),
+    contactStatusIdx: index("responses_contact_status_idx").on(table.contactStatus),
     isFakeIdx: index("responses_is_fake_idx").on(table.isFake)
   })
 );

@@ -2,6 +2,7 @@ import {
   ageGroupLabels,
   answerLabels,
   answerQuestions,
+  contactStatusLabels,
   genderLabels,
   responseSourceLabels,
   residenceLabels,
@@ -29,6 +30,8 @@ const columns: CsvColumn[] = [
   { header: "Свободный текст", value: (response) => response.freeText ?? "" },
   { header: "Имя", value: (response) => response.contactName ?? "" },
   { header: "Номер телефона", value: (response) => response.contactPhone ?? "" },
+  { header: "Статус обращения", value: (response) => contactStatusLabels[response.contactStatus] },
+  { header: "Заметка по обращению", value: (response) => response.contactNote ?? "" },
   ...answerQuestions.flatMap<CsvColumn>((question) => {
     const questionColumn: CsvColumn = {
       header: `${question.number}. ${question.label}`,

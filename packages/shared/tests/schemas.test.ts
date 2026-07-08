@@ -3,6 +3,7 @@ import {
   answerQuestionIds,
   onlineSurveyResponseInputSchema,
   parseSurveyDateFromPdfFileName,
+  partialSurveyResponseInputSchema,
   surveyPdfFileNameSchema,
   surveyResponseInputSchema,
   warDetailQuickValues
@@ -124,6 +125,16 @@ describe("survey response schema", () => {
         q16: "yes"
       })
     ).toThrow();
+  });
+
+  it("accepts workspace contact workflow fields for response updates", () => {
+    const parsed = partialSurveyResponseInputSchema.parse({
+      contactNote: "Перезвонить после мероприятия",
+      contactStatus: "in_progress"
+    });
+
+    expect(parsed.contactStatus).toBe("in_progress");
+    expect(parsed.contactNote).toBe("Перезвонить после мероприятия");
   });
 
   it("contains the paper quick value for the war details dash", () => {

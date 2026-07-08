@@ -106,6 +106,31 @@ describe("SurveyRepository", () => {
     expect(repository.list()).toHaveLength(0);
   });
 
+  it("stores contact workflow fields and resets them when help is no longer needed", () => {
+    connection = createDatabaseConnection({ databasePath: ":memory:" });
+    const repository = new SurveyRepository(connection.db);
+    const created = repository.create({
+      ...baseInput,
+      contactName: "Алёна",
+      contactPhone: "+7 900 000-00-00"
+    });
+
+    const withWorkflow = repository.update(created.id, {
+      contactNote: "Позвонить в пятницу",
+      contactStatus: "in_progress"
+    });
+
+    expect(withWorkflow?.contactStatus).toBe("in_progress");
+    expect(withWorkflow?.contactNote).toBe("Позвонить в пятницу");
+
+    const withoutHelp = repository.update(created.id, { q16: "no" });
+
+    expect(withoutHelp?.contactStatus).toBe("new");
+    expect(withoutHelp?.contactNote).toBeUndefined();
+    expect(withoutHelp?.contactName).toBeUndefined();
+    expect(withoutHelp?.contactPhone).toBeUndefined();
+  });
+
   it("deletes only fake responses in bulk", () => {
     connection = createDatabaseConnection({ databasePath: ":memory:" });
     const repository = new SurveyRepository(connection.db);

@@ -65,6 +65,8 @@ export class SurveyRepository {
       freeText: parsed.freeText ?? null,
       contactName: parsed.q16 === "yes" ? (parsed.contactName ?? null) : null,
       contactPhone: parsed.q16 === "yes" ? (parsed.contactPhone ?? null) : null,
+      contactStatus: "new",
+      contactNote: null,
       isFake: options.isFake ? "true" : "false",
       createdAt: now,
       updatedAt: now
@@ -122,9 +124,19 @@ export class SurveyRepository {
       updateData.contactPhone = parsed.contactPhone ?? null;
     }
 
+    if ("contactStatus" in parsed) {
+      updateData.contactStatus = parsed.contactStatus ?? "new";
+    }
+
+    if ("contactNote" in parsed) {
+      updateData.contactNote = parsed.contactNote ?? null;
+    }
+
     if (parsed.q16 && parsed.q16 !== "yes") {
       updateData.contactName = null;
       updateData.contactPhone = null;
+      updateData.contactStatus = "new";
+      updateData.contactNote = null;
     }
 
     const updated = this.db
@@ -268,7 +280,9 @@ function toSurveyResponse(row: ResponseRow): SurveyResponse {
     researchPeriodEnd: row.researchPeriodEnd ?? undefined,
     freeText: row.freeText ?? undefined,
     contactName: row.contactName ?? undefined,
-    contactPhone: row.contactPhone ?? undefined
+    contactPhone: row.contactPhone ?? undefined,
+    contactStatus: row.contactStatus ?? "new",
+    contactNote: row.contactNote ?? undefined
   };
 }
 

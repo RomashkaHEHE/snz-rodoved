@@ -5,12 +5,14 @@ export const ageGroupValues = ["under_18", "18_40", "over_40"] as const;
 export const residenceValues = ["snezhinsk", "other"] as const;
 export const answerValues = ["yes", "no", "unknown"] as const;
 export const responseSourceValues = ["paper", "online"] as const;
+export const contactStatusValues = ["new", "in_progress", "done", "no_contact"] as const;
 
 export type Gender = (typeof genderValues)[number];
 export type AgeGroup = (typeof ageGroupValues)[number];
 export type Residence = (typeof residenceValues)[number];
 export type AnswerValue = (typeof answerValues)[number];
 export type ResponseSource = (typeof responseSourceValues)[number];
+export type ContactStatus = (typeof contactStatusValues)[number];
 
 export const genderLabels: Record<Gender, string> = {
   male: "М",
@@ -37,6 +39,13 @@ export const answerLabels: Record<AnswerValue, string> = {
 export const responseSourceLabels: Record<ResponseSource, string> = {
   paper: "Очная",
   online: "Онлайн"
+};
+
+export const contactStatusLabels: Record<ContactStatus, string> = {
+  new: "Новое",
+  in_progress: "В работе",
+  done: "Закрыто",
+  no_contact: "Не дозвонились"
 };
 
 export const answerQuestionIds = [
@@ -156,6 +165,7 @@ export const residenceSchema = z.enum(residenceValues);
 export const answerSchema = z.enum(answerValues);
 export const answerQuestionIdSchema = z.enum(answerQuestionIds);
 export const responseSourceSchema = z.enum(responseSourceValues);
+export const contactStatusSchema = z.enum(contactStatusValues);
 
 const dateSchema = z
   .string()
@@ -248,6 +258,10 @@ export const onlineSurveyResponseInputSchema = surveyResponseInputSchema.refine(
 );
 
 export const partialSurveyResponseInputSchema = surveyResponseInputObjectSchema
+  .extend({
+    contactStatus: contactStatusSchema.optional(),
+    contactNote: optionalTextField(800, "Заметка по обращению должна быть короче 800 символов")
+  })
   .partial()
   .refine(hasValidResearchPeriod, {
     message: "Начало исследуемого периода не может быть позже окончания",
@@ -272,6 +286,8 @@ export type SurveyFilters = z.infer<typeof surveyFiltersSchema>;
 export interface SurveyResponse extends Omit<SurveyResponseInput, "source"> {
   id: string;
   source: ResponseSource;
+  contactStatus: ContactStatus;
+  contactNote?: string;
   isFake: boolean;
   createdAt: string;
   updatedAt: string;

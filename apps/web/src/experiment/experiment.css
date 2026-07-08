@@ -988,6 +988,20 @@ textarea {
   margin: 0;
 }
 
+.contact-workflow {
+  background: #fffdf9;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.9rem;
+}
+
+.contact-workflow h3 {
+  font-size: 1.15rem;
+  margin: 0;
+}
+
 .inline-editor {
   display: grid;
   gap: 1rem;
@@ -1011,6 +1025,35 @@ textarea {
   font-weight: 900;
   margin-right: 0.45rem;
   padding: 0.15rem 0.45rem;
+}
+
+.workflow-badge {
+  border-radius: 3px;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 900;
+  margin-right: 0.45rem;
+  padding: 0.15rem 0.45rem;
+}
+
+.workflow-new {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.workflow-in_progress {
+  background: #efe6cf;
+  color: #76530d;
+}
+
+.workflow-done {
+  background: #e5eee5;
+  color: var(--ok);
+}
+
+.workflow-no_contact {
+  background: #eee5dc;
+  color: #5d5356;
 }
 
 .source-online {
