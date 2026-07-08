@@ -831,6 +831,13 @@ textarea {
   gap: 0.15rem;
 }
 
+.filter-title-row .filter-title-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
 .filter-title-row span {
   color: var(--accent);
   font-size: 0.78rem;
@@ -840,6 +847,15 @@ textarea {
 
 .filter-title-row strong {
   font-size: 1.25rem;
+}
+
+.filter-body {
+  display: grid;
+  gap: 1rem;
+}
+
+.filter-panel.is-collapsed {
+  gap: 0.75rem;
 }
 
 .active-filter-chips {

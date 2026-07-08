@@ -38,6 +38,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - operator entry remains one continuous form, with section navigation, answer counts, a next-`Нет ответа` jump button, temporary question highlighting, and grouped paper-form sections for phone work;
   - data filters include date range, source, gender, age group, residence, help-only, contact-only, contact workflow status, and free text search;
   - active data filters are shown as removable chips so the operator can clear one constraint without resetting the whole slice;
+  - data filter controls can be collapsed and the open/collapsed state is stored locally in the browser;
   - data filters are mirrored into `/data` URL query, so current slices survive reload/back-forward and can be copied as links;
   - data filters can be saved as local browser presets for repeated reviews;
   - the data screen has task modes for `Обращения`, `Анкеты`, `PDF`, and `Графики`, so the operator can keep one filter slice and work in one mobile-friendly context at a time;
@@ -120,6 +121,10 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - the built JS contains `Следующий —`, `Ответов «Нет ответа» сейчас нет.`, and `entry-question-`;
   - the built CSS contains `entry-next-unknown` and `question-card.is-highlighted`;
   - PDF coverage, period control, contact privacy mode, and the absence of forbidden meta-copy are still confirmed.
+- HTTP/asset smoke for collapsible data filters confirmed:
+  - the built JS contains `rodoved-test-data-filter-panel-open-v1`, `Свернуть`, and `Фильтры`;
+  - the built CSS contains `filter-title-actions`, `filter-body`, and `filter-panel.is-collapsed`;
+  - entry helper, PDF coverage, period control, contact privacy mode, and the absence of forbidden meta-copy are still confirmed.
 - Local browser smoke:
   - unauthenticated public nav on `/` shows only `Опрос` and `Вход`;
   - after workspace login, nav shows `Опрос`, `Ввод`, `Данные`, `PDF`;

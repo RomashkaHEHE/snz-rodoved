@@ -212,6 +212,7 @@ const workspaceRoutes: RouteId[] = ["entry", "data", "pdf"];
 const surveyStepCount = 5;
 const surveyDraftStorageKey = "rodoved-test-online-draft-v1";
 const dataFilterPresetsStorageKey = "rodoved-test-data-filter-presets-v1";
+const dataFilterPanelStorageKey = "rodoved-test-data-filter-panel-open-v1";
 const contactPrivacyStorageKey = "rodoved-test-hide-contacts-v1";
 const researchYearMin = 1500;
 const researchYearMax = 2100;
@@ -964,6 +965,7 @@ function DataPage({
   const [detailDraft, setDetailDraft] = useState<ResponseDraft | null>(null);
   const [questionGroupFilter, setQuestionGroupFilter] = useState<QuestionGroupFilter>("all");
   const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => readDataFilterPresets());
+  const [filtersOpen, setFiltersOpen] = useState(() => readDataFilterPanelOpen());
   const [presetName, setPresetName] = useState("");
   const [dataMode, setDataMode] = useState<DataMode>("contacts");
   const [hideContacts, setHideContacts] = useState(() => readContactPrivacyMode());
@@ -1027,6 +1029,10 @@ function DataPage({
   useEffect(() => {
     writeContactPrivacyMode(hideContacts);
   }, [hideContacts]);
+
+  useEffect(() => {
+    writeDataFilterPanelOpen(filtersOpen);
+  }, [filtersOpen]);
 
   function openResponse(response: SurveyResponse) {
     setSelectedId(response.id);
@@ -1261,15 +1267,25 @@ function DataPage({
       </div>
       {dataStatus ? <p className="form-status">{dataStatus}</p> : null}
 
-      <section className="task-panel filter-panel">
+      <section className={filtersOpen ? "task-panel filter-panel" : "task-panel filter-panel is-collapsed"}>
         <div className="filter-title-row">
           <div>
             <span>Срез</span>
             <strong>{filteredResponses.length} из {responses.length}</strong>
           </div>
-          <button className="ghost-button compact-button" disabled={!filtersActive} type="button" onClick={resetFilters}>
-            Сбросить
-          </button>
+          <div className="filter-title-actions">
+            <button
+              aria-expanded={filtersOpen}
+              className="ghost-button compact-button"
+              type="button"
+              onClick={() => setFiltersOpen((current) => !current)}
+            >
+              {filtersOpen ? "Свернуть" : "Фильтры"}
+            </button>
+            <button className="ghost-button compact-button" disabled={!filtersActive} type="button" onClick={resetFilters}>
+              Сбросить
+            </button>
+          </div>
         </div>
         {activeFilterChips.length > 0 ? (
           <div className="active-filter-chips" aria-label="Активные фильтры">
@@ -1285,131 +1301,135 @@ function DataPage({
             ))}
           </div>
         ) : null}
-        <div className="filter-presets">
-          <div className="preset-save-row">
-            <label>
-              Сохранить срез
-              <input
-                placeholder="например: помощь за месяц"
-                value={presetName}
-                onChange={(event) => setPresetName(event.target.value)}
-              />
-            </label>
-            <button className="ghost-button compact-button" disabled={!filtersActive} type="button" onClick={saveFilterPreset}>
-              <Save aria-hidden size={16} />
-              Сохранить
-            </button>
-          </div>
-          {filterPresets.length > 0 ? (
-            <div className="preset-list" aria-label="Сохранённые срезы">
-              {filterPresets.map((preset) => (
-                <div className="preset-row" key={preset.id}>
-                  <button type="button" onClick={() => applyFilterPreset(preset)}>
-                    {preset.name}
-                  </button>
-                  <button aria-label={`Удалить срез ${preset.name}`} type="button" onClick={() => deleteFilterPreset(preset.id)}>
-                    x
-                  </button>
+        {filtersOpen ? (
+          <div className="filter-body">
+            <div className="filter-presets">
+              <div className="preset-save-row">
+                <label>
+                  Сохранить срез
+                  <input
+                    placeholder="например: помощь за месяц"
+                    value={presetName}
+                    onChange={(event) => setPresetName(event.target.value)}
+                  />
+                </label>
+                <button className="ghost-button compact-button" disabled={!filtersActive} type="button" onClick={saveFilterPreset}>
+                  <Save aria-hidden size={16} />
+                  Сохранить
+                </button>
+              </div>
+              {filterPresets.length > 0 ? (
+                <div className="preset-list" aria-label="Сохранённые срезы">
+                  {filterPresets.map((preset) => (
+                    <div className="preset-row" key={preset.id}>
+                      <button type="button" onClick={() => applyFilterPreset(preset)}>
+                        {preset.name}
+                      </button>
+                      <button aria-label={`Удалить срез ${preset.name}`} type="button" onClick={() => deleteFilterPreset(preset.id)}>
+                        x
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : null}
             </div>
-          ) : null}
-        </div>
-        <div className="compact-grid">
-          <label>
-            Дата с
-            <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(event) => setFilters({ ...filters, dateFrom: event.target.value })}
-            />
-          </label>
-          <label>
-            Дата по
-            <input
-              type="date"
-              value={filters.dateTo}
-              onChange={(event) => setFilters({ ...filters, dateTo: event.target.value })}
-            />
-          </label>
-          <label>
-            Источник
-            <select
-              value={filters.source}
-              onChange={(event) =>
-                setFilters({ ...filters, source: event.target.value as Filters["source"] })
-              }
-            >
-              <option value="all">все</option>
-              <option value="online">онлайн</option>
-              <option value="paper">бумага</option>
-            </select>
-          </label>
-          <label>
-            Поиск
-            <input
-              placeholder="территория, текст, контакт"
-              value={filters.query}
-              onChange={(event) => setFilters({ ...filters, query: event.target.value })}
-            />
-          </label>
-        </div>
-        <div className="filter-choice-grid">
-          <MultiSegmentedGroup
-            label="Пол"
-            options={(Object.keys(genderLabels) as Gender[]).map((value) => ({
-              value,
-              label: genderLabels[value]
-            }))}
-            values={filters.gender}
-            onChange={(values) => setFilters({ ...filters, gender: values as Gender[] })}
-          />
-          <MultiSegmentedGroup
-            label="Возраст"
-            options={(Object.keys(ageLabels) as AgeGroup[]).map((value) => ({
-              value,
-              label: ageLabels[value]
-            }))}
-            values={filters.ageGroup}
-            onChange={(values) => setFilters({ ...filters, ageGroup: values as AgeGroup[] })}
-          />
-          <MultiSegmentedGroup
-            label="Проживание"
-            options={(Object.keys(residenceLabels) as Residence[]).map((value) => ({
-              value,
-              label: residenceLabels[value]
-            }))}
-            values={filters.residence}
-            onChange={(values) => setFilters({ ...filters, residence: values as Residence[] })}
-          />
-          <MultiSegmentedGroup
-            label="Статус обращения"
-            options={(Object.keys(contactStatusLabels) as ContactStatus[]).map((value) => ({
-              value,
-              label: contactStatusLabels[value]
-            }))}
-            values={filters.contactStatus}
-            onChange={(values) => setFilters({ ...filters, contactStatus: values as ContactStatus[] })}
-          />
-        </div>
-        <div className="filter-switches">
-          <label className="switch-row">
-            <input
-              checked={filters.helpOnly}
-              type="checkbox"
-              onChange={(event) => setFilters({ ...filters, helpOnly: event.target.checked })}
-            />
-            Только нужна помощь
-          </label>
-          <label className="switch-row">
-            <input
-              checked={filters.contactOnly}
-              type="checkbox"
-              onChange={(event) => setFilters({ ...filters, contactOnly: event.target.checked })}
-            />
-            Есть контакт
-          </label>
-        </div>
+            <div className="compact-grid">
+              <label>
+                Дата с
+                <input
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(event) => setFilters({ ...filters, dateFrom: event.target.value })}
+                />
+              </label>
+              <label>
+                Дата по
+                <input
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(event) => setFilters({ ...filters, dateTo: event.target.value })}
+                />
+              </label>
+              <label>
+                Источник
+                <select
+                  value={filters.source}
+                  onChange={(event) =>
+                    setFilters({ ...filters, source: event.target.value as Filters["source"] })
+                  }
+                >
+                  <option value="all">все</option>
+                  <option value="online">онлайн</option>
+                  <option value="paper">бумага</option>
+                </select>
+              </label>
+              <label>
+                Поиск
+                <input
+                  placeholder="территория, текст, контакт"
+                  value={filters.query}
+                  onChange={(event) => setFilters({ ...filters, query: event.target.value })}
+                />
+              </label>
+            </div>
+            <div className="filter-choice-grid">
+              <MultiSegmentedGroup
+                label="Пол"
+                options={(Object.keys(genderLabels) as Gender[]).map((value) => ({
+                  value,
+                  label: genderLabels[value]
+                }))}
+                values={filters.gender}
+                onChange={(values) => setFilters({ ...filters, gender: values as Gender[] })}
+              />
+              <MultiSegmentedGroup
+                label="Возраст"
+                options={(Object.keys(ageLabels) as AgeGroup[]).map((value) => ({
+                  value,
+                  label: ageLabels[value]
+                }))}
+                values={filters.ageGroup}
+                onChange={(values) => setFilters({ ...filters, ageGroup: values as AgeGroup[] })}
+              />
+              <MultiSegmentedGroup
+                label="Проживание"
+                options={(Object.keys(residenceLabels) as Residence[]).map((value) => ({
+                  value,
+                  label: residenceLabels[value]
+                }))}
+                values={filters.residence}
+                onChange={(values) => setFilters({ ...filters, residence: values as Residence[] })}
+              />
+              <MultiSegmentedGroup
+                label="Статус обращения"
+                options={(Object.keys(contactStatusLabels) as ContactStatus[]).map((value) => ({
+                  value,
+                  label: contactStatusLabels[value]
+                }))}
+                values={filters.contactStatus}
+                onChange={(values) => setFilters({ ...filters, contactStatus: values as ContactStatus[] })}
+              />
+            </div>
+            <div className="filter-switches">
+              <label className="switch-row">
+                <input
+                  checked={filters.helpOnly}
+                  type="checkbox"
+                  onChange={(event) => setFilters({ ...filters, helpOnly: event.target.checked })}
+                />
+                Только нужна помощь
+              </label>
+              <label className="switch-row">
+                <input
+                  checked={filters.contactOnly}
+                  type="checkbox"
+                  onChange={(event) => setFilters({ ...filters, contactOnly: event.target.checked })}
+                />
+                Есть контакт
+              </label>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <div className="data-mode-tabs" aria-label="Рабочий режим">
@@ -2685,6 +2705,23 @@ function writeDataFilterPresets(presets: FilterPreset[]): void {
     window.localStorage.setItem(dataFilterPresetsStorageKey, JSON.stringify(presets));
   } catch {
     // Saved slices are optional; data work must continue without localStorage.
+  }
+}
+
+function readDataFilterPanelOpen(): boolean {
+  try {
+    const raw = window.localStorage.getItem(dataFilterPanelStorageKey);
+    return raw === null ? true : raw === "true";
+  } catch {
+    return true;
+  }
+}
+
+function writeDataFilterPanelOpen(value: boolean): void {
+  try {
+    window.localStorage.setItem(dataFilterPanelStorageKey, String(value));
+  } catch {
+    // Filter panel state is a display preference; filtering itself must keep working.
   }
 }
 
