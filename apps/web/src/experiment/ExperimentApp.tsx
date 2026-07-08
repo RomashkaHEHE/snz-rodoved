@@ -2355,10 +2355,7 @@ function ResponseInspector({
         <ContactWorkflowPanel response={response} onSave={onSaveContact} />
       ) : null}
 
-      <div className="yes-list">
-        <strong>Ответы «Да»</strong>
-        <p>{formatYesAnswers(response)}</p>
-      </div>
+      <ResponseAnswerReview response={response} />
 
       <div className="form-actions">
         <button className="primary-button" type="button" onClick={() => onEdit(response)}>
@@ -2374,6 +2371,35 @@ function ResponseInspector({
         </button>
       </div>
     </aside>
+  );
+}
+
+function ResponseAnswerReview({ response }: { response: SurveyResponse }) {
+  return (
+    <section className="answer-review-grid" aria-label="Ответы анкеты">
+      <div className="section-title-row">
+        <h3>Ответы</h3>
+        <span>Q4-Q16</span>
+      </div>
+      <div className="answer-review-list">
+        {questions.map((question) => {
+          const answer = response[question.id];
+
+          return (
+            <div className="answer-review-row" key={question.id}>
+              <div>
+                <b>{question.number}</b>
+                <span>{question.label}</span>
+                {question.id === "q11" && response.q11WarDetails && response.q11WarDetails !== "—" ? (
+                  <small>{response.q11WarDetails}</small>
+                ) : null}
+              </div>
+              <span className={`answer-chip answer-${answer}`}>{answerLabels[answer]}</span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -3159,14 +3185,6 @@ function countDraftAnswers(draft: AnswerFields): Record<Answer, number> {
     },
     { no: 0, unknown: 0, yes: 0 }
   );
-}
-
-function formatYesAnswers(response: SurveyResponse): string {
-  const yesQuestions = questions
-    .filter((question) => response[question.id] === "yes")
-    .map((question) => `Q${question.number}`);
-
-  return yesQuestions.length > 0 ? yesQuestions.join(", ") : "Нет ответов «Да».";
 }
 
 function buildPdfCoverage(responses: SurveyResponse[], files: PdfRecord[]): PdfCoverage {
