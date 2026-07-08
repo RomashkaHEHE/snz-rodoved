@@ -1,4 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
 import {
   ageGroupLabels,
   answerLabels,
@@ -48,6 +49,7 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
               <th>Возраст</th>
               <th>Проживание</th>
               <th>Поиск</th>
+              <th>Контакт</th>
               <th>Q7</th>
               <th>Q8</th>
               <th>Q11</th>
@@ -75,6 +77,7 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
                 <td data-label="Возраст">{ageGroupLabels[response.ageGroup]}</td>
                 <td data-label="Проживание">{residenceLabels[response.residence]}</td>
                 <td data-label="Поиск">{formatResearchInfo(response)}</td>
+                <td data-label="Контакт">{renderContactInfo(response)}</td>
                 <td data-label="Q7">{answerLabels[response.q7]}</td>
                 <td data-label="Q8">{answerLabels[response.q8]}</td>
                 <td data-label="Q11">
@@ -96,7 +99,7 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
             ))}
             {responses.length === 0 ? (
               <tr>
-                <td className="empty-table-cell" colSpan={12}>
+                <td className="empty-table-cell" colSpan={13}>
                   По текущим фильтрам анкет нет.
                 </td>
               </tr>
@@ -112,6 +115,25 @@ function formatResearchInfo(response: SurveyResponse): string {
   const period = formatResearchPeriod(response);
   const parts = [response.researchTerritory, period, response.freeText].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : "—";
+}
+
+function renderContactInfo(response: SurveyResponse): ReactNode {
+  if (!response.contactName && !response.contactPhone) {
+    return "—";
+  }
+
+  return (
+    <span className="contact-cell">
+      {response.contactName ? <span>{response.contactName}</span> : null}
+      {response.contactPhone ? (
+        <a href={`tel:${normalizePhoneHref(response.contactPhone)}`}>{response.contactPhone}</a>
+      ) : null}
+    </span>
+  );
+}
+
+function normalizePhoneHref(value: string): string {
+  return value.replace(/[^\d+]/g, "");
 }
 
 function formatResearchPeriod(response: SurveyResponse): string | undefined {

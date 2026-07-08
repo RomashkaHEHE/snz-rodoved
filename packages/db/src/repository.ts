@@ -63,6 +63,8 @@ export class SurveyRepository {
       researchPeriodStart: parsed.researchPeriodStart ?? null,
       researchPeriodEnd: parsed.researchPeriodEnd ?? null,
       freeText: parsed.freeText ?? null,
+      contactName: parsed.q16 === "yes" ? (parsed.contactName ?? null) : null,
+      contactPhone: parsed.q16 === "yes" ? (parsed.contactPhone ?? null) : null,
       isFake: options.isFake ? "true" : "false",
       createdAt: now,
       updatedAt: now
@@ -110,6 +112,19 @@ export class SurveyRepository {
 
     if ("freeText" in parsed) {
       updateData.freeText = parsed.freeText ?? null;
+    }
+
+    if ("contactName" in parsed) {
+      updateData.contactName = parsed.contactName ?? null;
+    }
+
+    if ("contactPhone" in parsed) {
+      updateData.contactPhone = parsed.contactPhone ?? null;
+    }
+
+    if (parsed.q16 && parsed.q16 !== "yes") {
+      updateData.contactName = null;
+      updateData.contactPhone = null;
     }
 
     const updated = this.db
@@ -251,7 +266,9 @@ function toSurveyResponse(row: ResponseRow): SurveyResponse {
     researchTerritory: row.researchTerritory ?? undefined,
     researchPeriodStart: row.researchPeriodStart ?? undefined,
     researchPeriodEnd: row.researchPeriodEnd ?? undefined,
-    freeText: row.freeText ?? undefined
+    freeText: row.freeText ?? undefined,
+    contactName: row.contactName ?? undefined,
+    contactPhone: row.contactPhone ?? undefined
   };
 }
 

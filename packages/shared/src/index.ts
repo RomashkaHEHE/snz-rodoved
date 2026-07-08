@@ -215,7 +215,9 @@ const surveyResponseInputObjectSchema = z.object({
   ),
   researchPeriodStart: optionalResearchYearSchema,
   researchPeriodEnd: optionalResearchYearSchema,
-  freeText: optionalTextField(1500, "Свободный текст должен быть короче 1500 символов")
+  freeText: optionalTextField(1500, "Свободный текст должен быть короче 1500 символов"),
+  contactName: optionalTextField(120, "Имя должно быть короче 120 символов"),
+  contactPhone: optionalTextField(40, "Номер телефона должен быть короче 40 символов")
 });
 
 function hasValidResearchPeriod(value: {
@@ -237,7 +239,13 @@ export const surveyResponseInputSchema = surveyResponseInputObjectSchema.refine(
   }
 );
 
-export const onlineSurveyResponseInputSchema = surveyResponseInputSchema;
+export const onlineSurveyResponseInputSchema = surveyResponseInputSchema.refine(
+  (value) => value.q16 !== "yes" || (Boolean(value.contactName) && Boolean(value.contactPhone)),
+  {
+    message: "Для запроса помощи нужно указать имя и телефон",
+    path: ["contactPhone"]
+  }
+);
 
 export const partialSurveyResponseInputSchema = surveyResponseInputObjectSchema
   .partial()

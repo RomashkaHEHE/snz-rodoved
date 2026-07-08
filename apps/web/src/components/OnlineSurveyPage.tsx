@@ -35,7 +35,10 @@ export function OnlineSurveyPage({ authenticated, onHome, onWorkspace }: OnlineS
   function setAnswer(questionId: AnswerQuestionId, value: AnswerValue) {
     setForm((current) => ({
       ...current,
-      [questionId]: value
+      [questionId]: value,
+      ...(questionId === "q16" && value !== "yes"
+        ? { contactName: undefined, contactPhone: undefined }
+        : {})
     }));
   }
 
@@ -203,6 +206,37 @@ export function OnlineSurveyPage({ authenticated, onHome, onWorkspace }: OnlineS
                             </option>
                           ))}
                         </select>
+                      </label>
+                    </div>
+                  ) : null}
+                  {question.id === "q16" && form.q16 === "yes" ? (
+                    <div className="contact-request-grid">
+                      <p className="section-note">Контакты нужны только для связи по вашему запросу.</p>
+                      <label>
+                        Имя
+                        <input
+                          autoComplete="name"
+                          maxLength={120}
+                          required
+                          value={form.contactName ?? ""}
+                          onChange={(event) =>
+                            setForm({ ...form, contactName: event.target.value || undefined })
+                          }
+                        />
+                      </label>
+                      <label>
+                        Номер телефона
+                        <input
+                          autoComplete="tel"
+                          inputMode="tel"
+                          maxLength={40}
+                          required
+                          type="tel"
+                          value={form.contactPhone ?? ""}
+                          onChange={(event) =>
+                            setForm({ ...form, contactPhone: event.target.value || undefined })
+                          }
+                        />
                       </label>
                     </div>
                   ) : null}

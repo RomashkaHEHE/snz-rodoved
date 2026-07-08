@@ -73,7 +73,9 @@ describe("SurveyRepository", () => {
         researchTerritory: "Челябинская область",
         researchPeriodStart: 1850,
         researchPeriodEnd: 1945,
-        freeText: "Дополнительный комментарий"
+        freeText: "Дополнительный комментарий",
+        contactName: "Алёна",
+        contactPhone: "+7 900 000-00-00"
       },
       { source: "online" }
     );
@@ -85,6 +87,8 @@ describe("SurveyRepository", () => {
     expect(onlineRows[0]?.source).toBe("online");
     expect(onlineRows[0]?.researchTerritory).toBe("Челябинская область");
     expect(onlineRows[0]?.researchPeriodStart).toBe(1850);
+    expect(onlineRows[0]?.contactName).toBe("Алёна");
+    expect(onlineRows[0]?.contactPhone).toBe("+7 900 000-00-00");
     expect(paperRows).toHaveLength(1);
     expect(paperRows[0]?.source).toBe("paper");
   });

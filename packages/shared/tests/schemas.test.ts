@@ -51,6 +51,8 @@ describe("survey response schema", () => {
       researchPeriodStart: 1850,
       researchPeriodEnd: 1945,
       freeText: "Ищу сведения по фамилии Ивановы",
+      contactName: "Алёна",
+      contactPhone: "+7 900 000-00-00",
       q4: "unknown",
       q5: "yes",
       q6: "no",
@@ -70,6 +72,8 @@ describe("survey response schema", () => {
     expect(parsed.source).toBe("online");
     expect(parsed.researchTerritory).toBe("Челябинская область");
     expect(parsed.researchPeriodStart).toBe(1850);
+    expect(parsed.contactName).toBe("Алёна");
+    expect(parsed.contactPhone).toBe("+7 900 000-00-00");
   });
 
   it("rejects a reversed online research period", () => {
@@ -94,6 +98,30 @@ describe("survey response schema", () => {
         q14: "unknown",
         q15: "unknown",
         q16: "unknown"
+      })
+    ).toThrow();
+  });
+
+  it("requires contact fields when online respondent asks for help", () => {
+    expect(() =>
+      onlineSurveyResponseInputSchema.parse({
+        surveyDate: "2026-07-08",
+        gender: "female",
+        ageGroup: "over_40",
+        residence: "other",
+        q4: "unknown",
+        q5: "unknown",
+        q6: "unknown",
+        q7: "unknown",
+        q8: "unknown",
+        q9: "unknown",
+        q10: "unknown",
+        q11: "unknown",
+        q12: "unknown",
+        q13: "unknown",
+        q14: "unknown",
+        q15: "unknown",
+        q16: "yes"
       })
     ).toThrow();
   });

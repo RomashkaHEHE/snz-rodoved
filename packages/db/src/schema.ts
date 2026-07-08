@@ -28,6 +28,8 @@ export const responses = sqliteTable(
     researchPeriodStart: integer("research_period_start"),
     researchPeriodEnd: integer("research_period_end"),
     freeText: text("free_text"),
+    contactName: text("contact_name"),
+    contactPhone: text("contact_phone"),
     isFake: text("is_fake").$type<"true" | "false">().notNull().default("false"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull()

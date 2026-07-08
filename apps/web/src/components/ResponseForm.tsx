@@ -62,7 +62,10 @@ export function ResponseForm({ editing, onSaved, onCancelEdit }: ResponseFormPro
   function setAnswer(questionId: AnswerQuestionId, value: AnswerValue) {
     setForm((current) => ({
       ...current,
-      [questionId]: value
+      [questionId]: value,
+      ...(questionId === "q16" && value !== "yes"
+        ? { contactName: undefined, contactPhone: undefined }
+        : {})
     }));
   }
 
@@ -200,6 +203,34 @@ export function ResponseForm({ editing, onSaved, onCancelEdit }: ResponseFormPro
                   </label>
                 </div>
               ) : null}
+              {question.id === "q16" && form.source === "online" && form.q16 === "yes" ? (
+                <div className="contact-request-grid">
+                  <label>
+                    Имя
+                    <input
+                      autoComplete="name"
+                      maxLength={120}
+                      value={form.contactName ?? ""}
+                      onChange={(event) =>
+                        setForm({ ...form, contactName: event.target.value || undefined })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Номер телефона
+                    <input
+                      autoComplete="tel"
+                      inputMode="tel"
+                      maxLength={40}
+                      type="tel"
+                      value={form.contactPhone ?? ""}
+                      onChange={(event) =>
+                        setForm({ ...form, contactPhone: event.target.value || undefined })
+                      }
+                    />
+                  </label>
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
@@ -269,7 +300,9 @@ function toFormValue(editing: SurveyResponse | null): SurveyResponseInput {
     researchTerritory: editing.researchTerritory,
     researchPeriodStart: editing.researchPeriodStart,
     researchPeriodEnd: editing.researchPeriodEnd,
-    freeText: editing.freeText
+    freeText: editing.freeText,
+    contactName: editing.contactName,
+    contactPhone: editing.contactPhone
   };
 }
 

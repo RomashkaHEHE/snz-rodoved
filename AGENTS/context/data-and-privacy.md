@@ -2,7 +2,9 @@
 
 V1 structured paper entry does not collect respondent names, phone numbers, addresses, or free personal notes.
 
-The public online survey has a free-text field because the customer needs search context. UI copy should avoid asking for contacts; treat this field as search notes, not a personal-data collection channel.
+The public online survey has a free-text field because the customer needs search context. UI copy should avoid asking for contacts in that field; treat it as search notes, not a personal-data collection channel.
+
+When the online respondent answers `yes` to q16 ("need help"), the form asks for name and phone. These are personal contact fields and must remain available only to the workspace/admin flow, CSV export, and protected API responses.
 
 Survey answer rules:
 
@@ -12,6 +14,7 @@ Survey answer rules:
 - q7 and q8 are separate by source-paper design.
 - responses have `source=paper` or `source=online`;
 - online responses may have territory, period, and free-text search context.
+- online responses may have `contactName` and `contactPhone` when q16 is `yes`.
 
 Public statistics are intentionally absent in v1. Adding them later requires a new privacy/product decision.
 

@@ -523,6 +523,21 @@ textarea {
   max-width: 420px;
 }
 
+.contact-request-grid {
+  border-top: 1px solid #eee5d9;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 640px;
+  padding-top: 1rem;
+}
+
+.contact-request-grid .section-note {
+  color: var(--color-muted);
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .form-actions {
   align-items: start;
   display: grid;
@@ -741,6 +756,17 @@ th {
   color: var(--color-primary);
 }
 
+.contact-cell {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.contact-cell a {
+  color: var(--color-primary);
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .row-actions button {
   align-items: center;
   background: #f2ece1;
@@ -893,6 +919,7 @@ th {
 
   .form-top-grid,
   .filter-grid,
+  .contact-request-grid,
   .online-extra-grid,
   .pdf-upload-form,
   .stat-grid {
