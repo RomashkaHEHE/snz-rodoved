@@ -353,6 +353,10 @@ textarea {
   justify-content: flex-end;
 }
 
+.multi-segmented button {
+  min-width: 3.25rem;
+}
+
 .question-stack {
   display: grid;
   gap: 0.65rem;
@@ -480,6 +484,42 @@ textarea {
 .filter-panel {
   display: grid;
   gap: 1rem;
+}
+
+.filter-title-row {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.filter-title-row div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.filter-title-row span {
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.filter-title-row strong {
+  font-size: 1.25rem;
+}
+
+.filter-choice-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) minmax(0, 1fr);
+}
+
+.filter-switches {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
 }
 
 .switch-row {
@@ -976,6 +1016,7 @@ textarea {
     .basic-grid,
     .search-grid,
     .compact-grid,
+    .filter-choice-grid,
     .question-breakdown-row,
     .help-card {
     grid-template-columns: 1fr;
@@ -997,6 +1038,10 @@ textarea {
   .help-actions {
     align-items: stretch;
     justify-items: stretch;
+  }
+
+  .filter-title-row {
+    align-items: start;
   }
 }
 

@@ -33,7 +33,8 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - public online survey submits to the server and stores a browser-local draft until successful submit;
   - public navigation shows only the online survey and workspace login until the operator signs in;
   - operator entry, data, and PDF archive are behind workspace password login;
-  - data filters, summary, row inspector, inline row editing/deletion, demo-row generation, fake-only deletion, and CSV export use server rows;
+  - data filters include date range, source, gender, age group, residence, help-only, contact-only, and free text search;
+  - data summary, demographic/source bars, row inspector, inline row editing/deletion, demo-row generation, fake-only deletion, and CSV export use server rows;
   - the protected data screen has a contact/help queue for rows where q16 is `yes`;
   - collapsible question breakdown shows yes/no/unknown counts and can focus on all questions, experience, interests, or help;
   - PDF upload/list/download/deletion use server PDF storage;
@@ -50,7 +51,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
 ## Next Product Steps
 
 1. Extend the q16 queue into a lightweight contact workflow if the operator needs status tracking.
-2. Add CSV export controls that make client-side text/contact filters explicit.
+2. Consider moving CSV export from client-side rows to the backend if the test dataset grows beyond current all-rows loading.
 3. Review whether the online survey needs a final confirmation screen before submit.
 4. Keep reviewing the mobile data workspace on real iPhone/Safari.
 5. Consider a safer operator workflow for merging duplicated paper/online rows.
@@ -61,8 +62,15 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - `npm run lint`
 - `npm run test`
 - `VITE_APP_ENV=test npm run build`
+- HTTP/asset smoke against a temporary local server confirmed:
+  - `/api/health` responds;
+  - `/data` serves the built test app;
+  - the built JS contains `Есть контакт`, `Сбросить`, `Проживание`, `Источник`, and `Контакты`;
+  - the built CSS contains `filter-choice-grid` and `filter-title-row`.
 - Local browser smoke:
   - unauthenticated public nav on `/` shows only `Опрос` and `Вход`;
   - after workspace login, nav shows `Опрос`, `Ввод`, `Данные`, `PDF`;
   - protected data screen shows q16 help rows in `Обращения` with a `tel:` link;
   - iPhone-width checks had no horizontal overflow.
+
+Note: the browser tool timed out while opening the temporary local server during the filter iteration, so the newest filter work was verified by TypeScript/lint/tests/build and HTTP/asset smoke. Re-run browser checks for filter clicks when the browser automation session is stable.

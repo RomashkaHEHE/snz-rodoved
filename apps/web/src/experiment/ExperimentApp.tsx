@@ -88,11 +88,15 @@ interface PdfRecord {
 }
 
 interface Filters {
+  ageGroup: AgeGroup[];
+  contactOnly: boolean;
   dateFrom: string;
   dateTo: string;
+  gender: Gender[];
   source: "all" | ResponseSource;
   helpOnly: boolean;
   query: string;
+  residence: Residence[];
 }
 
 const answerLabels: Record<Answer, string> = {
@@ -610,13 +614,7 @@ function DataPage({
   onEdit: (id: string) => void;
   onSave: (draft: ResponseDraft, id?: string) => Promise<void>;
 }) {
-  const [filters, setFilters] = useState<Filters>({
-    dateFrom: "",
-    dateTo: "",
-    source: "all",
-    helpOnly: false,
-    query: ""
-  });
+  const [filters, setFilters] = useState<Filters>(() => createInitialFilters());
   const [dataStatus, setDataStatus] = useState("");
   const [busyAction, setBusyAction] = useState<"fake-add" | "fake-delete" | "row-delete" | "row-save" | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -637,6 +635,7 @@ function DataPage({
   );
   const summary = buildSummary(filteredResponses);
   const selectedResponse = filteredResponses.find((response) => response.id === selectedId) ?? null;
+  const filtersActive = hasActiveFilters(filters);
 
   useEffect(() => {
     if (selectedId && !filteredResponses.some((response) => response.id === selectedId)) {
@@ -741,6 +740,10 @@ function DataPage({
     }
   }
 
+  function resetFilters() {
+    setFilters(createInitialFilters());
+  }
+
   return (
     <section className="task-page data-task">
       <div className="task-heading">
@@ -770,6 +773,15 @@ function DataPage({
       {dataStatus ? <p className="form-status">{dataStatus}</p> : null}
 
       <section className="task-panel filter-panel">
+        <div className="filter-title-row">
+          <div>
+            <span>Срез</span>
+            <strong>{filteredResponses.length} из {responses.length}</strong>
+          </div>
+          <button className="ghost-button compact-button" disabled={!filtersActive} type="button" onClick={resetFilters}>
+            Сбросить
+          </button>
+        </div>
         <div className="compact-grid">
           <label>
             Дата с
@@ -809,14 +821,53 @@ function DataPage({
             />
           </label>
         </div>
-        <label className="switch-row">
-          <input
-            checked={filters.helpOnly}
-            type="checkbox"
-            onChange={(event) => setFilters({ ...filters, helpOnly: event.target.checked })}
+        <div className="filter-choice-grid">
+          <MultiSegmentedGroup
+            label="Пол"
+            options={(Object.keys(genderLabels) as Gender[]).map((value) => ({
+              value,
+              label: genderLabels[value]
+            }))}
+            values={filters.gender}
+            onChange={(values) => setFilters({ ...filters, gender: values as Gender[] })}
           />
-          Только нужна помощь
-        </label>
+          <MultiSegmentedGroup
+            label="Возраст"
+            options={(Object.keys(ageLabels) as AgeGroup[]).map((value) => ({
+              value,
+              label: ageLabels[value]
+            }))}
+            values={filters.ageGroup}
+            onChange={(values) => setFilters({ ...filters, ageGroup: values as AgeGroup[] })}
+          />
+          <MultiSegmentedGroup
+            label="Проживание"
+            options={(Object.keys(residenceLabels) as Residence[]).map((value) => ({
+              value,
+              label: residenceLabels[value]
+            }))}
+            values={filters.residence}
+            onChange={(values) => setFilters({ ...filters, residence: values as Residence[] })}
+          />
+        </div>
+        <div className="filter-switches">
+          <label className="switch-row">
+            <input
+              checked={filters.helpOnly}
+              type="checkbox"
+              onChange={(event) => setFilters({ ...filters, helpOnly: event.target.checked })}
+            />
+            Только нужна помощь
+          </label>
+          <label className="switch-row">
+            <input
+              checked={filters.contactOnly}
+              type="checkbox"
+              onChange={(event) => setFilters({ ...filters, contactOnly: event.target.checked })}
+            />
+            Есть контакт
+          </label>
+        </div>
       </section>
 
       <section className="summary-grid" aria-label="Сводка">
@@ -824,6 +875,7 @@ function DataPage({
         <Metric icon={ClipboardList} label="Онлайн" value={summary.online} />
         <Metric icon={PenLine} label="Бумага" value={summary.paper} />
         <Metric icon={Search} label="Нужна помощь" value={summary.help} />
+        <Metric icon={Phone} label="Контакты" value={summary.contacts} />
         <Metric icon={Database} label="Демо" value={summary.fake} />
       </section>
 
@@ -850,6 +902,30 @@ function DataPage({
             <span>{filteredResponses.length}</span>
           </div>
           <BarList data={summary.ageBars} />
+        </div>
+
+        <div className="task-panel">
+          <div className="section-title-row">
+            <h2>Проживание</h2>
+            <span>{filteredResponses.length}</span>
+          </div>
+          <BarList data={summary.residenceBars} />
+        </div>
+
+        <div className="task-panel">
+          <div className="section-title-row">
+            <h2>Пол</h2>
+            <span>{filteredResponses.length}</span>
+          </div>
+          <BarList data={summary.genderBars} />
+        </div>
+
+        <div className="task-panel">
+          <div className="section-title-row">
+            <h2>Источник</h2>
+            <span>{filteredResponses.length}</span>
+          </div>
+          <BarList data={summary.sourceBars} />
         </div>
       </section>
 
@@ -1208,6 +1284,41 @@ function SegmentedGroup({
             key={option.value}
             type="button"
             onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+function MultiSegmentedGroup({
+  label,
+  onChange,
+  options,
+  values
+}: {
+  label: string;
+  onChange: (values: string[]) => void;
+  options: Array<{ value: string; label: string }>;
+  values: string[];
+}) {
+  function toggleValue(value: string) {
+    onChange(values.includes(value) ? values.filter((item) => item !== value) : [...values, value]);
+  }
+
+  return (
+    <fieldset className="segmented multi-segmented">
+      <legend>{label}</legend>
+      <div>
+        {options.map((option) => (
+          <button
+            aria-pressed={values.includes(option.value)}
+            className={values.includes(option.value) ? "is-selected" : ""}
+            key={option.value}
+            type="button"
+            onClick={() => toggleValue(option.value)}
           >
             {option.label}
           </button>
@@ -1801,6 +1912,34 @@ function normalizeDraft(draft: ResponseDraft): ResponseDraft {
   };
 }
 
+function createInitialFilters(): Filters {
+  return {
+    ageGroup: [],
+    contactOnly: false,
+    dateFrom: "",
+    dateTo: "",
+    gender: [],
+    helpOnly: false,
+    query: "",
+    residence: [],
+    source: "all"
+  };
+}
+
+function hasActiveFilters(filters: Filters): boolean {
+  return (
+    filters.ageGroup.length > 0 ||
+    filters.contactOnly ||
+    Boolean(filters.dateFrom) ||
+    Boolean(filters.dateTo) ||
+    filters.gender.length > 0 ||
+    filters.helpOnly ||
+    Boolean(filters.query.trim()) ||
+    filters.residence.length > 0 ||
+    filters.source !== "all"
+  );
+}
+
 function matchesFilters(response: SurveyResponse, filters: Filters): boolean {
   if (!isDateInRange(response.surveyDate, filters.dateFrom, filters.dateTo)) {
     return false;
@@ -1810,7 +1949,23 @@ function matchesFilters(response: SurveyResponse, filters: Filters): boolean {
     return false;
   }
 
+  if (filters.gender.length > 0 && !filters.gender.includes(response.gender)) {
+    return false;
+  }
+
+  if (filters.ageGroup.length > 0 && !filters.ageGroup.includes(response.ageGroup)) {
+    return false;
+  }
+
+  if (filters.residence.length > 0 && !filters.residence.includes(response.residence)) {
+    return false;
+  }
+
   if (filters.helpOnly && response.q16 !== "yes") {
+    return false;
+  }
+
+  if (filters.contactOnly && !hasContact(response)) {
     return false;
   }
 
@@ -1832,13 +1987,26 @@ function matchesFilters(response: SurveyResponse, filters: Filters): boolean {
 
 function buildSummary(responses: SurveyResponse[]) {
   return {
+    contacts: responses.filter(hasContact).length,
     fake: responses.filter((response) => response.isFake).length,
     help: responses.filter((response) => response.q16 === "yes").length,
     online: responses.filter((response) => response.source === "online").length,
     paper: responses.filter((response) => response.source === "paper").length,
+    genderBars: (Object.keys(genderLabels) as Gender[]).map((gender) => ({
+      label: genderLabels[gender],
+      value: responses.filter((response) => response.gender === gender).length
+    })),
     ageBars: (Object.keys(ageLabels) as AgeGroup[]).map((ageGroup) => ({
       label: ageLabels[ageGroup],
       value: responses.filter((response) => response.ageGroup === ageGroup).length
+    })),
+    residenceBars: (Object.keys(residenceLabels) as Residence[]).map((residence) => ({
+      label: residenceLabels[residence],
+      value: responses.filter((response) => response.residence === residence).length
+    })),
+    sourceBars: (Object.keys(sourceLabels) as ResponseSource[]).map((source) => ({
+      label: sourceLabels[source],
+      value: responses.filter((response) => response.source === source).length
     })),
     questionBars: questions.map((question) => ({
       group: question.group,
@@ -1849,6 +2017,10 @@ function buildSummary(responses: SurveyResponse[]) {
       yes: responses.filter((response) => response[question.id] === "yes").length
     }))
   };
+}
+
+function hasContact(response: Pick<SurveyResponse, "contactName" | "contactPhone">): boolean {
+  return Boolean(response.contactName?.trim() || response.contactPhone?.trim());
 }
 
 function formatYesAnswers(response: SurveyResponse): string {
