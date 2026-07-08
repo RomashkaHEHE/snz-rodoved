@@ -36,29 +36,23 @@ This adds a visible banner so the operator does not confuse the test site with p
 The test server env currently uses:
 
 ```env
-COOKIE_SECURE=false
+COOKIE_SECURE=true
 ```
 
-This allows password login over plain HTTP while DNS/HTTPS are not ready. After `test.snz-rodoved.ru` has a valid HTTPS certificate, this can be changed to `COOKIE_SECURE=true` or removed.
+Keep this enabled because `test.snz-rodoved.ru` has HTTPS. Do not set `COOKIE_SECURE=false` unless HTTPS is temporarily broken and the test environment must be debugged over plain HTTP.
 
 ## DNS
 
-Add this DNS record:
+DNS record:
 
 ```text
 test  A  46.16.36.87
 ```
 
-When DNS resolves, issue a certificate:
+Certificate command used:
 
 ```bash
-sudo certbot --nginx -d test.snz-rodoved.ru
-```
-
-Before DNS is ready, the server can still be checked with a Host header:
-
-```bash
-curl -H 'Host: test.snz-rodoved.ru' http://46.16.36.87/api/health
+sudo certbot --nginx -d test.snz-rodoved.ru --redirect --non-interactive
 ```
 
 ## Current Server State
@@ -68,8 +62,13 @@ As of 2026-07-08:
 - `snz-rodoved-test.service` is active.
 - `http://127.0.0.1:4001/api/health` returns `{"ok":true}` on the VPS.
 - nginx has `snz-rodoved-test.conf` and proxies Host `test.snz-rodoved.ru` to `127.0.0.1:4001`.
-- `curl -H 'Host: test.snz-rodoved.ru' http://46.16.36.87/api/health` returns `{"ok":true}`.
-- DNS for `test.snz-rodoved.ru` is not ready yet; the A record still needs to be added before the public URL opens normally.
+- DNS for `test.snz-rodoved.ru` resolves to `46.16.36.87`.
+- Let's Encrypt HTTPS is enabled for `test.snz-rodoved.ru`; HTTP redirects to HTTPS.
+- `https://test.snz-rodoved.ru/api/health` returns `{"ok":true}`.
+- Browser checks passed on real HTTPS URL:
+  - desktop `/` shows the test banner, contact links, and no horizontal overflow;
+  - mobile `/survey` shows the section navigation, no horizontal overflow, and q16 opens required `Имя`/`Номер телефона` fields.
+- Workspace API login over HTTPS sets a `Secure` session cookie and can access protected responses.
 
 ## Safety Rules
 
