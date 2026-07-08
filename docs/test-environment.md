@@ -31,7 +31,7 @@ The web build receives:
 VITE_APP_ENV=test
 ```
 
-This adds a visible banner so the operator does not confuse the test site with production.
+This marks the build as test-only for environment-specific logic. The public UI does not show a visible test banner.
 
 The test server env currently uses:
 
@@ -66,7 +66,7 @@ As of 2026-07-08:
 - Let's Encrypt HTTPS is enabled for `test.snz-rodoved.ru`; HTTP redirects to HTTPS.
 - `https://test.snz-rodoved.ru/api/health` returns `{"ok":true}`.
 - Browser checks passed on real HTTPS URL:
-  - desktop `/` shows the test banner, contact links, and no horizontal overflow;
+  - desktop `/` shows contact links, no visible test banner, and no horizontal overflow;
   - mobile `/survey` shows the section navigation, no horizontal overflow, and q16 opens required `Имя`/`Номер телефона` fields.
 - Workspace API login over HTTPS sets a `Secure` session cookie and can access protected responses.
 

@@ -46,7 +46,7 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - SQLite is the v1 persistence target for VPS deployment.
 - Production deploy target is isolated under `/home/user1/apps/snz-rodoved` unless changed by `DEPLOY_PATH`.
 - Server `46.16.36.87` has been bootstrapped with user-level service `snz-rodoved`; the app runs on `127.0.0.1:4000` behind nginx.
-- Test branch `test` deploys through `.github/workflows/deploy-test.yml` to `/home/user1/apps/snz-rodoved-test`, user service `snz-rodoved-test`, and `127.0.0.1:4001`. It uses a separate SQLite database and shows a visible test banner.
+- Test branch `test` deploys through `.github/workflows/deploy-test.yml` to `/home/user1/apps/snz-rodoved-test`, user service `snz-rodoved-test`, and `127.0.0.1:4001`. It uses a separate SQLite database and does not show a public test-version banner.
 - `test.snz-rodoved.ru` resolves to `46.16.36.87`, has a separate nginx config `snz-rodoved-test.conf`, and has Let's Encrypt HTTPS enabled. HTTP redirects to HTTPS. Test runtime uses `COOKIE_SECURE=true`.
 - Domain `snz-rodoved.ru` has an nginx reverse proxy and Let's Encrypt HTTPS certificate on the server. Some local resolvers may still cache the previous parking IP, but authoritative/public DNS points to `46.16.36.87`.
 - API static serving must not rely only on `process.cwd()/apps/web/dist`: production starts through `npm -w @snz-rodoved/api`, so the runtime cwd is `apps/api`. `apps/api/src/app.ts` resolves the frontend dist from `INIT_CWD`, root cwd, or `../web/dist`.

@@ -17,7 +17,7 @@ Maintain a separate test deployment for UX experiments, mobile workflow checks, 
 - Production is deployed from `main` to `/home/user1/apps/snz-rodoved`, service `snz-rodoved`, port `4000`, domain `snz-rodoved.ru`.
 - Test should be deployed from `test` to `/home/user1/apps/snz-rodoved-test`, service `snz-rodoved-test`, port `4001`, domain `test.snz-rodoved.ru`.
 - Test must use its own SQLite database and PDF storage.
-- Test builds use `VITE_APP_ENV=test`; the frontend shows a visible test banner in that build.
+- Test builds use `VITE_APP_ENV=test`; the frontend intentionally does not show a public test-version banner.
 - Test runtime uses `COOKIE_SECURE=true` because HTTPS is enabled.
 - Server bootstrap is complete: `snz-rodoved-test.service` is active on port `4001`, nginx proxies Host `test.snz-rodoved.ru`, and GitHub Actions `Deploy Test` passed on branch `test`.
 - DNS for `test.snz-rodoved.ru` resolves to `46.16.36.87`.
