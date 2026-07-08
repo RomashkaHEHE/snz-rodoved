@@ -39,7 +39,7 @@ Maintain a separate test deployment for UX experiments, mobile workflow checks, 
 
 ## Exit criteria
 
-- `test` branch deploys automatically through GitHub Actions. Done for commit `9cb3dc5`.
+- `test` branch deploys automatically through GitHub Actions. Done; latest verified deploy commit is `f22ef1f`.
 - `snz-rodoved-test.service` is healthy on the server. Done.
 - Test reverse proxy reaches the app without affecting `snz-rodoved.service`. Done.
 - Test site has a separate database from production. Done: `/home/user1/apps/snz-rodoved-test/shared/data/rodoved.sqlite`.
