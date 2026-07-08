@@ -45,6 +45,7 @@ type ContactStatus = "new" | "in_progress" | "done" | "no_contact";
 type QuestionGroup = "experience" | "interest" | "help";
 type QuestionGroupFilter = "all" | QuestionGroup;
 type DataMode = "contacts" | "rows" | "pdf" | "charts";
+type ContactQueueStatus = ContactStatus | "all";
 type QuestionId =
   | "q4"
   | "q5"
@@ -985,6 +986,21 @@ function DataPage({
     () => filteredResponses.filter((response) => response.q16 === "yes"),
     [filteredResponses]
   );
+  const contactQueueBase = useMemo(
+    () =>
+      responses.filter(
+        (response) =>
+          response.q16 === "yes" &&
+          matchesFilters(response, {
+            ...filters,
+            contactStatus: [],
+            helpOnly: false
+          })
+      ),
+    [filters, responses]
+  );
+  const contactQueueCounts = useMemo(() => buildContactQueueCounts(contactQueueBase), [contactQueueBase]);
+  const sortedHelpRequests = useMemo(() => [...helpRequests].sort(compareContactQueue), [helpRequests]);
   const summary = buildSummary(filteredResponses);
   const selectedResponse = filteredResponses.find((response) => response.id === selectedId) ?? null;
   const filtersActive = hasActiveFilters(filters);
@@ -1156,6 +1172,15 @@ function DataPage({
 
   function focusPaperDate(date: string) {
     setFilters({ ...filters, dateFrom: date, dateTo: date, source: "paper" });
+  }
+
+  function applyContactQueue(status: ContactQueueStatus) {
+    setFilters({
+      ...filters,
+      contactStatus: status === "all" ? [] : [status],
+      helpOnly: true
+    });
+    setDataMode("contacts");
   }
 
   function saveFilterPreset() {
@@ -1468,9 +1493,14 @@ function DataPage({
               <h2>Обращения</h2>
               <span>{helpRequests.length}</span>
             </div>
+            <ContactQueueControls
+              activeStatuses={filters.contactStatus}
+              counts={contactQueueCounts}
+              onSelect={applyContactQueue}
+            />
             <HelpQueue
               hideContacts={hideContacts}
-              responses={helpRequests}
+              responses={sortedHelpRequests}
               selectedId={selectedId}
               onOpen={openResponse}
             />
@@ -2172,6 +2202,46 @@ function HelpQueue({
           </div>
         </article>
       ))}
+    </div>
+  );
+}
+
+function ContactQueueControls({
+  activeStatuses,
+  counts,
+  onSelect
+}: {
+  activeStatuses: ContactStatus[];
+  counts: Record<ContactQueueStatus, number>;
+  onSelect: (status: ContactQueueStatus) => void;
+}) {
+  const items: Array<{ id: ContactQueueStatus; label: string }> = [
+    { id: "all", label: "Все" },
+    { id: "new", label: contactStatusLabels.new },
+    { id: "in_progress", label: contactStatusLabels.in_progress },
+    { id: "done", label: contactStatusLabels.done },
+    { id: "no_contact", label: contactStatusLabels.no_contact }
+  ];
+
+  return (
+    <div className="contact-queue-controls" aria-label="Очереди обращений">
+      {items.map((item) => {
+        const isActive =
+          item.id === "all" ? activeStatuses.length === 0 : activeStatuses.length === 1 && activeStatuses[0] === item.id;
+
+        return (
+          <button
+            aria-pressed={isActive}
+            className={isActive ? "contact-queue-button is-active" : "contact-queue-button"}
+            key={item.id}
+            type="button"
+            onClick={() => onSelect(item.id)}
+          >
+            <span>{item.label}</span>
+            <b>{counts[item.id]}</b>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -3175,6 +3245,37 @@ function buildSummary(responses: SurveyResponse[]) {
 
 function hasContact(response: Pick<SurveyResponse, "contactName" | "contactPhone">): boolean {
   return Boolean(response.contactName?.trim() || response.contactPhone?.trim());
+}
+
+function buildContactQueueCounts(responses: SurveyResponse[]): Record<ContactQueueStatus, number> {
+  return {
+    all: responses.length,
+    done: responses.filter((response) => response.contactStatus === "done").length,
+    in_progress: responses.filter((response) => response.contactStatus === "in_progress").length,
+    new: responses.filter((response) => response.contactStatus === "new").length,
+    no_contact: responses.filter((response) => response.contactStatus === "no_contact").length
+  };
+}
+
+function compareContactQueue(a: SurveyResponse, b: SurveyResponse): number {
+  const statusPriority: Record<ContactStatus, number> = {
+    new: 0,
+    in_progress: 1,
+    no_contact: 2,
+    done: 3
+  };
+  const byStatus = statusPriority[a.contactStatus] - statusPriority[b.contactStatus];
+  if (byStatus !== 0) {
+    return byStatus;
+  }
+
+  const byContact = Number(hasContact(b)) - Number(hasContact(a));
+  if (byContact !== 0) {
+    return byContact;
+  }
+
+  const byDate = b.surveyDate.localeCompare(a.surveyDate);
+  return byDate !== 0 ? byDate : b.createdAt.localeCompare(a.createdAt);
 }
 
 function countDraftAnswers(draft: AnswerFields): Record<Answer, number> {

@@ -29,7 +29,7 @@ Current flows use the isolated test backend and test SQLite/PDF storage:
 - data filters for date range, source, gender, age group, residence, help requests, contacts, contact workflow status, and free text; active filters are shown as removable chips, mirrored in `/data` URL query, restored on reload/back-forward, can be collapsed for mobile work, and can be saved as local browser presets;
 - data workspace with one shared filter slice and task modes for contacts, questionnaire rows, PDF files, and charts;
 - PDF data mode compares paper questionnaire dates in the current slice with matching PDF files and shows missing scans or scans without entered paper rows;
-- data summary, demographic/source bars, q16 help/contact queue with persisted status and operator notes, row list, row inspector with full Q4-Q16 answer review, inline editing/deletion, demo-row generation, fake-only deletion, server CSV export for the current filter slice;
+- data summary, demographic/source bars, q16 help/contact queue with quick status queues, persisted status and operator notes, row list, row inspector with full Q4-Q16 answer review, inline editing/deletion, demo-row generation, fake-only deletion, server CSV export for the current filter slice;
 - local contact privacy mode on `/data` hides names and phone numbers in lists and inspectors by default until the operator explicitly shows them;
 - collapsible yes/no/unknown question breakdown with group focus;
 - PDF upload/list/download/deletion with duplicate-name warning.

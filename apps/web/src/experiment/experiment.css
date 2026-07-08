@@ -1258,6 +1258,43 @@ textarea {
   margin-top: 1rem;
 }
 
+.contact-queue-controls {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-top: 0.85rem;
+}
+
+.contact-queue-button {
+  align-items: center;
+  background: #fffaf6;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  color: var(--text);
+  display: grid;
+  gap: 0.35rem;
+  min-height: 58px;
+  padding: 0.55rem;
+  text-align: left;
+}
+
+.contact-queue-button.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fffdf9;
+}
+
+.contact-queue-button span {
+  font-size: 0.86rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.contact-queue-button b {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 .help-card {
   align-items: start;
   background: #fffaf6;
@@ -1716,6 +1753,10 @@ textarea {
   .data-mode-tabs {
     top: 0.75rem;
   }
+
+  .contact-queue-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -1803,6 +1844,10 @@ textarea {
   .data-mode-tabs button {
     min-height: 48px;
     padding: 0.55rem;
+  }
+
+  .contact-queue-controls {
+    grid-template-columns: 1fr;
   }
 
   .period-heading {
