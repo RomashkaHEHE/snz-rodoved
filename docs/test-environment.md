@@ -22,7 +22,7 @@ The test domain has its own interface and UX decisions.
 
 Current flows use the isolated test backend and test SQLite/PDF storage:
 
-- public online survey with browser-local draft restore, a full-answer review step before submit, and a completion screen after successful submit;
+- public online survey with browser-local draft restore, a mobile-oriented research-period control with presets/range sliders/exact years, a full-answer review step before submit, and a completion screen after successful submit;
 - public navigation shows only the online survey and a workspace login until the operator signs in;
 - password-gated operator entry, data, and PDF archive;
 - operator entry keeps one continuous paper-form flow, but adds section navigation, answer counts, and visual groups for phone work;

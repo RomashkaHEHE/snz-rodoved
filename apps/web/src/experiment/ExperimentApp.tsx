@@ -205,6 +205,14 @@ const surveyStepCount = 5;
 const surveyDraftStorageKey = "rodoved-test-online-draft-v1";
 const dataFilterPresetsStorageKey = "rodoved-test-data-filter-presets-v1";
 const contactPrivacyStorageKey = "rodoved-test-hide-contacts-v1";
+const researchYearMin = 1500;
+const researchYearMax = 2100;
+const periodPresets = [
+  { label: "1700-е", start: 1700, end: 1799 },
+  { label: "1800-е", start: 1800, end: 1899 },
+  { label: "1900-е", start: 1900, end: 1999 },
+  { label: "1941-1945", start: 1941, end: 1945 }
+];
 
 export function ExperimentApp() {
   const [route, setRoute] = useState<RouteId>(() => routeFromPath(window.location.pathname));
@@ -1625,36 +1633,7 @@ function SearchFields({
           onChange={(event) => onChange({ ...draft, researchTerritory: event.target.value || undefined })}
         />
       </label>
-      <div className="period-pair">
-        <label>
-          Период с
-          <input
-            inputMode="numeric"
-            max={2100}
-            min={1500}
-            placeholder="1850"
-            type="number"
-            value={draft.researchPeriodStart ?? ""}
-            onChange={(event) =>
-              onChange({ ...draft, researchPeriodStart: parseOptionalNumber(event.target.value) })
-            }
-          />
-        </label>
-        <label>
-          по
-          <input
-            inputMode="numeric"
-            max={2100}
-            min={1500}
-            placeholder="1945"
-            type="number"
-            value={draft.researchPeriodEnd ?? ""}
-            onChange={(event) =>
-              onChange({ ...draft, researchPeriodEnd: parseOptionalNumber(event.target.value) })
-            }
-          />
-        </label>
-      </div>
+      <PeriodControl draft={draft} onChange={onChange} />
       <label className="full-field">
         Свободный текст
         <textarea
@@ -1665,6 +1644,110 @@ function SearchFields({
         />
       </label>
     </div>
+  );
+}
+
+function PeriodControl({
+  draft,
+  onChange
+}: {
+  draft: ResponseDraft;
+  onChange: (draft: ResponseDraft) => void;
+}) {
+  const hasPeriod = Boolean(draft.researchPeriodStart || draft.researchPeriodEnd);
+  const start = draft.researchPeriodStart ?? researchYearMin;
+  const end = draft.researchPeriodEnd ?? researchYearMax;
+
+  function setPeriod(nextStart: number | undefined, nextEnd: number | undefined) {
+    if (nextStart === undefined && nextEnd === undefined) {
+      onChange({ ...draft, researchPeriodStart: undefined, researchPeriodEnd: undefined });
+      return;
+    }
+
+    const safeStart = nextStart === undefined ? undefined : clampResearchYear(nextStart);
+    const safeEnd = nextEnd === undefined ? undefined : clampResearchYear(nextEnd);
+    const hasBothYears = safeStart !== undefined && safeEnd !== undefined;
+    const orderedStart = hasBothYears ? Math.min(safeStart, safeEnd) : safeStart;
+    const orderedEnd = hasBothYears ? Math.max(safeStart, safeEnd) : safeEnd;
+
+    onChange({ ...draft, researchPeriodStart: orderedStart, researchPeriodEnd: orderedEnd });
+  }
+
+  return (
+    <section className="period-control">
+      <div className="period-heading">
+        <div>
+          <span>Период поиска</span>
+          <strong>{formatDraftResearchPeriod(draft)}</strong>
+        </div>
+        <button type="button" disabled={!hasPeriod} onClick={() => setPeriod(undefined, undefined)}>
+          Сбросить
+        </button>
+      </div>
+
+      <div className="period-presets" aria-label="Быстрый выбор периода">
+        {periodPresets.map((preset) => (
+          <button
+            className={draft.researchPeriodStart === preset.start && draft.researchPeriodEnd === preset.end ? "is-active" : ""}
+            key={preset.label}
+            type="button"
+            onClick={() => setPeriod(preset.start, preset.end)}
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="period-sliders">
+        <label>
+          С
+          <input
+            max={researchYearMax}
+            min={researchYearMin}
+            type="range"
+            value={start}
+            onChange={(event) => setPeriod(Number(event.target.value), end)}
+          />
+        </label>
+        <label>
+          По
+          <input
+            max={researchYearMax}
+            min={researchYearMin}
+            type="range"
+            value={end}
+            onChange={(event) => setPeriod(start, Number(event.target.value))}
+          />
+        </label>
+      </div>
+
+      <div className="period-pair">
+        <label>
+          с
+          <input
+            inputMode="numeric"
+            max={researchYearMax}
+            min={researchYearMin}
+            placeholder="1850"
+            type="number"
+            value={draft.researchPeriodStart ?? ""}
+            onChange={(event) => setPeriod(parseOptionalNumber(event.target.value), draft.researchPeriodEnd)}
+          />
+        </label>
+        <label>
+          по
+          <input
+            inputMode="numeric"
+            max={researchYearMax}
+            min={researchYearMin}
+            placeholder="1945"
+            type="number"
+            value={draft.researchPeriodEnd ?? ""}
+            onChange={(event) => setPeriod(draft.researchPeriodStart, parseOptionalNumber(event.target.value))}
+          />
+        </label>
+      </div>
+    </section>
   );
 }
 
@@ -2919,6 +3002,10 @@ function parseOptionalNumber(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function clampResearchYear(value: number): number {
+  return Math.min(researchYearMax, Math.max(researchYearMin, Math.round(value)));
+}
+
 function optionalStoredNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
@@ -3024,6 +3111,22 @@ function formatResearchPeriod(response: Pick<SurveyResponse, "researchPeriodEnd"
   }
 
   return String(response.researchPeriodStart ?? response.researchPeriodEnd ?? "");
+}
+
+function formatDraftResearchPeriod(draft: Pick<ResponseDraft, "researchPeriodEnd" | "researchPeriodStart">) {
+  if (draft.researchPeriodStart && draft.researchPeriodEnd) {
+    return `${draft.researchPeriodStart}-${draft.researchPeriodEnd}`;
+  }
+
+  if (draft.researchPeriodStart) {
+    return `с ${draft.researchPeriodStart}`;
+  }
+
+  if (draft.researchPeriodEnd) {
+    return `до ${draft.researchPeriodEnd}`;
+  }
+
+  return "не ограничен";
 }
 
 function normalizePhone(value: string): string {

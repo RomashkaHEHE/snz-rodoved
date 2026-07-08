@@ -478,6 +478,83 @@ textarea {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.period-control {
+  background: #fffaf6;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  display: grid;
+  gap: 0.85rem;
+  grid-column: span 2;
+  padding: 0.9rem;
+}
+
+.period-heading {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.period-heading div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.period-heading span {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.period-heading strong {
+  color: var(--accent);
+  font-size: 1.15rem;
+}
+
+.period-heading button,
+.period-presets button {
+  background: #eee5dc;
+  border: 1px solid #d6c8bb;
+  border-radius: 4px;
+  color: var(--text);
+  font-weight: 900;
+  min-height: 38px;
+  padding: 0.45rem 0.65rem;
+}
+
+.period-heading button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.period-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.period-presets button.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fffdf9;
+}
+
+.period-sliders {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.period-sliders label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.period-sliders input[type="range"] {
+  accent-color: var(--accent);
+  min-height: 34px;
+  padding: 0;
+}
+
 .segmented {
   display: grid;
   gap: 0.4rem;
@@ -1482,6 +1559,10 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .period-control {
+    grid-column: 1 / -1;
+  }
+
   .data-mode-tabs {
     top: 0.75rem;
   }
@@ -1572,6 +1653,16 @@ textarea {
   .data-mode-tabs button {
     min-height: 48px;
     padding: 0.55rem;
+  }
+
+  .period-heading {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .period-presets {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .contact-grid,

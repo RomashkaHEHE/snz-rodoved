@@ -31,6 +31,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - The visible test site opens as a product UI with working task screens.
 - Current flows use the isolated test backend:
   - public online survey has a five-step flow: basic/search fields, experience, interests, help, full-answer review;
+  - online survey search fields include a mobile-oriented research-period control with quick presets, two range sliders, exact year inputs, and the same `researchPeriodStart`/`researchPeriodEnd` data contract;
   - public online survey submits to the server after the review step, shows a completion screen, and stores a browser-local draft until successful submit;
   - public navigation shows only the online survey and workspace login until the operator signs in;
   - operator entry, data, and PDF archive are behind workspace password login;
@@ -106,6 +107,10 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - the built JS contains `Контакты скрыты`, `Телефон скрыт`, and `rodoved-test-hide-contacts-v1`;
   - the built CSS contains `privacy-button` and `masked-contact`;
   - data task modes are still present and forbidden meta-copy about the test domain is absent.
+- HTTP/asset smoke for online survey research period control confirmed:
+  - the built JS contains `Период поиска`, `1700-е`, `1941-1945`, and `не ограничен`;
+  - the built CSS contains `period-control`, `period-presets`, and `period-sliders`;
+  - data task modes, contact privacy mode, and the absence of forbidden meta-copy are still confirmed.
 - Local browser smoke:
   - unauthenticated public nav on `/` shows only `Опрос` and `Вход`;
   - after workspace login, nav shows `Опрос`, `Ввод`, `Данные`, `PDF`;
