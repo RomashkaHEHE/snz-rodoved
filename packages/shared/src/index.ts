@@ -276,6 +276,10 @@ export const surveyFiltersSchema = z.object({
   gender: z.array(genderSchema).optional(),
   ageGroup: z.array(ageGroupSchema).optional(),
   residence: z.array(residenceSchema).optional(),
+  contactStatus: z.array(contactStatusSchema).optional(),
+  contactOnly: z.boolean().optional(),
+  helpOnly: z.boolean().optional(),
+  query: optionalTextField(120, "Поисковый запрос должен быть короче 120 символов"),
   answerFilters: z.record(answerQuestionIdSchema, z.array(answerSchema)).optional()
 });
 

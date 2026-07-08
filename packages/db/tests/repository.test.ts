@@ -131,6 +131,35 @@ describe("SurveyRepository", () => {
     expect(withoutHelp?.contactPhone).toBeUndefined();
   });
 
+  it("filters by contact workflow and free text search", () => {
+    connection = createDatabaseConnection({ databasePath: ":memory:" });
+    const repository = new SurveyRepository(connection.db);
+    const first = repository.create({
+      ...baseInput,
+      contactName: "Алёна",
+      contactPhone: "+7 900 000-00-00",
+      freeText: "Ивановы из деревни",
+      researchTerritory: "Челябинская область"
+    });
+    const second = repository.create({
+      ...baseInput,
+      gender: "male",
+      contactName: "Борис",
+      freeText: "Пермская ветка"
+    });
+    repository.create({ ...baseInput, q16: "no", q7: "no" });
+
+    repository.update(first.id, { contactStatus: "in_progress" });
+    repository.update(second.id, { contactStatus: "done" });
+
+    expect(repository.list({ helpOnly: true })).toHaveLength(2);
+    expect(repository.list({ contactOnly: true })).toHaveLength(2);
+    expect(repository.list({ contactStatus: ["in_progress"] }).map((row) => row.id)).toEqual([first.id]);
+    expect(repository.list({ contactStatus: ["done"] }).map((row) => row.id)).toEqual([second.id]);
+    expect(repository.list({ query: "Ивановы" }).map((row) => row.id)).toEqual([first.id]);
+    expect(repository.list({ query: "Пермская" }).map((row) => row.id)).toEqual([second.id]);
+  });
+
   it("deletes only fake responses in bulk", () => {
     connection = createDatabaseConnection({ databasePath: ":memory:" });
     const repository = new SurveyRepository(connection.db);

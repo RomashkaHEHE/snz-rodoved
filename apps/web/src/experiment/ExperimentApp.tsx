@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import {
+  exportLabResponsesCsv,
   createLabFakeResponse,
   createLabOnlineResponse,
   createLabResponse,
@@ -31,6 +32,7 @@ import {
   updateLabResponse,
   type LabSession
 } from "./labApi";
+import type { SurveyFilters } from "@snz-rodoved/shared";
 import "./experiment.css";
 
 type RouteId = "survey" | "entry" | "data" | "pdf";
@@ -868,7 +870,7 @@ function DataPage({
 }) {
   const [filters, setFilters] = useState<Filters>(() => createInitialFilters());
   const [dataStatus, setDataStatus] = useState("");
-  const [busyAction, setBusyAction] = useState<"fake-add" | "fake-delete" | "row-delete" | "row-save" | null>(null);
+  const [busyAction, setBusyAction] = useState<"csv" | "fake-add" | "fake-delete" | "row-delete" | "row-save" | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailMode, setDetailMode] = useState<"view" | "edit">("view");
   const [detailDraft, setDetailDraft] = useState<ResponseDraft | null>(null);
@@ -1006,6 +1008,19 @@ function DataPage({
     }
   }
 
+  async function handleExportCsv() {
+    setBusyAction("csv");
+    setDataStatus("");
+    try {
+      await exportLabResponsesCsv(toSurveyFilters(filters));
+      setDataStatus("CSV сформирован по текущему срезу.");
+    } catch {
+      setDataStatus("Не удалось выгрузить CSV.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   function resetFilters() {
     setFilters(createInitialFilters());
   }
@@ -1028,11 +1043,12 @@ function DataPage({
           </button>
           <button
             className="primary-button"
+            disabled={busyAction !== null}
             type="button"
-            onClick={() => downloadCsv(filteredResponses)}
+            onClick={handleExportCsv}
           >
             <Download aria-hidden size={18} />
-            CSV
+            {busyAction === "csv" ? "CSV..." : "CSV"}
           </button>
         </div>
       </div>
@@ -2289,6 +2305,21 @@ function createInitialFilters(): Filters {
   };
 }
 
+function toSurveyFilters(filters: Filters): SurveyFilters {
+  return {
+    ageGroup: filters.ageGroup.length > 0 ? filters.ageGroup : undefined,
+    contactOnly: filters.contactOnly || undefined,
+    contactStatus: filters.contactStatus.length > 0 ? filters.contactStatus : undefined,
+    dateFrom: filters.dateFrom || undefined,
+    dateTo: filters.dateTo || undefined,
+    gender: filters.gender.length > 0 ? filters.gender : undefined,
+    helpOnly: filters.helpOnly || undefined,
+    query: cleanOptional(filters.query),
+    residence: filters.residence.length > 0 ? filters.residence : undefined,
+    source: filters.source === "all" ? undefined : [filters.source]
+  };
+}
+
 function hasActiveFilters(filters: Filters): boolean {
   return (
     filters.ageGroup.length > 0 ||
@@ -2412,46 +2443,6 @@ function formatYesAnswers(response: SurveyResponse): string {
   return yesQuestions.length > 0 ? yesQuestions.join(", ") : "Нет ответов «Да».";
 }
 
-function downloadCsv(responses: SurveyResponse[]) {
-  const headers = [
-    "Дата",
-    "Источник",
-    "Пол",
-    "Возраст",
-    "Проживание",
-    "Территория",
-    "Период",
-    "Свободный текст",
-    "Нужна помощь",
-    "Имя",
-    "Телефон",
-    "Статус обращения",
-    "Заметка по обращению"
-  ];
-  const rows = responses.map((response) => [
-    response.surveyDate,
-    sourceLabels[response.source],
-    genderLabels[response.gender],
-    ageLabels[response.ageGroup],
-    residenceLabels[response.residence],
-    response.researchTerritory ?? "",
-    formatResearchPeriod(response),
-    response.freeText ?? "",
-    answerLabels[response.q16],
-    response.contactName ?? "",
-    response.contactPhone ?? "",
-    contactStatusLabels[response.contactStatus],
-    response.contactNote ?? ""
-  ]);
-  const csv = `\uFEFF${[headers, ...rows].map((row) => row.map(escapeCsv).join(";")).join("\r\n")}\r\n`;
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "rodoved-test.csv";
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
 function routeFromPath(pathname: string): RouteId {
   if (pathname.startsWith("/entry")) {
     return "entry";
@@ -2549,9 +2540,4 @@ function formatFileSize(size: number): string {
   }
 
   return `${(size / 1024 / 1024).toFixed(1)} МБ`;
-}
-
-function escapeCsv(value: string): string {
-  const normalized = value.replace(/\r?\n/g, " ");
-  return /[;"\n\r]/.test(normalized) ? `"${normalized.replace(/"/g, '""')}"` : normalized;
 }

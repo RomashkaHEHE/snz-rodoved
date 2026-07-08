@@ -245,6 +245,36 @@ function buildFilterConditions(filters: SurveyFilters): SQL[] {
     conditions.push(inArray(responses.residence, filters.residence));
   }
 
+  if (filters.helpOnly) {
+    conditions.push(eq(responses.q16, "yes"));
+  }
+
+  if (filters.contactOnly) {
+    conditions.push(sql`(coalesce(${responses.contactName}, '') <> '' OR coalesce(${responses.contactPhone}, '') <> '')`);
+  }
+
+  if (filters.contactStatus?.length) {
+    const contactStatusCondition = and(
+      eq(responses.q16, "yes"),
+      inArray(responses.contactStatus, filters.contactStatus)
+    );
+    if (contactStatusCondition) {
+      conditions.push(contactStatusCondition);
+    }
+  }
+
+  const searchQuery = filters.query?.trim();
+  if (searchQuery) {
+    const pattern = `%${searchQuery}%`;
+    conditions.push(sql`(
+      coalesce(${responses.researchTerritory}, '') LIKE ${pattern}
+      OR coalesce(${responses.freeText}, '') LIKE ${pattern}
+      OR coalesce(${responses.contactName}, '') LIKE ${pattern}
+      OR coalesce(${responses.contactPhone}, '') LIKE ${pattern}
+      OR coalesce(${responses.q11WarDetails}, '') LIKE ${pattern}
+    )`);
+  }
+
   for (const questionId of answerQuestionIds) {
     const allowedAnswers = filters.answerFilters?.[questionId];
     if (allowedAnswers?.length) {

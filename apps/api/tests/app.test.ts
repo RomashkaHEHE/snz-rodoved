@@ -134,7 +134,12 @@ describe("api app", () => {
       method: "POST",
       url: "/api/responses",
       headers: { cookie },
-      payload: input
+      payload: {
+        ...input,
+        contactName: "Алёна",
+        contactPhone: "+7 900 000-00-00",
+        freeText: "Ивановы из Челябинской области"
+      }
     });
     expect(create.statusCode).toBe(201);
     expect(create.json().response.isFake).toBe(false);
@@ -166,6 +171,14 @@ describe("api app", () => {
     });
     expect(filtered.json().responses).toHaveLength(1);
 
+    const contactFiltered = await app.inject({
+      method: "GET",
+      url: "/api/responses?contactOnly=true&contactStatus=in_progress&query=Ивановы",
+      headers: { cookie }
+    });
+    expect(contactFiltered.json().responses).toHaveLength(1);
+    expect(contactFiltered.json().responses[0].contactStatus).toBe("in_progress");
+
     const analytics = await app.inject({
       method: "GET",
       url: "/api/analytics/summary",
@@ -177,7 +190,7 @@ describe("api app", () => {
 
     const exported = await app.inject({
       method: "GET",
-      url: "/api/responses/export.csv?q7=yes",
+      url: "/api/responses/export.csv?contactOnly=true&contactStatus=in_progress&query=Ивановы",
       headers: { cookie }
     });
 

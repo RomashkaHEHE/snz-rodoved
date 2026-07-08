@@ -27,6 +27,10 @@ export function parseFiltersFromQuery(query: unknown): SurveyFilters {
     gender: parseOptionalMultiValue(source.gender),
     ageGroup: parseOptionalMultiValue(source.ageGroup),
     residence: parseOptionalMultiValue(source.residence),
+    contactStatus: parseOptionalMultiValue(source.contactStatus),
+    contactOnly: parseBooleanValue(source.contactOnly),
+    helpOnly: parseBooleanValue(source.helpOnly),
+    query: parseSingleValue(source.query),
     answerFilters: Object.keys(answerFilters).length > 0 ? answerFilters : undefined
   });
 
@@ -44,6 +48,15 @@ function parseSingleValue(value: QueryValue): string | undefined {
 function parseOptionalMultiValue(value: QueryValue): string[] | undefined {
   const parsed = parseMultiValue(value);
   return parsed.length > 0 ? parsed : undefined;
+}
+
+function parseBooleanValue(value: QueryValue): boolean | undefined {
+  const parsed = parseSingleValue(value)?.toLowerCase();
+  if (!parsed) {
+    return undefined;
+  }
+
+  return parsed === "true" || parsed === "1" || parsed === "yes";
 }
 
 function parseMultiValue(value: QueryValue): string[] {

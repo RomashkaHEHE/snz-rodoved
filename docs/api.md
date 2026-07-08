@@ -86,6 +86,10 @@
 - `gender=male,female`
 - `ageGroup=18_40,over_40`
 - `residence=snezhinsk`
+- `contactStatus=new,in_progress`
+- `contactOnly=true`
+- `helpOnly=true`
+- `query=Ивановы`
 - `q7=yes`
 - `q16=yes`
 
@@ -105,7 +109,7 @@
 
 `GET /api/responses/export.csv` выгружает отфильтрованные анкеты в CSV для Excel.
 
-- Использует те же query-фильтры, что `GET /api/responses`.
+- Использует те же query-фильтры, что `GET /api/responses`, включая фильтры обращений и свободный поиск.
 - Включает контактные поля онлайн-анкет и рабочие поля обращения: `Имя`, `Номер телефона`, `Статус обращения`, `Заметка по обращению`.
 - Возвращает `text/csv; charset=utf-8`.
 - CSV начинается с UTF-8 BOM, чтобы Excel на Windows корректно открыл русский текст.

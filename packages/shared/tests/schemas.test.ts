@@ -5,6 +5,7 @@ import {
   parseSurveyDateFromPdfFileName,
   partialSurveyResponseInputSchema,
   surveyPdfFileNameSchema,
+  surveyFiltersSchema,
   surveyResponseInputSchema,
   warDetailQuickValues
 } from "../src/index.js";
@@ -135,6 +136,20 @@ describe("survey response schema", () => {
 
     expect(parsed.contactStatus).toBe("in_progress");
     expect(parsed.contactNote).toBe("Перезвонить после мероприятия");
+  });
+
+  it("accepts data workspace filters used by the test product", () => {
+    const parsed = surveyFiltersSchema.parse({
+      contactOnly: true,
+      contactStatus: ["in_progress", "no_contact"],
+      helpOnly: true,
+      query: "Челябинская область"
+    });
+
+    expect(parsed.contactOnly).toBe(true);
+    expect(parsed.helpOnly).toBe(true);
+    expect(parsed.contactStatus).toEqual(["in_progress", "no_contact"]);
+    expect(parsed.query).toBe("Челябинская область");
   });
 
   it("contains the paper quick value for the war details dash", () => {

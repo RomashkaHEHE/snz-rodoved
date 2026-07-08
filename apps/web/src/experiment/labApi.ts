@@ -163,15 +163,24 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 function buildFilterQuery(filters: SurveyFilters | Pick<SurveyFilters, "dateFrom" | "dateTo">): string {
   const params = new URLSearchParams();
+  const responseFilters = filters as SurveyFilters;
 
   setParam(params, "dateFrom", filters.dateFrom);
   setParam(params, "dateTo", filters.dateTo);
 
-  if ("source" in filters) {
-    setListParam(params, "source", filters.source);
-    setListParam(params, "gender", filters.gender);
-    setListParam(params, "ageGroup", filters.ageGroup);
-    setListParam(params, "residence", filters.residence);
+  setListParam(params, "source", responseFilters.source);
+  setListParam(params, "gender", responseFilters.gender);
+  setListParam(params, "ageGroup", responseFilters.ageGroup);
+  setListParam(params, "residence", responseFilters.residence);
+  setListParam(params, "contactStatus", responseFilters.contactStatus);
+  setBooleanParam(params, "contactOnly", responseFilters.contactOnly);
+  setBooleanParam(params, "helpOnly", responseFilters.helpOnly);
+  setParam(params, "query", responseFilters.query);
+
+  if (responseFilters.answerFilters) {
+    for (const [questionId, answers] of Object.entries(responseFilters.answerFilters)) {
+      setListParam(params, questionId, answers);
+    }
   }
 
   const query = params.toString();
@@ -187,5 +196,11 @@ function setParam(params: URLSearchParams, key: string, value: string | undefine
 function setListParam(params: URLSearchParams, key: string, value: string[] | undefined): void {
   if (value?.length) {
     params.set(key, value.join(","));
+  }
+}
+
+function setBooleanParam(params: URLSearchParams, key: string, value: boolean | undefined): void {
+  if (value) {
+    params.set(key, "true");
   }
 }
