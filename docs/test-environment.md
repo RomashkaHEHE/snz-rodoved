@@ -26,7 +26,7 @@ Current flows use the isolated test backend and test SQLite/PDF storage:
 - public navigation shows only the online survey and a workspace login until the operator signs in;
 - password-gated operator entry, data, and PDF archive;
 - operator entry keeps one continuous paper-form flow, but adds section navigation, answer counts, and visual groups for phone work;
-- data filters for date range, source, gender, age group, residence, help requests, contacts, contact workflow status, and free text; active filters are shown as removable chips, mirrored in `/data` URL query, and restored on reload/back-forward;
+- data filters for date range, source, gender, age group, residence, help requests, contacts, contact workflow status, and free text; active filters are shown as removable chips, mirrored in `/data` URL query, restored on reload/back-forward, and can be saved as local browser presets;
 - data summary, demographic/source bars, q16 help/contact queue with persisted status and operator notes, row list, row inspector, inline editing/deletion, demo-row generation, fake-only deletion, server CSV export for the current filter slice;
 - collapsible yes/no/unknown question breakdown with group focus;
 - PDF upload/list/download/deletion with duplicate-name warning.

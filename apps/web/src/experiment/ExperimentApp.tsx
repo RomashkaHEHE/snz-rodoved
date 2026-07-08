@@ -115,6 +115,13 @@ interface FilterChip {
   label: string;
 }
 
+interface FilterPreset {
+  createdAt: string;
+  filters: Filters;
+  id: string;
+  name: string;
+}
+
 const answerLabels: Record<Answer, string> = {
   yes: "Да",
   no: "Нет",
@@ -195,6 +202,7 @@ const routeTitles: Record<RouteId, string> = {
 const workspaceRoutes: RouteId[] = ["entry", "data", "pdf"];
 const surveyStepCount = 5;
 const surveyDraftStorageKey = "rodoved-test-online-draft-v1";
+const dataFilterPresetsStorageKey = "rodoved-test-data-filter-presets-v1";
 
 export function ExperimentApp() {
   const [route, setRoute] = useState<RouteId>(() => routeFromPath(window.location.pathname));
@@ -880,6 +888,8 @@ function DataPage({
   const [detailMode, setDetailMode] = useState<"view" | "edit">("view");
   const [detailDraft, setDetailDraft] = useState<ResponseDraft | null>(null);
   const [questionGroupFilter, setQuestionGroupFilter] = useState<QuestionGroupFilter>("all");
+  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => readDataFilterPresets());
+  const [presetName, setPresetName] = useState("");
   const filteredResponses = useMemo(
     () => responses.filter((response) => matchesFilters(response, filters)),
     [responses, filters]
@@ -1047,6 +1057,40 @@ function DataPage({
     setFilters(createInitialFilters());
   }
 
+  function saveFilterPreset() {
+    if (!filtersActive) {
+      setDataStatus("Сначала выберите фильтры для среза.");
+      return;
+    }
+
+    const nextPreset: FilterPreset = {
+      createdAt: new Date().toISOString(),
+      filters: cloneFilters(filters),
+      id: createClientId(),
+      name: cleanOptional(presetName) ?? createFilterPresetName(filters)
+    };
+    const nextPresets = [
+      nextPreset,
+      ...filterPresets.filter((preset) => preset.name !== nextPreset.name)
+    ].slice(0, 12);
+
+    setFilterPresets(nextPresets);
+    writeDataFilterPresets(nextPresets);
+    setPresetName("");
+    setDataStatus("Срез сохранён.");
+  }
+
+  function applyFilterPreset(preset: FilterPreset) {
+    setFilters(cloneFilters(preset.filters));
+    setDataStatus(`Срез «${preset.name}» применён.`);
+  }
+
+  function deleteFilterPreset(id: string) {
+    const nextPresets = filterPresets.filter((preset) => preset.id !== id);
+    setFilterPresets(nextPresets);
+    writeDataFilterPresets(nextPresets);
+  }
+
   return (
     <section className="task-page data-task">
       <div className="task-heading">
@@ -1100,6 +1144,36 @@ function DataPage({
             ))}
           </div>
         ) : null}
+        <div className="filter-presets">
+          <div className="preset-save-row">
+            <label>
+              Сохранить срез
+              <input
+                placeholder="например: помощь за месяц"
+                value={presetName}
+                onChange={(event) => setPresetName(event.target.value)}
+              />
+            </label>
+            <button className="ghost-button compact-button" disabled={!filtersActive} type="button" onClick={saveFilterPreset}>
+              <Save aria-hidden size={16} />
+              Сохранить
+            </button>
+          </div>
+          {filterPresets.length > 0 ? (
+            <div className="preset-list" aria-label="Сохранённые срезы">
+              {filterPresets.map((preset) => (
+                <div className="preset-row" key={preset.id}>
+                  <button type="button" onClick={() => applyFilterPreset(preset)}>
+                    {preset.name}
+                  </button>
+                  <button aria-label={`Удалить срез ${preset.name}`} type="button" onClick={() => deleteFilterPreset(preset.id)}>
+                    x
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
         <div className="compact-grid">
           <label>
             Дата с
@@ -2232,6 +2306,63 @@ function clearSurveyDraftState(): void {
   }
 }
 
+function readDataFilterPresets(): FilterPreset[] {
+  try {
+    const raw = window.localStorage.getItem(dataFilterPresetsStorageKey);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map(coerceStoredFilterPreset)
+      .filter((preset): preset is FilterPreset => preset !== null)
+      .slice(0, 12);
+  } catch {
+    return [];
+  }
+}
+
+function writeDataFilterPresets(presets: FilterPreset[]): void {
+  try {
+    window.localStorage.setItem(dataFilterPresetsStorageKey, JSON.stringify(presets));
+  } catch {
+    // Saved slices are optional; data work must continue without localStorage.
+  }
+}
+
+function coerceStoredFilterPreset(value: unknown): FilterPreset | null {
+  if (!isRecord(value) || !isRecord(value.filters)) {
+    return null;
+  }
+
+  return {
+    createdAt: typeof value.createdAt === "string" ? value.createdAt : new Date().toISOString(),
+    filters: coerceStoredFilters(value.filters),
+    id: typeof value.id === "string" && value.id ? value.id : createClientId(),
+    name: typeof value.name === "string" && value.name.trim() ? value.name.trim() : "Срез"
+  };
+}
+
+function coerceStoredFilters(value: Record<string, unknown>): Filters {
+  return {
+    ageGroup: readStoredList(value.ageGroup, isAgeGroup),
+    contactOnly: value.contactOnly === true,
+    contactStatus: readStoredList(value.contactStatus, isContactStatus),
+    dateFrom: isIsoDate(value.dateFrom) ? value.dateFrom : "",
+    dateTo: isIsoDate(value.dateTo) ? value.dateTo : "",
+    gender: readStoredList(value.gender, isGender),
+    helpOnly: value.helpOnly === true,
+    query: typeof value.query === "string" ? value.query.trim() : "",
+    residence: readStoredList(value.residence, isResidence),
+    source: value.source === "paper" || value.source === "online" ? value.source : "all"
+  };
+}
+
 function hasSurveyDraftContent(draft: ResponseDraft): boolean {
   const defaults = createEmptyDraft("online");
 
@@ -2392,6 +2523,25 @@ function toSurveyFilters(filters: Filters): SurveyFilters {
     residence: filters.residence.length > 0 ? filters.residence : undefined,
     source: filters.source === "all" ? undefined : [filters.source]
   };
+}
+
+function cloneFilters(filters: Filters): Filters {
+  return {
+    ...filters,
+    ageGroup: [...filters.ageGroup],
+    contactStatus: [...filters.contactStatus],
+    gender: [...filters.gender],
+    residence: [...filters.residence]
+  };
+}
+
+function createFilterPresetName(filters: Filters): string {
+  const labels = buildFilterChips(filters).map((chip) => chip.label);
+  if (labels.length === 0) {
+    return "Срез";
+  }
+
+  return labels.length > 3 ? `${labels.slice(0, 3).join(", ")} +${labels.length - 3}` : labels.join(", ");
 }
 
 function buildFilterChips(filters: Filters): FilterChip[] {
@@ -2625,6 +2775,10 @@ function todayString(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function createClientId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function parseOptionalNumber(value: string): number | undefined {
   if (!value) {
     return undefined;
@@ -2677,6 +2831,13 @@ function isResidence(value: unknown): value is Residence {
 
 function isContactStatus(value: unknown): value is ContactStatus {
   return value === "new" || value === "in_progress" || value === "done" || value === "no_contact";
+}
+
+function readStoredList<TValue extends string>(
+  value: unknown,
+  isAllowed: (item: unknown) => item is TValue
+): TValue[] {
+  return Array.isArray(value) ? value.filter(isAllowed) : [];
 }
 
 function isIsoDate(value: unknown): value is string {
