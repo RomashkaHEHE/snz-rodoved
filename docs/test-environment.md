@@ -24,8 +24,9 @@ Current flows use the isolated test backend and test SQLite/PDF storage:
 
 - public online survey submit;
 - password-gated operator entry;
-- data filters, summary, row list, editing/deletion, demo-row generation, fake-only deletion, CSV export;
-- PDF upload/list/download/deletion.
+- data filters, summary, row list, row inspector, inline editing/deletion, demo-row generation, fake-only deletion, CSV export;
+- collapsible yes/no/unknown question breakdown;
+- PDF upload/list/download/deletion with duplicate-name warning.
 
 ## Targets
 

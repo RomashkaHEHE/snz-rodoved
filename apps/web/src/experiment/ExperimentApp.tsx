@@ -211,10 +211,10 @@ export function ExperimentApp() {
   }
 
   async function saveDraft(draft: ResponseDraft, id?: string) {
-    if (draft.source === "online") {
-      await createLabOnlineResponse(normalizeDraft(draft));
-    } else if (id) {
+    if (id) {
       await updateLabResponse(id, normalizeDraft(draft));
+    } else if (draft.source === "online") {
+      await createLabOnlineResponse(normalizeDraft(draft));
     } else {
       await createLabResponse(normalizeDraft(draft));
     }
@@ -308,6 +308,7 @@ export function ExperimentApp() {
           onDelete={removeResponse}
           onDeleteFake={removeFakeResponses}
           onEdit={editResponse}
+          onSave={saveDraft}
         />
       ) : null}
       {route === "pdf" && workspaceReady ? (
@@ -546,7 +547,8 @@ function DataPage({
   responses,
   onDelete,
   onDeleteFake,
-  onEdit
+  onEdit,
+  onSave
 }: {
   pdfFiles: PdfRecord[];
   onCreateFake: () => Promise<void>;
@@ -554,6 +556,7 @@ function DataPage({
   onDelete: (id: string) => Promise<void>;
   onDeleteFake: () => Promise<number>;
   onEdit: (id: string) => void;
+  onSave: (draft: ResponseDraft, id?: string) => Promise<void>;
 }) {
   const [filters, setFilters] = useState<Filters>({
     dateFrom: "",
@@ -563,7 +566,10 @@ function DataPage({
     query: ""
   });
   const [dataStatus, setDataStatus] = useState("");
-  const [busyAction, setBusyAction] = useState<"fake-add" | "fake-delete" | null>(null);
+  const [busyAction, setBusyAction] = useState<"fake-add" | "fake-delete" | "row-delete" | "row-save" | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailMode, setDetailMode] = useState<"view" | "edit">("view");
+  const [detailDraft, setDetailDraft] = useState<ResponseDraft | null>(null);
   const filteredResponses = useMemo(
     () => responses.filter((response) => matchesFilters(response, filters)),
     [responses, filters]
@@ -573,6 +579,74 @@ function DataPage({
     [pdfFiles, filters.dateFrom, filters.dateTo]
   );
   const summary = buildSummary(filteredResponses);
+  const selectedResponse = filteredResponses.find((response) => response.id === selectedId) ?? null;
+
+  useEffect(() => {
+    if (selectedId && !filteredResponses.some((response) => response.id === selectedId)) {
+      setSelectedId(null);
+      setDetailMode("view");
+      setDetailDraft(null);
+    }
+  }, [filteredResponses, selectedId]);
+
+  useEffect(() => {
+    if (selectedResponse && detailMode === "view") {
+      setDetailDraft(responseToDraft(selectedResponse));
+    }
+  }, [detailMode, selectedResponse]);
+
+  function openResponse(response: SurveyResponse) {
+    setSelectedId(response.id);
+    setDetailMode("view");
+    setDetailDraft(responseToDraft(response));
+  }
+
+  function editResponseInline(response: SurveyResponse) {
+    setSelectedId(response.id);
+    setDetailMode("edit");
+    setDetailDraft(responseToDraft(response));
+  }
+
+  async function handleSaveSelected() {
+    if (!selectedResponse || !detailDraft) {
+      return;
+    }
+
+    setBusyAction("row-save");
+    setDataStatus("");
+    try {
+      await onSave(detailDraft, selectedResponse.id);
+      setDetailMode("view");
+      setDataStatus("Строка обновлена.");
+    } catch {
+      setDataStatus("Не удалось сохранить строку.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleDeleteResponse(response: SurveyResponse) {
+    const rowType = response.isFake ? "демо-строку" : "строку";
+    if (!window.confirm(`Удалить ${rowType} за ${response.surveyDate}?`)) {
+      return;
+    }
+
+    setBusyAction("row-delete");
+    setDataStatus("");
+    try {
+      await onDelete(response.id);
+      if (selectedId === response.id) {
+        setSelectedId(null);
+        setDetailMode("view");
+        setDetailDraft(null);
+      }
+      setDataStatus("Строка удалена.");
+    } catch {
+      setDataStatus("Не удалось удалить строку.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
 
   async function handleCreateFake() {
     setBusyAction("fake-add");
@@ -714,12 +788,50 @@ function DataPage({
         </div>
       </section>
 
+      <details className="task-panel insight-panel">
+        <summary>
+          <span>Ответы по вопросам</span>
+          <b>{filteredResponses.length}</b>
+        </summary>
+        <QuestionBreakdown data={summary.questionBars} />
+      </details>
+
       <section className="task-panel">
         <div className="section-title-row">
           <h2>Строки</h2>
           <span>{filteredResponses.length}</span>
         </div>
-        <ResponseRows responses={filteredResponses} onDelete={onDelete} onEdit={onEdit} />
+        <div className="row-workbench">
+          <ResponseRows
+            responses={filteredResponses}
+            selectedId={selectedId}
+            onDelete={handleDeleteResponse}
+            onEdit={editResponseInline}
+            onOpen={openResponse}
+          />
+          <ResponseInspector
+            busy={busyAction === "row-save"}
+            draft={detailDraft}
+            mode={detailMode}
+            response={selectedResponse}
+            onCancel={() => {
+              if (selectedResponse) {
+                setDetailDraft(responseToDraft(selectedResponse));
+              }
+              setDetailMode("view");
+            }}
+            onChange={setDetailDraft}
+            onClose={() => {
+              setSelectedId(null);
+              setDetailMode("view");
+              setDetailDraft(null);
+            }}
+            onDelete={handleDeleteResponse}
+            onEdit={editResponseInline}
+            onOpenEntry={onEdit}
+            onSave={handleSaveSelected}
+          />
+        </div>
       </section>
     </section>
   );
@@ -737,6 +849,7 @@ function PdfPage({
   const [surveyDate, setSurveyDate] = useState(todayString());
   const [status, setStatus] = useState("");
   const displayName = `${surveyDate.replaceAll("-", "")}_анкеты.pdf`;
+  const existingFile = files.find((file) => file.displayName === displayName);
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -749,12 +862,22 @@ function PdfPage({
       return;
     }
 
+    if (existingFile) {
+      setStatus(`${displayName} уже есть в архиве. Сначала удалите старый файл или выберите другую дату.`);
+      event.target.value = "";
+      return;
+    }
+
     try {
       await onAdd(displayName, file);
       setStatus(`${displayName} добавлен.`);
       event.target.value = "";
-    } catch {
-      setStatus("Не удалось сохранить PDF.");
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("409")) {
+        setStatus(`${displayName} уже есть в архиве. Сначала удалите старый файл или выберите другую дату.`);
+      } else {
+        setStatus("Не удалось сохранить PDF.");
+      }
     }
   }
 
@@ -776,6 +899,7 @@ function PdfPage({
           <div className="file-name-preview">
             Название
             <strong>{displayName}</strong>
+            {existingFile ? <span>Файл за эту дату уже загружен.</span> : null}
           </div>
           <label className="file-drop">
             <Upload aria-hidden size={22} />
@@ -1086,13 +1210,48 @@ function BarList({ data }: { data: Array<{ label: string; value: number }> }) {
   );
 }
 
+function QuestionBreakdown({
+  data
+}: {
+  data: Array<{ label: string; no: number; number: number; unknown: number; yes: number }>;
+}) {
+  return (
+    <div className="question-breakdown">
+      {data.map((item) => {
+        const total = Math.max(1, item.yes + item.no + item.unknown);
+
+        return (
+          <article className="question-breakdown-row" key={item.number}>
+            <div>
+              <b>{item.number}</b>
+              <span>{item.label}</span>
+            </div>
+            <div className="stacked-bar" aria-label={`Вопрос ${item.number}`}>
+              <i className="bar-yes" style={{ width: `${(item.yes / total) * 100}%` }} />
+              <i className="bar-no" style={{ width: `${(item.no / total) * 100}%` }} />
+              <i className="bar-unknown" style={{ width: `${(item.unknown / total) * 100}%` }} />
+            </div>
+            <p>
+              Да {item.yes} · Нет {item.no} · — {item.unknown}
+            </p>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
 function ResponseRows({
   onDelete,
   onEdit,
+  onOpen,
+  selectedId,
   responses
 }: {
-  onDelete: (id: string) => Promise<void>;
-  onEdit: (id: string) => void;
+  onDelete: (response: SurveyResponse) => Promise<void>;
+  onEdit: (response: SurveyResponse) => void;
+  onOpen: (response: SurveyResponse) => void;
+  selectedId: string | null;
   responses: SurveyResponse[];
 }) {
   if (responses.length === 0) {
@@ -1102,7 +1261,14 @@ function ResponseRows({
   return (
     <div className="row-list">
       {responses.map((response) => (
-        <article className={response.isFake ? "response-row is-demo" : "response-row"} key={response.id}>
+        <article
+          className={[
+            "response-row",
+            response.isFake ? "is-demo" : "",
+            selectedId === response.id ? "is-selected" : ""
+          ].filter(Boolean).join(" ")}
+          key={response.id}
+        >
           <div>
             <span className={`source-pill source-${response.source}`}>{sourceLabels[response.source]}</span>
             {response.isFake ? <span className="demo-badge">демо</span> : null}
@@ -1118,17 +1284,162 @@ function ResponseRows({
             {response.researchTerritory ? <span>{response.researchTerritory}</span> : null}
           </div>
           <div className="row-actions">
-            <button type="button" onClick={() => onEdit(response.id)}>
+            <button type="button" onClick={() => onOpen(response)}>
+              <ClipboardList aria-hidden size={17} />
+              Открыть
+            </button>
+            <button type="button" onClick={() => onEdit(response)}>
               <PenLine aria-hidden size={17} />
               Изменить
             </button>
-            <button type="button" onClick={() => onDelete(response.id)}>
+            <button type="button" onClick={() => onDelete(response)}>
               <Trash2 aria-hidden size={17} />
               Удалить
             </button>
           </div>
         </article>
       ))}
+    </div>
+  );
+}
+
+function ResponseInspector({
+  busy,
+  draft,
+  mode,
+  onCancel,
+  onChange,
+  onClose,
+  onDelete,
+  onEdit,
+  onOpenEntry,
+  onSave,
+  response
+}: {
+  busy: boolean;
+  draft: ResponseDraft | null;
+  mode: "view" | "edit";
+  onCancel: () => void;
+  onChange: (draft: ResponseDraft) => void;
+  onClose: () => void;
+  onDelete: (response: SurveyResponse) => Promise<void>;
+  onEdit: (response: SurveyResponse) => void;
+  onOpenEntry: (id: string) => void;
+  onSave: () => Promise<void>;
+  response: SurveyResponse | null;
+}) {
+  if (!response) {
+    return (
+      <aside className="row-inspector empty-inspector">
+        <ClipboardList aria-hidden size={28} />
+        <strong>Выберите строку</strong>
+        <p>Здесь откроются контакты, заметки и ответы выбранной анкеты.</p>
+      </aside>
+    );
+  }
+
+  if (mode === "edit" && draft) {
+    return (
+      <aside className="row-inspector">
+        <div className="inspector-heading">
+          <div>
+            <span className={`source-pill source-${response.source}`}>{sourceLabels[response.source]}</span>
+            {response.isFake ? <span className="demo-badge">демо</span> : null}
+            <h3>{response.surveyDate}</h3>
+          </div>
+          <button className="ghost-button compact-button" type="button" onClick={onClose}>
+            Закрыть
+          </button>
+        </div>
+        <form
+          className="inline-editor"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void onSave();
+          }}
+        >
+          <BasicFields draft={draft} mode="entry" onChange={onChange} />
+          <SearchFields draft={draft} onChange={onChange} />
+          <QuestionStack draft={draft} questionsToShow={questions} onChange={onChange} />
+          <div className="form-actions">
+            <button className="primary-button" disabled={busy} type="submit">
+              <Save aria-hidden size={18} />
+              {busy ? "Сохранение..." : "Сохранить"}
+            </button>
+            <button className="ghost-button" disabled={busy} type="button" onClick={onCancel}>
+              Отмена
+            </button>
+          </div>
+        </form>
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="row-inspector">
+      <div className="inspector-heading">
+        <div>
+          <span className={`source-pill source-${response.source}`}>{sourceLabels[response.source]}</span>
+          {response.isFake ? <span className="demo-badge">демо</span> : null}
+          <h3>{response.surveyDate}</h3>
+        </div>
+        <button className="ghost-button compact-button" type="button" onClick={onClose}>
+          Закрыть
+        </button>
+      </div>
+
+      <div className="detail-grid">
+        <Detail label="Пол" value={genderLabels[response.gender]} />
+        <Detail label="Возраст" value={ageLabels[response.ageGroup]} />
+        <Detail label="Проживание" value={residenceLabels[response.residence]} />
+        <Detail label="Помощь" value={answerLabels[response.q16]} />
+        <Detail label="Имя" value={response.contactName} />
+        <Detail label="Телефон" value={response.contactPhone} phone />
+        <Detail label="Территория" value={response.researchTerritory} />
+        <Detail label="Период" value={formatResearchPeriod(response)} />
+        <Detail label="Война" value={response.q11WarDetails} />
+        <Detail label="Комментарий" value={response.freeText} wide />
+      </div>
+
+      <div className="yes-list">
+        <strong>Ответы «Да»</strong>
+        <p>{formatYesAnswers(response)}</p>
+      </div>
+
+      <div className="form-actions">
+        <button className="primary-button" type="button" onClick={() => onEdit(response)}>
+          <PenLine aria-hidden size={17} />
+          Изменить здесь
+        </button>
+        <button className="ghost-button" type="button" onClick={() => onOpenEntry(response.id)}>
+          Открыть во вводе
+        </button>
+        <button className="ghost-button" type="button" onClick={() => onDelete(response)}>
+          <Trash2 aria-hidden size={17} />
+          Удалить
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function Detail({
+  label,
+  phone,
+  value,
+  wide
+}: {
+  label: string;
+  phone?: boolean;
+  value: string | undefined;
+  wide?: boolean;
+}) {
+  const rendered = value?.trim() || "—";
+
+  return (
+    <div className={wide ? "detail-item wide-detail" : "detail-item"}>
+      <span>{label}</span>
+      {phone && value ? <a href={`tel:${normalizePhone(value)}`}>{value}</a> : <b>{rendered}</b>}
     </div>
   );
 }
@@ -1286,8 +1597,23 @@ function buildSummary(responses: SurveyResponse[]) {
     ageBars: (Object.keys(ageLabels) as AgeGroup[]).map((ageGroup) => ({
       label: ageLabels[ageGroup],
       value: responses.filter((response) => response.ageGroup === ageGroup).length
+    })),
+    questionBars: questions.map((question) => ({
+      label: question.label,
+      no: responses.filter((response) => response[question.id] === "no").length,
+      number: question.number,
+      unknown: responses.filter((response) => response[question.id] === "unknown").length,
+      yes: responses.filter((response) => response[question.id] === "yes").length
     }))
   };
+}
+
+function formatYesAnswers(response: SurveyResponse): string {
+  const yesQuestions = questions
+    .filter((question) => response[question.id] === "yes")
+    .map((question) => `Q${question.number}`);
+
+  return yesQuestions.length > 0 ? yesQuestions.join(", ") : "Нет ответов «Да».";
 }
 
 function downloadCsv(responses: SurveyResponse[]) {

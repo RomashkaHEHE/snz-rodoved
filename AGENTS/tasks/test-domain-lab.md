@@ -32,8 +32,10 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - Current flows use the isolated test backend:
   - public online survey submits to the server;
   - operator entry is behind workspace password login;
-  - data filters, summary, rows, editing/deletion, demo-row generation, fake-only deletion, and CSV export use server rows;
-  - PDF upload/list/download/deletion use server PDF storage.
+  - data filters, summary, row inspector, inline row editing/deletion, demo-row generation, fake-only deletion, and CSV export use server rows;
+  - collapsible question breakdown shows yes/no/unknown counts without dominating the data screen;
+  - PDF upload/list/download/deletion use server PDF storage;
+  - PDF upload warns before sending when a file with the derived `YYYYMMDD_анкеты.pdf` name already exists.
 
 ## Product Direction
 
@@ -46,7 +48,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
 ## Next Product Steps
 
 1. Improve the online survey flow after mobile browser review.
-2. Add row editing directly inside the data workspace.
-3. Improve PDF upload naming and duplicate handling.
-4. Add more useful visualizations only after the row/PDF workflow feels good.
-5. Explore a better contact-follow-up workflow for q16.
+2. Explore a better contact-follow-up workflow for q16.
+3. Improve question filtering so the collapsible breakdown can focus on selected question groups.
+4. Add CSV export controls that make client-side text/contact filters explicit.
+5. Keep reviewing the mobile data workspace on real iPhone/Safari.
