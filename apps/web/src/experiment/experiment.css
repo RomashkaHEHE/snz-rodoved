@@ -221,7 +221,7 @@ a {
   border-radius: 4px;
   display: grid;
   gap: 0.25rem;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   padding: 0.25rem;
   min-width: min(620px, 100%);
 }
@@ -254,6 +254,88 @@ a {
 .step-rail button.is-active {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.survey-review {
+  display: grid;
+  gap: 1rem;
+}
+
+.review-block {
+  background: #fffaf6;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+}
+
+.review-block > div:first-child {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.review-block > div:first-child span {
+  color: var(--accent);
+  font-weight: 900;
+}
+
+.review-list {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.review-list div {
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  min-width: 0;
+  padding: 0.65rem;
+}
+
+.review-list dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 900;
+}
+
+.review-list dd {
+  font-weight: 900;
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.review-answers {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.survey-success {
+  align-content: center;
+  justify-items: start;
+  min-height: min(620px, calc(100vh - 9rem));
+}
+
+.survey-success svg {
+  color: var(--accent);
+}
+
+.survey-success h1 {
+  font-size: clamp(2.2rem, 6vw, 4.5rem);
+  line-height: 1;
+  margin: 0;
+}
+
+.survey-success p {
+  color: var(--muted);
+  font-weight: 800;
+  margin: 0;
 }
 
 label,
@@ -1106,7 +1188,8 @@ textarea {
   .contact-grid,
   .detail-grid,
   .period-pair,
-  .pdf-row {
+  .pdf-row,
+  .review-list {
     grid-template-columns: 1fr;
   }
 

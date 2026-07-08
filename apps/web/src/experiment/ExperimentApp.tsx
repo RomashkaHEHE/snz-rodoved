@@ -1,4 +1,5 @@
 import {
+  CheckCircle,
   ClipboardList,
   Database,
   Download,
@@ -170,6 +171,7 @@ const routeTitles: Record<RouteId, string> = {
   pdf: "PDF"
 };
 const workspaceRoutes: RouteId[] = ["entry", "data", "pdf"];
+const surveyStepCount = 5;
 const surveyDraftStorageKey = "rodoved-test-online-draft-v1";
 
 export function ExperimentApp() {
@@ -398,6 +400,7 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
   const [draft, setDraft] = useState<ResponseDraft>(restoredDraft.draft);
   const [status, setStatus] = useState(restoredDraft.restored ? "Черновик восстановлен." : "");
   const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const sections = [
     {
@@ -438,6 +441,10 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
           onChange={setDraft}
         />
       )
+    },
+    {
+      title: "Проверка",
+      render: <SurveyReview draft={draft} onEdit={setStep} />
     }
   ];
 
@@ -463,7 +470,8 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
       clearSurveyDraftState();
       setDraft(createEmptyDraft("online"));
       setStep(0);
-      setStatus("Анкета сохранена.");
+      setStatus("");
+      setSubmitted(true);
     } catch {
       setStatus("Не удалось сохранить анкету.");
     } finally {
@@ -476,6 +484,15 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
     setDraft(createEmptyDraft("online"));
     setStep(0);
     setStatus("");
+    setSubmitted(false);
+  }
+
+  if (submitted) {
+    return (
+      <section className="task-page survey-task">
+        <SurveySuccess onNewSurvey={resetSurvey} />
+      </section>
+    );
   }
 
   return (
@@ -529,11 +546,113 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
           ) : (
             <button className="primary-button" disabled={saving} type="submit">
               <Save aria-hidden size={18} />
-              {saving ? "Сохранение..." : "Сохранить"}
+              {saving ? "Отправка..." : "Отправить"}
             </button>
           )}
         </div>
       </form>
+    </section>
+  );
+}
+
+function SurveyReview({ draft, onEdit }: { draft: ResponseDraft; onEdit: (step: number) => void }) {
+  const yesAnswers = questions
+    .filter((question) => draft[question.id] === "yes")
+    .map((question) => `${question.number}. ${question.label}`);
+
+  return (
+    <div className="survey-review">
+      <div className="review-block">
+        <div>
+          <span>О себе</span>
+          <button className="link-button" type="button" onClick={() => onEdit(0)}>
+            Изменить
+          </button>
+        </div>
+        <dl className="review-list">
+          <div>
+            <dt>Пол</dt>
+            <dd>{genderLabels[draft.gender]}</dd>
+          </div>
+          <div>
+            <dt>Возраст</dt>
+            <dd>{ageLabels[draft.ageGroup]}</dd>
+          </div>
+          <div>
+            <dt>Проживание</dt>
+            <dd>{residenceLabels[draft.residence]}</dd>
+          </div>
+          <div>
+            <dt>Территория</dt>
+            <dd>{draft.researchTerritory || "—"}</dd>
+          </div>
+          <div>
+            <dt>Период</dt>
+            <dd>{formatResearchPeriod(draft) || "—"}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div className="review-block">
+        <div>
+          <span>Ответы «Да»</span>
+          <button className="link-button" type="button" onClick={() => onEdit(1)}>
+            Изменить
+          </button>
+        </div>
+        {yesAnswers.length > 0 ? (
+          <ul className="review-answers">
+            {yesAnswers.map((answer) => (
+              <li key={answer}>{answer}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="empty-state">Ответов «Да» нет.</p>
+        )}
+      </div>
+
+      <div className="review-block">
+        <div>
+          <span>Помощь</span>
+          <button className="link-button" type="button" onClick={() => onEdit(3)}>
+            Изменить
+          </button>
+        </div>
+        <dl className="review-list">
+          <div>
+            <dt>Нужна помощь</dt>
+            <dd>{answerLabels[draft.q16]}</dd>
+          </div>
+          <div>
+            <dt>Имя</dt>
+            <dd>{draft.contactName || "—"}</dd>
+          </div>
+          <div>
+            <dt>Телефон</dt>
+            <dd>{draft.contactPhone || "—"}</dd>
+          </div>
+          <div>
+            <dt>Комментарий</dt>
+            <dd>{draft.freeText || "—"}</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+  );
+}
+
+function SurveySuccess({ onNewSurvey }: { onNewSurvey: () => void }) {
+  return (
+    <section className="task-panel survey-success">
+      <CheckCircle aria-hidden size={42} />
+      <div>
+        <p className="eyebrow">Готово</p>
+        <h1>Анкета отправлена</h1>
+      </div>
+      <p>Спасибо. Можно закрыть страницу или заполнить ещё одну анкету.</p>
+      <button className="primary-button" type="button" onClick={onNewSurvey}>
+        Новая анкета
+      </button>
     </section>
   );
 }
@@ -2115,7 +2234,7 @@ function clampSurveyStep(value: unknown): number {
     return 0;
   }
 
-  return Math.min(3, Math.max(0, value));
+  return Math.min(surveyStepCount - 1, Math.max(0, value));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
