@@ -1,0 +1,198 @@
+:root {
+  color: #221d1f;
+  background: #f6f1eb;
+  font-family:
+    Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  -webkit-text-size-adjust: 100%;
+}
+
+a {
+  color: inherit;
+}
+
+.experiment-page {
+  background:
+    linear-gradient(180deg, rgba(100, 0, 27, 0.12), transparent 18rem),
+    #f6f1eb;
+  min-height: 100vh;
+  padding: clamp(1rem, 4vw, 4rem);
+}
+
+.experiment-hero,
+.experiment-section,
+.experiment-grid,
+.experiment-workbench,
+.experiment-rules {
+  margin: 0 auto;
+  max-width: 1120px;
+}
+
+.experiment-hero {
+  display: grid;
+  gap: 1.25rem;
+  min-height: 56vh;
+  padding: clamp(2rem, 8vw, 6rem) 0 clamp(2rem, 5vw, 4rem);
+  place-content: center start;
+}
+
+.experiment-kicker,
+.experiment-eyebrow {
+  align-items: center;
+  color: #64001b;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 0.45rem;
+  letter-spacing: 0;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.experiment-hero h1 {
+  color: #64001b;
+  font-size: clamp(3.2rem, 10vw, 7.5rem);
+  line-height: 0.95;
+  margin: 0;
+}
+
+.experiment-hero p {
+  font-size: clamp(1.1rem, 2vw, 1.55rem);
+  max-width: 780px;
+  margin: 0;
+}
+
+.experiment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.experiment-actions a,
+.experiment-actions span {
+  border-radius: 4px;
+  display: inline-flex;
+  font-weight: 800;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+}
+
+.experiment-actions a {
+  background: #64001b;
+  color: #fffaf6;
+  text-decoration: none;
+}
+
+.experiment-actions span {
+  background: #eadfd6;
+  color: #64001b;
+}
+
+.experiment-section,
+.experiment-workbench,
+.experiment-rules {
+  border-top: 1px solid rgba(100, 0, 27, 0.2);
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1fr);
+  padding: clamp(1.5rem, 4vw, 3rem) 0;
+}
+
+.experiment-section h2,
+.experiment-workbench h2 {
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+  line-height: 1.05;
+  margin: 0.35rem 0 0;
+}
+
+.experiment-section > p {
+  font-size: 1.12rem;
+  margin: 0;
+}
+
+.experiment-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 1rem 0 clamp(1.5rem, 4vw, 3rem);
+}
+
+.experiment-grid article {
+  background: #fffaf6;
+  border: 1px solid #decfc5;
+  border-radius: 4px;
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.25rem;
+}
+
+.experiment-grid svg,
+.experiment-map svg {
+  color: #64001b;
+}
+
+.experiment-grid h2 {
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.experiment-grid p {
+  color: #574a4e;
+  margin: 0;
+}
+
+.experiment-map {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.experiment-map div {
+  align-items: center;
+  background: #fffaf6;
+  border: 1px solid #decfc5;
+  border-radius: 4px;
+  display: flex;
+  font-weight: 800;
+  gap: 0.75rem;
+  min-height: 58px;
+  padding: 0.9rem 1rem;
+}
+
+.experiment-rules ul {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.experiment-rules li {
+  background: rgba(255, 250, 246, 0.72);
+  border-left: 4px solid #64001b;
+  padding: 0.75rem 1rem;
+}
+
+@media (max-width: 820px) {
+  .experiment-section,
+  .experiment-workbench,
+  .experiment-rules,
+  .experiment-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .experiment-hero {
+    min-height: auto;
+    padding-top: 3rem;
+  }
+}

@@ -1,6 +1,8 @@
-# Test Environment
+# Test Domain
 
-The test environment is isolated from production and is intended for UX experiments before merging to `main`.
+`test.snz-rodoved.ru` is not a staging copy of production.
+
+It is a separate product laboratory for trying a different interface, different workflows, and new feature ideas around the same Rodoved tasks: surveys, manual entry, PDF storage, and data analysis.
 
 ## Targets
 
@@ -11,13 +13,36 @@ The test environment is isolated from production and is intended for UX experime
 - User service: `snz-rodoved-test.service`
 - Database: `/home/user1/apps/snz-rodoved-test/shared/data/rodoved.sqlite`
 
-Production stays on:
+Production stays separate:
 
 - Branch: `main`
 - Domain: `snz-rodoved.ru`
 - Server path: `/home/user1/apps/snz-rodoved`
 - Local server port on VPS: `127.0.0.1:4000`
 - User service: `snz-rodoved.service`
+
+## Product Role
+
+The stable production site is the working system.
+
+The test domain is for discovery:
+
+- rethink the public online survey instead of copying the paper form;
+- test phone-first manual entry flows;
+- explore better data tables, filters, PDF access, and analytics grouping;
+- validate ideas with the customer before porting accepted decisions into production.
+
+Do not treat the `test` branch as something that should be merged wholesale into `main`. Accepted ideas should be reimplemented or carefully ported into `main` as stable production changes.
+
+## Current Frontend
+
+The test frontend entry is intentionally separate:
+
+- `apps/web/src/App.tsx`
+- `apps/web/src/experiment/ExperimentApp.tsx`
+- `apps/web/src/experiment/experiment.css`
+
+The current test UI is a clean product-lab shell. It does not expose the old production routes or production workspace UI.
 
 ## Deploy
 
@@ -31,15 +56,13 @@ The web build receives:
 VITE_APP_ENV=test
 ```
 
-This marks the build as test-only for environment-specific logic. The public UI does not show a visible test banner.
-
 The test server env currently uses:
 
 ```env
 COOKIE_SECURE=true
 ```
 
-Keep this enabled because `test.snz-rodoved.ru` has HTTPS. Do not set `COOKIE_SECURE=false` unless HTTPS is temporarily broken and the test environment must be debugged over plain HTTP.
+Keep this enabled because `test.snz-rodoved.ru` has HTTPS.
 
 ## DNS
 
@@ -55,25 +78,11 @@ Certificate command used:
 sudo certbot --nginx -d test.snz-rodoved.ru --redirect --non-interactive
 ```
 
-## Current Server State
-
-As of 2026-07-08:
-
-- `snz-rodoved-test.service` is active.
-- `http://127.0.0.1:4001/api/health` returns `{"ok":true}` on the VPS.
-- nginx has `snz-rodoved-test.conf` and proxies Host `test.snz-rodoved.ru` to `127.0.0.1:4001`.
-- DNS for `test.snz-rodoved.ru` resolves to `46.16.36.87`.
-- Let's Encrypt HTTPS is enabled for `test.snz-rodoved.ru`; HTTP redirects to HTTPS.
-- `https://test.snz-rodoved.ru/api/health` returns `{"ok":true}`.
-- Browser checks passed on real HTTPS URL:
-  - desktop `/` shows contact links, no visible test banner, and no horizontal overflow;
-  - mobile `/survey` shows the section navigation, no horizontal overflow, and q16 opens required `Имя`/`Номер телефона` fields.
-- Workspace API login over HTTPS sets a `Secure` session cookie and can access protected responses.
-
 ## Safety Rules
 
 - Do not point the test service to the production SQLite file.
 - Do not reuse `/home/user1/apps/snz-rodoved` for test releases.
 - Do not edit unrelated nginx configs on the VPS.
-- Test data can be deleted freely only inside the test database.
+- Do not collect important real data in unfinished test flows.
+- Do not merge the `test` branch directly into `main`.
 - Do not set `COOKIE_SECURE=false` on production.
