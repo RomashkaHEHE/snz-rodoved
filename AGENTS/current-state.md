@@ -52,7 +52,7 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - `test.snz-rodoved.ru` resolves to `46.16.36.87`, has a separate nginx config `snz-rodoved-test.conf`, and has Let's Encrypt HTTPS enabled. HTTP redirects to HTTPS. Test runtime uses `COOKIE_SECURE=true`.
 - Test-domain public navigation hides operator sections until workspace login. After login the operator sees survey, entry, data, and PDF sections.
 - Test-domain public survey uses a five-step flow with a mobile-oriented research-period control, full-answer review step before submit, and a completion screen after successful submit.
-- Test-domain operator entry keeps one continuous paper-form flow, but adds section navigation, yes/no/unknown counts, and grouped blocks for phone work.
+- Test-domain operator entry keeps one continuous paper-form flow, but adds section navigation, yes/no/unknown counts, a next-`Нет ответа` jump button with temporary question highlighting, and grouped blocks for phone work.
 - Test-domain data screen includes expanded URL-backed filters with removable active-filter chips, local saved filter presets, server CSV export for the current slice, and mode tabs for `Обращения`, `Анкеты`, `PDF`, and `Графики`. This keeps the mobile data workspace focused on one task at a time while preserving the same filter slice.
 - The test-domain `Обращения` mode shows q16 help requests with persisted status, operator notes, and contact-status filtering.
 - The test-domain `PDF` mode cross-checks paper response dates in the current slice against matching PDF scans, showing missing PDFs and PDFs whose dates do not currently have entered paper rows.

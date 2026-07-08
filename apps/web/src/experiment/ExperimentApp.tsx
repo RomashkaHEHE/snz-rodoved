@@ -772,7 +772,10 @@ function EntryPage({
     editingResponse ? responseToDraft(editingResponse) : createEmptyDraft("paper")
   );
   const [status, setStatus] = useState("");
+  const [highlightedQuestionId, setHighlightedQuestionId] = useState<QuestionId | null>(null);
+  const [unknownJumpIndex, setUnknownJumpIndex] = useState(0);
   const answerCounts = countDraftAnswers(draft);
+  const unknownQuestions = questions.filter((question) => draft[question.id] === "unknown");
   const experienceQuestions = questions.filter((question) => question.group === "experience");
   const interestQuestions = questions.filter((question) => question.group === "interest");
   const helpQuestions = questions.filter((question) => question.group === "help");
@@ -780,10 +783,35 @@ function EntryPage({
   useEffect(() => {
     setDraft(editingResponse ? responseToDraft(editingResponse) : createEmptyDraft("paper"));
     setStatus("");
+    setHighlightedQuestionId(null);
+    setUnknownJumpIndex(0);
   }, [editingResponse]);
+
+  useEffect(() => {
+    if (!highlightedQuestionId) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => setHighlightedQuestionId(null), 2200);
+    return () => window.clearTimeout(timeout);
+  }, [highlightedQuestionId]);
 
   function jumpToEntrySection(sectionId: string) {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function jumpToNextUnknown() {
+    if (unknownQuestions.length === 0) {
+      setStatus("Ответов «Нет ответа» сейчас нет.");
+      return;
+    }
+
+    const nextQuestion = unknownQuestions[unknownJumpIndex % unknownQuestions.length];
+    setHighlightedQuestionId(nextQuestion.id);
+    setUnknownJumpIndex((current) => (current + 1) % unknownQuestions.length);
+    document
+      .getElementById(`entry-question-${nextQuestion.id}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -819,6 +847,14 @@ function EntryPage({
             <span>— <b>{answerCounts.unknown}</b></span>
           </div>
           <div className="entry-jump-row">
+            <button
+              className="entry-next-unknown"
+              disabled={unknownQuestions.length === 0}
+              type="button"
+              onClick={jumpToNextUnknown}
+            >
+              Следующий — {unknownQuestions.length}
+            </button>
             <button type="button" onClick={() => jumpToEntrySection("entry-basic")}>
               1-3
             </button>
@@ -847,7 +883,13 @@ function EntryPage({
             <span>4-6</span>
             <h2>Опыт</h2>
           </div>
-          <QuestionStack draft={draft} questionsToShow={experienceQuestions} onChange={setDraft} />
+          <QuestionStack
+            draft={draft}
+            highlightedQuestionId={highlightedQuestionId}
+            idPrefix="entry"
+            questionsToShow={experienceQuestions}
+            onChange={setDraft}
+          />
         </section>
 
         <section className="entry-section" id="entry-interest">
@@ -855,7 +897,13 @@ function EntryPage({
             <span>7-15</span>
             <h2>Интересы</h2>
           </div>
-          <QuestionStack draft={draft} questionsToShow={interestQuestions} onChange={setDraft} />
+          <QuestionStack
+            draft={draft}
+            highlightedQuestionId={highlightedQuestionId}
+            idPrefix="entry"
+            questionsToShow={interestQuestions}
+            onChange={setDraft}
+          />
         </section>
 
         <section className="entry-section" id="entry-help">
@@ -863,7 +911,13 @@ function EntryPage({
             <span>16</span>
             <h2>Помощь</h2>
           </div>
-          <QuestionStack draft={draft} questionsToShow={helpQuestions} onChange={setDraft} />
+          <QuestionStack
+            draft={draft}
+            highlightedQuestionId={highlightedQuestionId}
+            idPrefix="entry"
+            questionsToShow={helpQuestions}
+            onChange={setDraft}
+          />
         </section>
 
         <div className="form-actions sticky-actions">
@@ -1770,17 +1824,25 @@ function PeriodControl({
 
 function QuestionStack({
   draft,
+  highlightedQuestionId,
+  idPrefix,
   questionsToShow,
   onChange
 }: {
   draft: ResponseDraft;
+  highlightedQuestionId?: QuestionId | null;
+  idPrefix?: string;
   questionsToShow: typeof questions;
   onChange: (draft: ResponseDraft) => void;
 }) {
   return (
     <div className="question-stack">
       {questionsToShow.map((question) => (
-        <div className="question-card" key={question.id}>
+        <div
+          className={highlightedQuestionId === question.id ? "question-card is-highlighted" : "question-card"}
+          id={idPrefix ? `${idPrefix}-question-${question.id}` : undefined}
+          key={question.id}
+        >
           <div>
             <span>{question.number}</span>
             <p>{question.label}</p>

@@ -35,7 +35,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - public online survey submits to the server after the review step, shows a completion screen, and stores a browser-local draft until successful submit;
   - public navigation shows only the online survey and workspace login until the operator signs in;
   - operator entry, data, and PDF archive are behind workspace password login;
-  - operator entry remains one continuous form, with section navigation, answer counts, and grouped paper-form sections for phone work;
+  - operator entry remains one continuous form, with section navigation, answer counts, a next-`Нет ответа` jump button, temporary question highlighting, and grouped paper-form sections for phone work;
   - data filters include date range, source, gender, age group, residence, help-only, contact-only, contact workflow status, and free text search;
   - active data filters are shown as removable chips so the operator can clear one constraint without resetting the whole slice;
   - data filters are mirrored into `/data` URL query, so current slices survive reload/back-forward and can be copied as links;
@@ -116,6 +116,10 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - the built JS contains `Бумажные строки без PDF`, `PDF без бумажных строк`, and `Бумажные даты закрыты PDF`;
   - the built CSS contains `pdf-coverage`, `pdf-date-checklist`, and `pdf-coverage-stat`;
   - data modes, contact privacy mode, period control, and the absence of forbidden meta-copy are still confirmed.
+- HTTP/asset smoke for mobile operator entry helper confirmed:
+  - the built JS contains `Следующий —`, `Ответов «Нет ответа» сейчас нет.`, and `entry-question-`;
+  - the built CSS contains `entry-next-unknown` and `question-card.is-highlighted`;
+  - PDF coverage, period control, contact privacy mode, and the absence of forbidden meta-copy are still confirmed.
 - Local browser smoke:
   - unauthenticated public nav on `/` shows only `Опрос` and `Вход`;
   - after workspace login, nav shows `Опрос`, `Ввод`, `Данные`, `PDF`;

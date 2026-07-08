@@ -606,6 +606,11 @@ textarea {
   padding: 0.9rem;
 }
 
+.question-card.is-highlighted {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent), 0 0 0 3px rgba(100, 0, 27, 0.08);
+}
+
 .question-card > div:first-child {
   align-items: start;
   display: flex;
@@ -760,6 +765,19 @@ textarea {
   font-weight: 900;
   min-height: 38px;
   padding: 0.4rem 0.65rem;
+}
+
+.entry-jump-row .entry-next-unknown {
+  background: var(--accent-soft);
+  border-color: #dfbdc7;
+  color: var(--accent);
+}
+
+.entry-jump-row .entry-next-unknown:disabled {
+  background: #eee5dc;
+  border-color: #d6c8bb;
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 .entry-section {
