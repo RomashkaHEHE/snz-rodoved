@@ -54,7 +54,8 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - Test-domain public survey uses a five-step flow with a full-answer review step before submit and a completion screen after successful submit.
 - Test-domain operator entry keeps one continuous paper-form flow, but adds section navigation, yes/no/unknown counts, and grouped blocks for phone work.
 - Test-domain data screen includes expanded URL-backed filters with removable active-filter chips, local saved filter presets, server CSV export for the current slice, and mode tabs for `Обращения`, `Анкеты`, `PDF`, and `Графики`. This keeps the mobile data workspace focused on one task at a time while preserving the same filter slice.
-- The test-domain `Обращения` mode shows q16 help requests with contact phone links, persisted status, operator notes, and contact-status filtering.
+- The test-domain `Обращения` mode shows q16 help requests with persisted status, operator notes, and contact-status filtering.
+- Test-domain `/data` has a local contact privacy mode, enabled by default, that masks contact names and phone numbers in lists and read-only inspectors until the operator explicitly shows them. Editing still shows real values because the operator is intentionally modifying the row.
 - Domain `snz-rodoved.ru` has an nginx reverse proxy and Let's Encrypt HTTPS certificate on the server. Some local resolvers may still cache the previous parking IP, but authoritative/public DNS points to `46.16.36.87`.
 - API static serving must not rely only on `process.cwd()/apps/web/dist`: production starts through `npm -w @snz-rodoved/api`, so the runtime cwd is `apps/api`. `apps/api/src/app.ts` resolves the frontend dist from `INIT_CWD`, root cwd, or `../web/dist`.
 

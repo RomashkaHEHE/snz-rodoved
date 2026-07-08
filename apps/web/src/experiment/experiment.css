@@ -613,6 +613,17 @@ textarea {
   color: var(--text);
 }
 
+.privacy-button.is-active {
+  background: var(--accent-soft);
+  border-color: #dfbdc7;
+  color: var(--accent);
+}
+
+.masked-contact {
+  color: var(--accent);
+  font-weight: 900;
+}
+
 .wide-button {
   width: min(100%, 420px);
 }

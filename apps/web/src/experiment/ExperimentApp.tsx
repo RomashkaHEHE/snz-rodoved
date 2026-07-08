@@ -204,6 +204,7 @@ const workspaceRoutes: RouteId[] = ["entry", "data", "pdf"];
 const surveyStepCount = 5;
 const surveyDraftStorageKey = "rodoved-test-online-draft-v1";
 const dataFilterPresetsStorageKey = "rodoved-test-data-filter-presets-v1";
+const contactPrivacyStorageKey = "rodoved-test-hide-contacts-v1";
 
 export function ExperimentApp() {
   const [route, setRoute] = useState<RouteId>(() => routeFromPath(window.location.pathname));
@@ -895,6 +896,7 @@ function DataPage({
   const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => readDataFilterPresets());
   const [presetName, setPresetName] = useState("");
   const [dataMode, setDataMode] = useState<DataMode>("contacts");
+  const [hideContacts, setHideContacts] = useState(() => readContactPrivacyMode());
   const filteredResponses = useMemo(
     () => responses.filter((response) => matchesFilters(response, filters)),
     [responses, filters]
@@ -947,6 +949,10 @@ function DataPage({
       setDetailDraft(responseToDraft(selectedResponse));
     }
   }, [detailMode, selectedResponse]);
+
+  useEffect(() => {
+    writeContactPrivacyMode(hideContacts);
+  }, [hideContacts]);
 
   function openResponse(response: SurveyResponse) {
     setSelectedId(response.id);
@@ -1116,6 +1122,7 @@ function DataPage({
     <ResponseInspector
       busy={busyAction === "row-save"}
       draft={detailDraft}
+      hideContacts={hideContacts}
       mode={detailMode}
       response={selectedResponse}
       onCancel={() => {
@@ -1146,6 +1153,15 @@ function DataPage({
           <h1>Данные</h1>
         </div>
         <div className="header-action-row">
+          <button
+            aria-pressed={hideContacts}
+            className={hideContacts ? "ghost-button privacy-button is-active" : "ghost-button privacy-button"}
+            type="button"
+            onClick={() => setHideContacts((current) => !current)}
+          >
+            <LockKeyhole aria-hidden size={18} />
+            {hideContacts ? "Контакты скрыты" : "Контакты видны"}
+          </button>
           <button className="ghost-button" disabled={busyAction !== null} type="button" onClick={handleCreateFake}>
             <Plus aria-hidden size={18} />
             Добавить демо
@@ -1354,7 +1370,12 @@ function DataPage({
               <h2>Обращения</h2>
               <span>{helpRequests.length}</span>
             </div>
-            <HelpQueue responses={helpRequests} selectedId={selectedId} onOpen={openResponse} />
+            <HelpQueue
+              hideContacts={hideContacts}
+              responses={helpRequests}
+              selectedId={selectedId}
+              onOpen={openResponse}
+            />
           </div>
           {responseInspector}
         </section>
@@ -1368,6 +1389,7 @@ function DataPage({
           </div>
           <div className="row-workbench">
             <ResponseRows
+              hideContacts={hideContacts}
               responses={filteredResponses}
               selectedId={selectedId}
               onDelete={handleDeleteResponse}
@@ -1914,10 +1936,12 @@ function QuestionBreakdown({
 }
 
 function HelpQueue({
+  hideContacts,
   onOpen,
   responses,
   selectedId
 }: {
+  hideContacts: boolean;
   onOpen: (response: SurveyResponse) => void;
   responses: SurveyResponse[];
   selectedId: string | null;
@@ -1941,7 +1965,7 @@ function HelpQueue({
             <span className={`workflow-badge workflow-${response.contactStatus}`}>
               {contactStatusLabels[response.contactStatus]}
             </span>
-            <strong>{response.contactName?.trim() || "Без имени"}</strong>
+            <strong>{renderContactName(response.contactName, hideContacts)}</strong>
             <p>
               {response.surveyDate} · {ageLabels[response.ageGroup]} · {residenceLabels[response.residence]}
             </p>
@@ -1949,11 +1973,13 @@ function HelpQueue({
             {response.freeText ? <small>{response.freeText}</small> : null}
           </div>
           <div className="help-actions">
-            {response.contactPhone ? (
+            {response.contactPhone && !hideContacts ? (
               <a href={`tel:${normalizePhone(response.contactPhone)}`}>
                 <Phone aria-hidden size={17} />
                 {response.contactPhone}
               </a>
+            ) : response.contactPhone ? (
+              <span className="masked-contact">Телефон скрыт</span>
             ) : (
               <span>Нет телефона</span>
             )}
@@ -1969,12 +1995,14 @@ function HelpQueue({
 }
 
 function ResponseRows({
+  hideContacts,
   onDelete,
   onEdit,
   onOpen,
   selectedId,
   responses
 }: {
+  hideContacts: boolean;
   onDelete: (response: SurveyResponse) => Promise<void>;
   onEdit: (response: SurveyResponse) => void;
   onOpen: (response: SurveyResponse) => void;
@@ -2007,7 +2035,11 @@ function ResponseRows({
           </div>
           <div className="row-meta">
             <span>Q16: {answerLabels[response.q16]}</span>
-            {response.contactPhone ? <a href={`tel:${normalizePhone(response.contactPhone)}`}>{response.contactPhone}</a> : null}
+            {response.contactPhone && !hideContacts ? (
+              <a href={`tel:${normalizePhone(response.contactPhone)}`}>{response.contactPhone}</a>
+            ) : response.contactPhone ? (
+              <span className="masked-contact">Телефон скрыт</span>
+            ) : null}
             {response.researchTerritory ? <span>{response.researchTerritory}</span> : null}
           </div>
           <div className="row-actions">
@@ -2033,6 +2065,7 @@ function ResponseRows({
 function ResponseInspector({
   busy,
   draft,
+  hideContacts,
   mode,
   onCancel,
   onChange,
@@ -2046,6 +2079,7 @@ function ResponseInspector({
 }: {
   busy: boolean;
   draft: ResponseDraft | null;
+  hideContacts: boolean;
   mode: "view" | "edit";
   onCancel: () => void;
   onChange: (draft: ResponseDraft) => void;
@@ -2125,8 +2159,8 @@ function ResponseInspector({
         <Detail label="Возраст" value={ageLabels[response.ageGroup]} />
         <Detail label="Проживание" value={residenceLabels[response.residence]} />
         <Detail label="Помощь" value={answerLabels[response.q16]} />
-        <Detail label="Имя" value={response.contactName} />
-        <Detail label="Телефон" value={response.contactPhone} phone />
+        <Detail label="Имя" masked={hideContacts && Boolean(response.contactName)} value={response.contactName} />
+        <Detail label="Телефон" masked={hideContacts && Boolean(response.contactPhone)} value={response.contactPhone} phone />
         <Detail label="Статус" value={contactStatusLabels[response.contactStatus]} />
         <Detail label="Территория" value={response.researchTerritory} />
         <Detail label="Период" value={formatResearchPeriod(response)} />
@@ -2235,11 +2269,13 @@ function ContactWorkflowPanel({
 
 function Detail({
   label,
+  masked,
   phone,
   value,
   wide
 }: {
   label: string;
+  masked?: boolean;
   phone?: boolean;
   value: string | undefined;
   wide?: boolean;
@@ -2249,7 +2285,13 @@ function Detail({
   return (
     <div className={wide ? "detail-item wide-detail" : "detail-item"}>
       <span>{label}</span>
-      {phone && value ? <a href={`tel:${normalizePhone(value)}`}>{value}</a> : <b>{rendered}</b>}
+      {masked ? (
+        <b className="masked-contact">{phone ? "Телефон скрыт" : "Имя скрыто"}</b>
+      ) : phone && value ? (
+        <a href={`tel:${normalizePhone(value)}`}>{value}</a>
+      ) : (
+        <b>{rendered}</b>
+      )}
     </div>
   );
 }
@@ -2397,6 +2439,31 @@ function writeDataFilterPresets(presets: FilterPreset[]): void {
   } catch {
     // Saved slices are optional; data work must continue without localStorage.
   }
+}
+
+function readContactPrivacyMode(): boolean {
+  try {
+    const raw = window.localStorage.getItem(contactPrivacyStorageKey);
+    return raw === null ? true : raw === "true";
+  } catch {
+    return true;
+  }
+}
+
+function writeContactPrivacyMode(value: boolean): void {
+  try {
+    window.localStorage.setItem(contactPrivacyStorageKey, String(value));
+  } catch {
+    // Privacy mode is a UI preference; contact data stays protected by auth either way.
+  }
+}
+
+function renderContactName(value: string | undefined, hidden: boolean): string {
+  if (!value?.trim()) {
+    return "Без имени";
+  }
+
+  return hidden ? "Имя скрыто" : value;
 }
 
 function coerceStoredFilterPreset(value: unknown): FilterPreset | null {
