@@ -10,7 +10,7 @@ High
 
 ## Goal
 
-Maintain the isolated deployment target for `test.snz-rodoved.ru` without confusing it with production staging.
+Maintain the isolated deployment target for `test.snz-rodoved.ru`.
 
 The product purpose is documented in `test-domain-lab.md`. This file documents the environment mechanics.
 
@@ -21,7 +21,7 @@ The product purpose is documented in `test-domain-lab.md`. This file documents t
 - Test uses its own SQLite database and PDF storage.
 - Test runtime uses `COOKIE_SECURE=true` because HTTPS is enabled.
 - GitHub Actions workflow `Deploy Test` deploys pushes to `test`.
-- Test should not be merged wholesale into `main`.
+- Test serves the separate experimental product described in `test-domain-lab.md`.
 
 ## Relevant Files
 

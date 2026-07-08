@@ -1,8 +1,31 @@
 # Test Domain
 
-`test.snz-rodoved.ru` is not a staging copy of production.
+`test.snz-rodoved.ru` is a separate experimental version of the Rodoved product.
 
-It is a separate product laboratory for trying a different interface, different workflows, and new feature ideas around the same Rodoved tasks: surveys, manual entry, PDF storage, and data analysis.
+## Product Scope
+
+The test domain is used to check from scratch how to organize:
+
+1. public online survey completion;
+2. manual entry of paper questionnaires by the operator;
+3. work with data, filters, PDF archive, and visualizations;
+4. the mobile work scenario;
+5. safe handling of contact data and scanned paper questionnaires.
+
+The test domain has its own interface and UX decisions.
+
+## Current Frontend
+
+- Entry: `apps/web/src/App.tsx`
+- Product UI: `apps/web/src/experiment/ExperimentApp.tsx`
+- Product CSS: `apps/web/src/experiment/experiment.css`
+
+Current flows use browser storage for fast product iteration:
+
+- online survey;
+- operator entry;
+- data filters, summary, row list, CSV export;
+- PDF upload/list/download.
 
 ## Targets
 
@@ -21,34 +44,11 @@ Production stays separate:
 - Local server port on VPS: `127.0.0.1:4000`
 - User service: `snz-rodoved.service`
 
-## Product Role
-
-The stable production site is the working system.
-
-The test domain is for discovery:
-
-- rethink the public online survey instead of copying the paper form;
-- test phone-first manual entry flows;
-- explore better data tables, filters, PDF access, and analytics grouping;
-- validate ideas with the customer before porting accepted decisions into production.
-
-Do not treat the `test` branch as something that should be merged wholesale into `main`. Accepted ideas should be reimplemented or carefully ported into `main` as stable production changes.
-
-## Current Frontend
-
-The test frontend entry is intentionally separate:
-
-- `apps/web/src/App.tsx`
-- `apps/web/src/experiment/ExperimentApp.tsx`
-- `apps/web/src/experiment/experiment.css`
-
-The current test UI is a clean product-lab shell. It does not expose the old production routes or production workspace UI.
-
 ## Deploy
 
 `.github/workflows/deploy-test.yml` deploys every push to `test`.
 
-The workflow intentionally ignores the production `DEPLOY_PATH` and always deploys to `/home/$DEPLOY_USER/apps/snz-rodoved-test`.
+The workflow intentionally deploys to `/home/$DEPLOY_USER/apps/snz-rodoved-test`.
 
 The web build receives:
 
@@ -61,8 +61,6 @@ The test server env currently uses:
 ```env
 COOKIE_SECURE=true
 ```
-
-Keep this enabled because `test.snz-rodoved.ru` has HTTPS.
 
 ## DNS
 
@@ -77,12 +75,3 @@ Certificate command used:
 ```bash
 sudo certbot --nginx -d test.snz-rodoved.ru --redirect --non-interactive
 ```
-
-## Safety Rules
-
-- Do not point the test service to the production SQLite file.
-- Do not reuse `/home/user1/apps/snz-rodoved` for test releases.
-- Do not edit unrelated nginx configs on the VPS.
-- Do not collect important real data in unfinished test flows.
-- Do not merge the `test` branch directly into `main`.
-- Do not set `COOKIE_SECURE=false` on production.

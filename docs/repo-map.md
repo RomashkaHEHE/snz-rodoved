@@ -2,7 +2,7 @@
 
 - `apps/api` — Fastify API, auth, CRUD, PDF-архив и аналитика.
 - `apps/web` — React/Vite фронтенд: стабильные production-маршруты и отдельный experimental entry для `test`.
-- `apps/web/src/experiment` — экспериментальный frontend test-домена; не считать staging-копией production.
+- `apps/web/src/experiment` — экспериментальный frontend test-домена.
 - `packages/shared` — общие типы, Zod-схемы, каталог вопросов.
 - `packages/db` — Drizzle schema, SQLite connection, migrations, repository.
 - `docs` — стабильная документация о том, как проект работает.

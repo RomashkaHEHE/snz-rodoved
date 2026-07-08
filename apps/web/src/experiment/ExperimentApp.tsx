@@ -1,111 +1,1257 @@
 import {
-  BarChart3,
   ClipboardList,
-  Files,
-  FlaskConical,
-  LayoutDashboard,
-  Smartphone
+  Database,
+  Download,
+  FileText,
+  PenLine,
+  Plus,
+  Save,
+  Search,
+  Trash2,
+  Upload
 } from "lucide-react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import "./experiment.css";
 
-const focusAreas = [
+type RouteId = "survey" | "entry" | "data" | "pdf";
+type Answer = "yes" | "no" | "unknown";
+type Gender = "male" | "female";
+type AgeGroup = "under_18" | "18_40" | "over_40";
+type Residence = "snezhinsk" | "other";
+type ResponseSource = "online" | "paper";
+type QuestionId =
+  | "q4"
+  | "q5"
+  | "q6"
+  | "q7"
+  | "q8"
+  | "q9"
+  | "q10"
+  | "q11"
+  | "q12"
+  | "q13"
+  | "q14"
+  | "q15"
+  | "q16";
+
+type AnswerFields = Record<QuestionId, Answer>;
+
+interface SurveyResponse extends AnswerFields {
+  id: string;
+  source: ResponseSource;
+  surveyDate: string;
+  gender: Gender;
+  ageGroup: AgeGroup;
+  residence: Residence;
+  q11WarDetails?: string;
+  researchTerritory?: string;
+  researchPeriodStart?: number;
+  researchPeriodEnd?: number;
+  freeText?: string;
+  contactName?: string;
+  contactPhone?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+type ResponseDraft = Omit<SurveyResponse, "id" | "createdAt" | "updatedAt">;
+
+interface PdfRecord {
+  id: string;
+  surveyDate: string;
+  title: string;
+  fileName: string;
+  dataUrl: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+interface Filters {
+  dateFrom: string;
+  dateTo: string;
+  source: "all" | ResponseSource;
+  helpOnly: boolean;
+  query: string;
+}
+
+const responseStorageKey = "rodoved-test-lab-responses-v2";
+const pdfStorageKey = "rodoved-test-lab-pdfs-v1";
+
+const answerLabels: Record<Answer, string> = {
+  yes: "Да",
+  no: "Нет",
+  unknown: "Нет ответа"
+};
+
+const genderLabels: Record<Gender, string> = {
+  male: "М",
+  female: "Ж"
+};
+
+const ageLabels: Record<AgeGroup, string> = {
+  under_18: "до 18 лет",
+  "18_40": "18-40 лет",
+  over_40: "старше 40 лет"
+};
+
+const residenceLabels: Record<Residence, string> = {
+  snezhinsk: "г. Снежинск",
+  other: "другое"
+};
+
+const sourceLabels: Record<ResponseSource, string> = {
+  online: "онлайн",
+  paper: "бумага"
+};
+
+const questions: Array<{ id: QuestionId; number: number; label: string; group: string }> = [
+  { id: "q4", number: 4, label: "Вы рисовали в школе схему своей семьи?", group: "experience" },
+  { id: "q5", number: 5, label: "Вы знаете имя своей прабабушки?", group: "experience" },
+  { id: "q6", number: 6, label: "Вы можете назвать имена всех 4х прадедов?", group: "experience" },
+  { id: "q7", number: 7, label: "Найти предков, живших в 20 в. (СССР)", group: "interest" },
+  { id: "q8", number: 8, label: "Найти предков, живших в 20 в.", group: "interest" },
+  { id: "q9", number: 9, label: "Найти предков, живших в 19 в.", group: "interest" },
+  { id: "q10", number: 10, label: "Найти предков, живших в 18 в.", group: "interest" },
   {
-    icon: ClipboardList,
-    title: "Онлайн-опрос",
-    text: "Проверить более понятный сценарий прохождения анкеты без копирования бумажной формы один в один."
+    id: "q11",
+    number: 11,
+    label: "Найти документы на предка-участника военных действий",
+    group: "interest"
   },
   {
-    icon: Smartphone,
-    title: "Мобильный ввод",
-    text: "Спроектировать быстрый ввод анкет с телефона как самостоятельный рабочий сценарий."
+    id: "q12",
+    number: 12,
+    label: "Найти жизненное событие предка (рождение/брак/смерть)",
+    group: "interest"
+  },
+  { id: "q13", number: 13, label: "Найти информацию о других детях предка", group: "interest" },
+  {
+    id: "q14",
+    number: 14,
+    label: "Найти подтверждение факта раскулачивания или репрессии",
+    group: "interest"
   },
   {
-    icon: BarChart3,
-    title: "Работа с данными",
-    text: "Найти удобный способ смотреть строки, фильтры, PDF-архив и визуализации без перегруза."
-  }
+    id: "q15",
+    number: 15,
+    label: "Установить место проживания предков до 1918 г.",
+    group: "interest"
+  },
+  { id: "q16", number: 16, label: "Нужна помощь в поисках?", group: "help" }
 ];
 
-const principles = [
-  "не копировать интерфейс основной версии",
-  "проверять идеи на маленьких законченных сценариях",
-  "проектировать сначала под телефон, потом под ноутбук",
-  "не использовать реальные данные для сомнительных экспериментов"
-];
+const warOptions = ["—", "Великая Отечественная война", "Первая мировая война", "Иная"];
+const routeTitles: Record<RouteId, string> = {
+  survey: "Опрос",
+  entry: "Ввод",
+  data: "Данные",
+  pdf: "PDF"
+};
 
 export function ExperimentApp() {
+  const [route, setRoute] = useState<RouteId>(() => routeFromPath(window.location.pathname));
+  const [responses, setResponses] = usePersistentState<SurveyResponse[]>(responseStorageKey, []);
+  const [pdfFiles, setPdfFiles] = usePersistentState<PdfRecord[]>(pdfStorageKey, []);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    function handlePopState() {
+      setRoute(routeFromPath(window.location.pathname));
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  function navigate(nextRoute: RouteId) {
+    const path = routeToPath(nextRoute);
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, "", path);
+    }
+    setRoute(nextRoute);
+  }
+
+  function saveDraft(draft: ResponseDraft, id?: string) {
+    const now = new Date().toISOString();
+    setResponses((current) => {
+      if (!id) {
+        return [
+          {
+            ...normalizeDraft(draft),
+            id: crypto.randomUUID(),
+            createdAt: now,
+            updatedAt: now
+          },
+          ...current
+        ];
+      }
+
+      return current.map((response) =>
+        response.id === id ? { ...response, ...normalizeDraft(draft), updatedAt: now } : response
+      );
+    });
+    setEditingId(null);
+  }
+
+  function deleteResponse(id: string) {
+    setResponses((current) => current.filter((response) => response.id !== id));
+  }
+
+  function editResponse(id: string) {
+    setEditingId(id);
+    navigate("entry");
+  }
+
+  function addPdf(record: PdfRecord) {
+    setPdfFiles((current) => [record, ...current].sort(comparePdfRecords));
+  }
+
+  function deletePdf(id: string) {
+    setPdfFiles((current) => current.filter((file) => file.id !== id));
+  }
+
+  const editingResponse = responses.find((response) => response.id === editingId) ?? null;
+
   return (
-    <main className="experiment-page">
-      <section className="experiment-hero">
-        <div className="experiment-kicker">
-          <FlaskConical aria-hidden size={18} />
-          test.snz-rodoved.ru
-        </div>
-        <h1>Родовед Lab</h1>
-        <p>
-          Отдельный экспериментальный сайт для переосмысления опросов, ввода анкет и работы с
-          результатами.
-        </p>
-        <div className="experiment-actions">
-          <a href="https://snz-rodoved.ru/">Открыть стабильный сайт</a>
-          <span>Чистый старт</span>
-        </div>
-      </section>
-
-      <section className="experiment-section">
-        <div>
-          <p className="experiment-eyebrow">Зачем этот домен</p>
-          <h2>Здесь не staging, а лаборатория продукта.</h2>
-        </div>
-        <p>
-          Основная версия остаётся стабильной рабочей системой. Этот сабдомен нужен для других
-          интерфейсных решений, новых способов прохождения онлайн-опроса и проверки рабочих
-          сценариев до того, как они попадут в основной продукт.
-        </p>
-      </section>
-
-      <section className="experiment-grid" aria-label="Направления экспериментов">
-        {focusAreas.map((area) => {
-          const Icon = area.icon;
-          return (
-            <article key={area.title}>
-              <Icon aria-hidden size={28} />
-              <h2>{area.title}</h2>
-              <p>{area.text}</p>
-            </article>
-          );
-        })}
-      </section>
-
-      <section className="experiment-workbench">
-        <div>
-          <p className="experiment-eyebrow">Следующий слой</p>
-          <h2>Будущая структура</h2>
-        </div>
-        <div className="experiment-map">
-          <div>
-            <LayoutDashboard aria-hidden size={22} />
-            <span>Новая рабочая зона</span>
-          </div>
-          <div>
-            <ClipboardList aria-hidden size={22} />
-            <span>Новый опрос</span>
-          </div>
-          <div>
-            <Files aria-hidden size={22} />
-            <span>PDF и данные</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="experiment-rules">
-        <p className="experiment-eyebrow">Правила test-домена</p>
-        <ul>
-          {principles.map((principle) => (
-            <li key={principle}>{principle}</li>
+    <main className="lab-shell">
+      <header className="lab-topbar">
+        <button className="brand-mark" type="button" onClick={() => navigate("survey")}>
+          Родовед
+        </button>
+        <nav aria-label="Основные разделы">
+          {(["survey", "entry", "data", "pdf"] as RouteId[]).map((item) => (
+            <button
+              className={route === item ? "is-active" : ""}
+              key={item}
+              type="button"
+              onClick={() => navigate(item)}
+            >
+              {routeTitles[item]}
+            </button>
           ))}
-        </ul>
-      </section>
+        </nav>
+      </header>
+
+      {route === "survey" ? <SurveyPage onSave={(draft) => saveDraft(draft)} /> : null}
+      {route === "entry" ? (
+        <EntryPage
+          editingResponse={editingResponse}
+          onCancelEdit={() => setEditingId(null)}
+          onSave={saveDraft}
+        />
+      ) : null}
+      {route === "data" ? (
+        <DataPage
+          pdfFiles={pdfFiles}
+          responses={responses}
+          onDelete={deleteResponse}
+          onEdit={editResponse}
+        />
+      ) : null}
+      {route === "pdf" ? (
+        <PdfPage files={pdfFiles} onAdd={addPdf} onDelete={deletePdf} />
+      ) : null}
     </main>
   );
+}
+
+function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => void }) {
+  const [step, setStep] = useState(0);
+  const [draft, setDraft] = useState<ResponseDraft>(() => createEmptyDraft("online"));
+  const [status, setStatus] = useState("");
+
+  const sections = [
+    {
+      title: "О себе",
+      render: (
+        <>
+          <BasicFields draft={draft} mode="survey" onChange={setDraft} />
+          <SearchFields draft={draft} onChange={setDraft} />
+        </>
+      )
+    },
+    {
+      title: "Опыт",
+      render: (
+        <QuestionStack
+          draft={draft}
+          questionsToShow={questions.filter((question) => question.group === "experience")}
+          onChange={setDraft}
+        />
+      )
+    },
+    {
+      title: "Интересы",
+      render: (
+        <QuestionStack
+          draft={draft}
+          questionsToShow={questions.filter((question) => question.group === "interest")}
+          onChange={setDraft}
+        />
+      )
+    },
+    {
+      title: "Помощь",
+      render: (
+        <QuestionStack
+          draft={draft}
+          questionsToShow={questions.filter((question) => question.group === "help")}
+          onChange={setDraft}
+        />
+      )
+    }
+  ];
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (draft.q16 === "yes" && (!draft.contactName?.trim() || !draft.contactPhone?.trim())) {
+      setStatus("Укажите имя и телефон, чтобы можно было связаться по запросу.");
+      return;
+    }
+
+    onSave(draft);
+    setDraft(createEmptyDraft("online"));
+    setStep(0);
+    setStatus("Анкета сохранена.");
+  }
+
+  return (
+    <section className="task-page survey-task">
+      <div className="task-heading">
+        <div>
+          <p className="eyebrow">Онлайн</p>
+          <h1>Опрос</h1>
+        </div>
+        <StepRail labels={sections.map((section) => section.title)} step={step} onChange={setStep} />
+      </div>
+
+      <form className="task-panel survey-panel" onSubmit={handleSubmit}>
+        <div className="section-title-row">
+          <h2>{sections[step].title}</h2>
+          <span>{step + 1} / {sections.length}</span>
+        </div>
+
+        {sections[step].render}
+
+        <div className="form-actions">
+          {status ? <p className="form-status">{status}</p> : null}
+          <button
+            className="ghost-button"
+            disabled={step === 0}
+            type="button"
+            onClick={() => setStep((current) => Math.max(0, current - 1))}
+          >
+            Назад
+          </button>
+          {step < sections.length - 1 ? (
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => setStep((current) => Math.min(sections.length - 1, current + 1))}
+            >
+              Далее
+            </button>
+          ) : (
+            <button className="primary-button" type="submit">
+              <Save aria-hidden size={18} />
+              Сохранить
+            </button>
+          )}
+        </div>
+      </form>
+    </section>
+  );
+}
+
+function EntryPage({
+  editingResponse,
+  onCancelEdit,
+  onSave
+}: {
+  editingResponse: SurveyResponse | null;
+  onCancelEdit: () => void;
+  onSave: (draft: ResponseDraft, id?: string) => void;
+}) {
+  const [draft, setDraft] = useState<ResponseDraft>(() =>
+    editingResponse ? responseToDraft(editingResponse) : createEmptyDraft("paper")
+  );
+  const [status, setStatus] = useState("");
+
+  useEffect(() => {
+    setDraft(editingResponse ? responseToDraft(editingResponse) : createEmptyDraft("paper"));
+    setStatus("");
+  }, [editingResponse]);
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    onSave(draft, editingResponse?.id);
+    setDraft(createEmptyDraft("paper"));
+    setStatus(editingResponse ? "Изменения сохранены." : "Анкета добавлена.");
+  }
+
+  return (
+    <section className="task-page entry-task">
+      <div className="task-heading">
+        <div>
+          <p className="eyebrow">Оператор</p>
+          <h1>{editingResponse ? "Изменение анкеты" : "Быстрый ввод"}</h1>
+        </div>
+        {editingResponse ? (
+          <button className="ghost-button" type="button" onClick={onCancelEdit}>
+            Новая анкета
+          </button>
+        ) : null}
+      </div>
+
+      <form className="task-panel entry-panel" onSubmit={handleSubmit}>
+        <BasicFields draft={draft} mode="entry" onChange={setDraft} />
+        <QuestionStack draft={draft} questionsToShow={questions} onChange={setDraft} />
+        <div className="form-actions sticky-actions">
+          {status ? <p className="form-status">{status}</p> : null}
+          <button className="primary-button wide-button" type="submit">
+            <Plus aria-hidden size={18} />
+            {editingResponse ? "Сохранить изменения" : "Добавить анкету"}
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+function DataPage({
+  pdfFiles,
+  responses,
+  onDelete,
+  onEdit
+}: {
+  pdfFiles: PdfRecord[];
+  responses: SurveyResponse[];
+  onDelete: (id: string) => void;
+  onEdit: (id: string) => void;
+}) {
+  const [filters, setFilters] = useState<Filters>({
+    dateFrom: "",
+    dateTo: "",
+    source: "all",
+    helpOnly: false,
+    query: ""
+  });
+  const filteredResponses = useMemo(
+    () => responses.filter((response) => matchesFilters(response, filters)),
+    [responses, filters]
+  );
+  const matchingPdfs = useMemo(
+    () => pdfFiles.filter((file) => isDateInRange(file.surveyDate, filters.dateFrom, filters.dateTo)),
+    [pdfFiles, filters.dateFrom, filters.dateTo]
+  );
+  const summary = buildSummary(filteredResponses);
+
+  return (
+    <section className="task-page data-task">
+      <div className="task-heading">
+        <div>
+          <p className="eyebrow">Работа</p>
+          <h1>Данные</h1>
+        </div>
+        <button
+          className="primary-button"
+          type="button"
+          onClick={() => downloadCsv(filteredResponses)}
+        >
+          <Download aria-hidden size={18} />
+          CSV
+        </button>
+      </div>
+
+      <section className="task-panel filter-panel">
+        <div className="compact-grid">
+          <label>
+            Дата с
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={(event) => setFilters({ ...filters, dateFrom: event.target.value })}
+            />
+          </label>
+          <label>
+            Дата по
+            <input
+              type="date"
+              value={filters.dateTo}
+              onChange={(event) => setFilters({ ...filters, dateTo: event.target.value })}
+            />
+          </label>
+          <label>
+            Источник
+            <select
+              value={filters.source}
+              onChange={(event) =>
+                setFilters({ ...filters, source: event.target.value as Filters["source"] })
+              }
+            >
+              <option value="all">все</option>
+              <option value="online">онлайн</option>
+              <option value="paper">бумага</option>
+            </select>
+          </label>
+          <label>
+            Поиск
+            <input
+              placeholder="территория, текст, контакт"
+              value={filters.query}
+              onChange={(event) => setFilters({ ...filters, query: event.target.value })}
+            />
+          </label>
+        </div>
+        <label className="switch-row">
+          <input
+            checked={filters.helpOnly}
+            type="checkbox"
+            onChange={(event) => setFilters({ ...filters, helpOnly: event.target.checked })}
+          />
+          Только нужна помощь
+        </label>
+      </section>
+
+      <section className="summary-grid" aria-label="Сводка">
+        <Metric icon={Database} label="Анкет" value={filteredResponses.length} />
+        <Metric icon={ClipboardList} label="Онлайн" value={summary.online} />
+        <Metric icon={PenLine} label="Бумага" value={summary.paper} />
+        <Metric icon={Search} label="Нужна помощь" value={summary.help} />
+      </section>
+
+      <section className="data-layout">
+        <div className="task-panel">
+          <div className="section-title-row">
+            <h2>PDF за период</h2>
+            <span>{matchingPdfs.length}</span>
+          </div>
+          <PdfMiniList files={matchingPdfs} />
+        </div>
+
+        <div className="task-panel">
+          <div className="section-title-row">
+            <h2>Возраст</h2>
+            <span>{filteredResponses.length}</span>
+          </div>
+          <BarList data={summary.ageBars} />
+        </div>
+      </section>
+
+      <section className="task-panel">
+        <div className="section-title-row">
+          <h2>Строки</h2>
+          <span>{filteredResponses.length}</span>
+        </div>
+        <ResponseRows responses={filteredResponses} onDelete={onDelete} onEdit={onEdit} />
+      </section>
+    </section>
+  );
+}
+
+function PdfPage({
+  files,
+  onAdd,
+  onDelete
+}: {
+  files: PdfRecord[];
+  onAdd: (record: PdfRecord) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [surveyDate, setSurveyDate] = useState(todayString());
+  const [title, setTitle] = useState("");
+  const [status, setStatus] = useState("");
+
+  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (file.type !== "application/pdf") {
+      setStatus("Выберите PDF-файл.");
+      return;
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      onAdd({
+        id: crypto.randomUUID(),
+        surveyDate,
+        title: title.trim() || file.name.replace(/\.pdf$/i, ""),
+        fileName: file.name,
+        dataUrl,
+        sizeBytes: file.size,
+        createdAt: new Date().toISOString()
+      });
+      setTitle("");
+      setStatus("PDF добавлен.");
+      event.target.value = "";
+    } catch {
+      setStatus("Не удалось сохранить файл в браузере.");
+    }
+  }
+
+  return (
+    <section className="task-page pdf-task">
+      <div className="task-heading">
+        <div>
+          <p className="eyebrow">Архив</p>
+          <h1>PDF</h1>
+        </div>
+      </div>
+
+      <section className="task-panel upload-panel">
+        <div className="compact-grid">
+          <label>
+            Дата опроса
+            <input type="date" value={surveyDate} onChange={(event) => setSurveyDate(event.target.value)} />
+          </label>
+          <label>
+            Название
+            <input
+              placeholder="20260708_анкеты"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+            />
+          </label>
+          <label className="file-drop">
+            <Upload aria-hidden size={22} />
+            Загрузить PDF
+            <input accept="application/pdf" type="file" onChange={handleFile} />
+          </label>
+        </div>
+        {status ? <p className="form-status">{status}</p> : null}
+      </section>
+
+      <section className="task-panel">
+        <div className="section-title-row">
+          <h2>Файлы</h2>
+          <span>{files.length}</span>
+        </div>
+        <PdfRows files={files} onDelete={onDelete} />
+      </section>
+    </section>
+  );
+}
+
+function BasicFields({
+  draft,
+  mode,
+  onChange
+}: {
+  draft: ResponseDraft;
+  mode: "survey" | "entry";
+  onChange: (draft: ResponseDraft) => void;
+}) {
+  return (
+    <div className="basic-grid">
+      {mode === "entry" ? (
+        <label>
+          Дата
+          <input
+            required
+            type="date"
+            value={draft.surveyDate}
+            onChange={(event) => onChange({ ...draft, surveyDate: event.target.value })}
+          />
+        </label>
+      ) : null}
+      <SegmentedGroup
+        label="Пол"
+        options={[
+          { value: "female", label: genderLabels.female },
+          { value: "male", label: genderLabels.male }
+        ]}
+        value={draft.gender}
+        onChange={(value) => onChange({ ...draft, gender: value as Gender })}
+      />
+      <SegmentedGroup
+        label="Возраст"
+        options={[
+          { value: "under_18", label: ageLabels.under_18 },
+          { value: "18_40", label: ageLabels["18_40"] },
+          { value: "over_40", label: ageLabels.over_40 }
+        ]}
+        value={draft.ageGroup}
+        onChange={(value) => onChange({ ...draft, ageGroup: value as AgeGroup })}
+      />
+      <SegmentedGroup
+        label="Место проживания"
+        options={[
+          { value: "snezhinsk", label: residenceLabels.snezhinsk },
+          { value: "other", label: residenceLabels.other }
+        ]}
+        value={draft.residence}
+        onChange={(value) => onChange({ ...draft, residence: value as Residence })}
+      />
+    </div>
+  );
+}
+
+function SearchFields({
+  draft,
+  onChange
+}: {
+  draft: ResponseDraft;
+  onChange: (draft: ResponseDraft) => void;
+}) {
+  return (
+    <div className="search-grid">
+      <label>
+        Территория поиска
+        <input
+          placeholder="Снежинск, Челябинская область"
+          value={draft.researchTerritory ?? ""}
+          onChange={(event) => onChange({ ...draft, researchTerritory: event.target.value || undefined })}
+        />
+      </label>
+      <div className="period-pair">
+        <label>
+          Период с
+          <input
+            inputMode="numeric"
+            max={2100}
+            min={1500}
+            placeholder="1850"
+            type="number"
+            value={draft.researchPeriodStart ?? ""}
+            onChange={(event) =>
+              onChange({ ...draft, researchPeriodStart: parseOptionalNumber(event.target.value) })
+            }
+          />
+        </label>
+        <label>
+          по
+          <input
+            inputMode="numeric"
+            max={2100}
+            min={1500}
+            placeholder="1945"
+            type="number"
+            value={draft.researchPeriodEnd ?? ""}
+            onChange={(event) =>
+              onChange({ ...draft, researchPeriodEnd: parseOptionalNumber(event.target.value) })
+            }
+          />
+        </label>
+      </div>
+      <label className="full-field">
+        Свободный текст
+        <textarea
+          placeholder="Фамилии, населённые пункты, уточнения"
+          rows={4}
+          value={draft.freeText ?? ""}
+          onChange={(event) => onChange({ ...draft, freeText: event.target.value || undefined })}
+        />
+      </label>
+    </div>
+  );
+}
+
+function QuestionStack({
+  draft,
+  questionsToShow,
+  onChange
+}: {
+  draft: ResponseDraft;
+  questionsToShow: typeof questions;
+  onChange: (draft: ResponseDraft) => void;
+}) {
+  return (
+    <div className="question-stack">
+      {questionsToShow.map((question) => (
+        <div className="question-card" key={question.id}>
+          <div>
+            <span>{question.number}</span>
+            <p>{question.label}</p>
+          </div>
+          <SegmentedGroup
+            compact
+            label=""
+            options={[
+              { value: "yes", label: "Да" },
+              { value: "no", label: "Нет" },
+              { value: "unknown", label: "—" }
+            ]}
+            value={draft[question.id]}
+            onChange={(value) =>
+              onChange({
+                ...draft,
+                [question.id]: value as Answer,
+                ...(question.id === "q16" && value !== "yes"
+                  ? { contactName: undefined, contactPhone: undefined }
+                  : {})
+              })
+            }
+          />
+          {question.id === "q11" ? (
+            <label className="war-select">
+              Какая война
+              <select
+                value={draft.q11WarDetails ?? "—"}
+                onChange={(event) => onChange({ ...draft, q11WarDetails: event.target.value })}
+              >
+                {warOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {question.id === "q16" && draft.q16 === "yes" ? (
+            <div className="contact-grid">
+              <label>
+                Имя
+                <input
+                  autoComplete="name"
+                  required
+                  value={draft.contactName ?? ""}
+                  onChange={(event) => onChange({ ...draft, contactName: event.target.value || undefined })}
+                />
+              </label>
+              <label>
+                Номер телефона
+                <input
+                  autoComplete="tel"
+                  inputMode="tel"
+                  required
+                  type="tel"
+                  value={draft.contactPhone ?? ""}
+                  onChange={(event) => onChange({ ...draft, contactPhone: event.target.value || undefined })}
+                />
+              </label>
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SegmentedGroup({
+  compact,
+  label,
+  onChange,
+  options,
+  value
+}: {
+  compact?: boolean;
+  label: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+  value: string;
+}) {
+  return (
+    <fieldset className={compact ? "segmented compact" : "segmented"}>
+      {label ? <legend>{label}</legend> : null}
+      <div>
+        {options.map((option) => (
+          <button
+            className={value === option.value ? "is-selected" : ""}
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+function StepRail({
+  labels,
+  onChange,
+  step
+}: {
+  labels: string[];
+  onChange: (step: number) => void;
+  step: number;
+}) {
+  return (
+    <div className="step-rail">
+      {labels.map((label, index) => (
+        <button
+          className={index === step ? "is-active" : ""}
+          key={label}
+          type="button"
+          onClick={() => onChange(index)}
+        >
+          <span>{index + 1}</span>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Metric({
+  icon: Icon,
+  label,
+  value
+}: {
+  icon: typeof Database;
+  label: string;
+  value: number;
+}) {
+  return (
+    <article className="metric-card">
+      <Icon aria-hidden size={22} />
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </article>
+  );
+}
+
+function BarList({ data }: { data: Array<{ label: string; value: number }> }) {
+  const max = Math.max(1, ...data.map((item) => item.value));
+
+  return (
+    <div className="bar-list">
+      {data.map((item) => (
+        <div className="bar-row" key={item.label}>
+          <span>{item.label}</span>
+          <div>
+            <i style={{ width: `${(item.value / max) * 100}%` }} />
+          </div>
+          <b>{item.value}</b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ResponseRows({
+  onDelete,
+  onEdit,
+  responses
+}: {
+  onDelete: (id: string) => void;
+  onEdit: (id: string) => void;
+  responses: SurveyResponse[];
+}) {
+  if (responses.length === 0) {
+    return <p className="empty-state">Анкет по текущим условиям нет.</p>;
+  }
+
+  return (
+    <div className="row-list">
+      {responses.map((response) => (
+        <article className="response-row" key={response.id}>
+          <div>
+            <span className={`source-pill source-${response.source}`}>{sourceLabels[response.source]}</span>
+            <strong>{response.surveyDate}</strong>
+            <p>
+              {genderLabels[response.gender]} · {ageLabels[response.ageGroup]} ·{" "}
+              {residenceLabels[response.residence]}
+            </p>
+          </div>
+          <div className="row-meta">
+            <span>Q16: {answerLabels[response.q16]}</span>
+            {response.contactPhone ? <a href={`tel:${normalizePhone(response.contactPhone)}`}>{response.contactPhone}</a> : null}
+            {response.researchTerritory ? <span>{response.researchTerritory}</span> : null}
+          </div>
+          <div className="row-actions">
+            <button type="button" onClick={() => onEdit(response.id)}>
+              <PenLine aria-hidden size={17} />
+              Изменить
+            </button>
+            <button type="button" onClick={() => onDelete(response.id)}>
+              <Trash2 aria-hidden size={17} />
+              Удалить
+            </button>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function PdfMiniList({ files }: { files: PdfRecord[] }) {
+  if (files.length === 0) {
+    return <p className="empty-state">PDF за выбранный период не добавлены.</p>;
+  }
+
+  return (
+    <div className="mini-list">
+      {files.slice(0, 5).map((file) => (
+        <a href={file.dataUrl} download={file.fileName} key={file.id}>
+          <FileText aria-hidden size={18} />
+          <span>{file.title}</span>
+          <b>{file.surveyDate}</b>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function PdfRows({ files, onDelete }: { files: PdfRecord[]; onDelete: (id: string) => void }) {
+  if (files.length === 0) {
+    return <p className="empty-state">Файлы ещё не добавлены.</p>;
+  }
+
+  return (
+    <div className="row-list">
+      {files.map((file) => (
+        <article className="pdf-row" key={file.id}>
+          <FileText aria-hidden size={24} />
+          <div>
+            <strong>{file.title}</strong>
+            <p>
+              {file.surveyDate} · {formatFileSize(file.sizeBytes)}
+            </p>
+          </div>
+          <div className="row-actions">
+            <a href={file.dataUrl} download={file.fileName}>
+              <Download aria-hidden size={17} />
+              Скачать
+            </a>
+            <button type="button" onClick={() => onDelete(file.id)}>
+              <Trash2 aria-hidden size={17} />
+              Удалить
+            </button>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function usePersistentState<T>(key: string, initialValue: T) {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const raw = window.localStorage.getItem(key);
+      return raw ? (JSON.parse(raw) as T) : initialValue;
+    } catch {
+      return initialValue;
+    }
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  }, [key, value]);
+
+  return [value, setValue] as const;
+}
+
+function createEmptyDraft(source: ResponseSource): ResponseDraft {
+  return {
+    surveyDate: todayString(),
+    source,
+    gender: "female",
+    ageGroup: "over_40",
+    residence: "snezhinsk",
+    q4: "unknown",
+    q5: "unknown",
+    q6: "unknown",
+    q7: "unknown",
+    q8: "unknown",
+    q9: "unknown",
+    q10: "unknown",
+    q11: "unknown",
+    q11WarDetails: "—",
+    q12: "unknown",
+    q13: "unknown",
+    q14: "unknown",
+    q15: "unknown",
+    q16: "unknown"
+  };
+}
+
+function responseToDraft(response: SurveyResponse): ResponseDraft {
+  return {
+    ageGroup: response.ageGroup,
+    contactName: response.contactName,
+    contactPhone: response.contactPhone,
+    freeText: response.freeText,
+    gender: response.gender,
+    q4: response.q4,
+    q5: response.q5,
+    q6: response.q6,
+    q7: response.q7,
+    q8: response.q8,
+    q9: response.q9,
+    q10: response.q10,
+    q11: response.q11,
+    q11WarDetails: response.q11WarDetails,
+    q12: response.q12,
+    q13: response.q13,
+    q14: response.q14,
+    q15: response.q15,
+    q16: response.q16,
+    researchPeriodEnd: response.researchPeriodEnd,
+    researchPeriodStart: response.researchPeriodStart,
+    researchTerritory: response.researchTerritory,
+    residence: response.residence,
+    source: response.source,
+    surveyDate: response.surveyDate
+  };
+}
+
+function normalizeDraft(draft: ResponseDraft): ResponseDraft {
+  return {
+    ...draft,
+    contactName: draft.q16 === "yes" ? cleanOptional(draft.contactName) : undefined,
+    contactPhone: draft.q16 === "yes" ? cleanOptional(draft.contactPhone) : undefined,
+    freeText: cleanOptional(draft.freeText),
+    q11WarDetails: cleanOptional(draft.q11WarDetails) ?? "—",
+    researchTerritory: cleanOptional(draft.researchTerritory)
+  };
+}
+
+function matchesFilters(response: SurveyResponse, filters: Filters): boolean {
+  if (!isDateInRange(response.surveyDate, filters.dateFrom, filters.dateTo)) {
+    return false;
+  }
+
+  if (filters.source !== "all" && response.source !== filters.source) {
+    return false;
+  }
+
+  if (filters.helpOnly && response.q16 !== "yes") {
+    return false;
+  }
+
+  const query = filters.query.trim().toLowerCase();
+  if (!query) {
+    return true;
+  }
+
+  return [
+    response.researchTerritory,
+    response.freeText,
+    response.contactName,
+    response.contactPhone,
+    response.q11WarDetails
+  ]
+    .filter(Boolean)
+    .some((value) => value!.toLowerCase().includes(query));
+}
+
+function buildSummary(responses: SurveyResponse[]) {
+  return {
+    help: responses.filter((response) => response.q16 === "yes").length,
+    online: responses.filter((response) => response.source === "online").length,
+    paper: responses.filter((response) => response.source === "paper").length,
+    ageBars: (Object.keys(ageLabels) as AgeGroup[]).map((ageGroup) => ({
+      label: ageLabels[ageGroup],
+      value: responses.filter((response) => response.ageGroup === ageGroup).length
+    }))
+  };
+}
+
+function downloadCsv(responses: SurveyResponse[]) {
+  const headers = [
+    "Дата",
+    "Источник",
+    "Пол",
+    "Возраст",
+    "Проживание",
+    "Территория",
+    "Период",
+    "Свободный текст",
+    "Нужна помощь",
+    "Имя",
+    "Телефон"
+  ];
+  const rows = responses.map((response) => [
+    response.surveyDate,
+    sourceLabels[response.source],
+    genderLabels[response.gender],
+    ageLabels[response.ageGroup],
+    residenceLabels[response.residence],
+    response.researchTerritory ?? "",
+    formatResearchPeriod(response),
+    response.freeText ?? "",
+    answerLabels[response.q16],
+    response.contactName ?? "",
+    response.contactPhone ?? ""
+  ]);
+  const csv = `\uFEFF${[headers, ...rows].map((row) => row.map(escapeCsv).join(";")).join("\r\n")}\r\n`;
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "rodoved-test.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => resolve(String(reader.result));
+    reader.readAsDataURL(file);
+  });
+}
+
+function comparePdfRecords(left: PdfRecord, right: PdfRecord): number {
+  return right.surveyDate.localeCompare(left.surveyDate) || right.createdAt.localeCompare(left.createdAt);
+}
+
+function routeFromPath(pathname: string): RouteId {
+  if (pathname.startsWith("/entry")) {
+    return "entry";
+  }
+  if (pathname.startsWith("/data")) {
+    return "data";
+  }
+  if (pathname.startsWith("/pdf")) {
+    return "pdf";
+  }
+  return "survey";
+}
+
+function routeToPath(route: RouteId): string {
+  return route === "survey" ? "/" : `/${route}`;
+}
+
+function todayString(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function parseOptionalNumber(value: string): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function cleanOptional(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed || undefined;
+}
+
+function isDateInRange(date: string, dateFrom: string, dateTo: string): boolean {
+  return (!dateFrom || date >= dateFrom) && (!dateTo || date <= dateTo);
+}
+
+function formatResearchPeriod(response: Pick<SurveyResponse, "researchPeriodEnd" | "researchPeriodStart">) {
+  if (response.researchPeriodStart && response.researchPeriodEnd) {
+    return `${response.researchPeriodStart}-${response.researchPeriodEnd}`;
+  }
+
+  return String(response.researchPeriodStart ?? response.researchPeriodEnd ?? "");
+}
+
+function normalizePhone(value: string): string {
+  return value.replace(/[^\d+]/g, "");
+}
+
+function formatFileSize(size: number): string {
+  if (size < 1024 * 1024) {
+    return `${Math.max(1, Math.round(size / 1024))} КБ`;
+  }
+
+  return `${(size / 1024 / 1024).toFixed(1)} МБ`;
+}
+
+function escapeCsv(value: string): string {
+  const normalized = value.replace(/\r?\n/g, " ");
+  return /[;"\n\r]/.test(normalized) ? `"${normalized.replace(/"/g, '""')}"` : normalized;
 }
