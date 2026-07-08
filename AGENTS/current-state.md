@@ -50,6 +50,8 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - `test.snz-rodoved.ru` is a separate experimental Rodoved product for checking new organization of online surveys, manual entry, data work, PDF archive, mobile workflow, and safe contact/scan handling.
 - Test-domain UI code lives under `apps/web/src/experiment`.
 - `test.snz-rodoved.ru` resolves to `46.16.36.87`, has a separate nginx config `snz-rodoved-test.conf`, and has Let's Encrypt HTTPS enabled. HTTP redirects to HTTPS. Test runtime uses `COOKIE_SECURE=true`.
+- Test-domain public navigation hides operator sections until workspace login. After login the operator sees survey, entry, data, and PDF sections.
+- Test-domain data screen includes a protected `Обращения` queue for q16 help requests, including contact phone links when a phone is available.
 - Domain `snz-rodoved.ru` has an nginx reverse proxy and Let's Encrypt HTTPS certificate on the server. Some local resolvers may still cache the previous parking IP, but authoritative/public DNS points to `46.16.36.87`.
 - API static serving must not rely only on `process.cwd()/apps/web/dist`: production starts through `npm -w @snz-rodoved/api`, so the runtime cwd is `apps/api`. `apps/api/src/app.ts` resolves the frontend dist from `INIT_CWD`, root cwd, or `../web/dist`.
 

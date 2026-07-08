@@ -3,7 +3,9 @@ import {
   Database,
   Download,
   FileText,
+  LockKeyhole,
   PenLine,
+  Phone,
   Plus,
   Save,
   Search,
@@ -163,6 +165,7 @@ const routeTitles: Record<RouteId, string> = {
   data: "Данные",
   pdf: "PDF"
 };
+const workspaceRoutes: RouteId[] = ["entry", "data", "pdf"];
 const surveyDraftStorageKey = "rodoved-test-online-draft-v1";
 
 export function ExperimentApp() {
@@ -261,6 +264,7 @@ export function ExperimentApp() {
 
   const editingResponse = responses.find((response) => response.id === editingId) ?? null;
   const workspaceReady = Boolean(session?.authenticated);
+  const visibleRoutes = workspaceReady ? (["survey", ...workspaceRoutes] as RouteId[]) : (["survey"] as RouteId[]);
 
   return (
     <main className="lab-shell">
@@ -268,9 +272,13 @@ export function ExperimentApp() {
         <button className="brand-mark" type="button" onClick={() => navigate("survey")}>
           Родовед
         </button>
-        <nav aria-label="Основные разделы">
-          {(["survey", "entry", "data", "pdf"] as RouteId[]).map((item) => (
+        <nav
+          aria-label={workspaceReady ? "Рабочие разделы" : "Основные разделы"}
+          className={workspaceReady ? "workspace-nav" : "public-nav"}
+        >
+          {visibleRoutes.map((item) => (
             <button
+              aria-current={route === item ? "page" : undefined}
               className={route === item ? "is-active" : ""}
               key={item}
               type="button"
@@ -279,6 +287,17 @@ export function ExperimentApp() {
               {routeTitles[item]}
             </button>
           ))}
+          {!workspaceReady ? (
+            <button
+              aria-current={route !== "survey" ? "page" : undefined}
+              className={route !== "survey" ? "is-active" : ""}
+              type="button"
+              onClick={() => navigate("entry")}
+            >
+              <LockKeyhole aria-hidden size={16} />
+              Вход
+            </button>
+          ) : null}
         </nav>
       </header>
 
@@ -612,6 +631,10 @@ function DataPage({
     () => pdfFiles.filter((file) => isDateInRange(file.surveyDate, filters.dateFrom, filters.dateTo)),
     [pdfFiles, filters.dateFrom, filters.dateTo]
   );
+  const helpRequests = useMemo(
+    () => filteredResponses.filter((response) => response.q16 === "yes"),
+    [filteredResponses]
+  );
   const summary = buildSummary(filteredResponses);
   const selectedResponse = filteredResponses.find((response) => response.id === selectedId) ?? null;
 
@@ -802,6 +825,14 @@ function DataPage({
         <Metric icon={PenLine} label="Бумага" value={summary.paper} />
         <Metric icon={Search} label="Нужна помощь" value={summary.help} />
         <Metric icon={Database} label="Демо" value={summary.fake} />
+      </section>
+
+      <section className="task-panel help-queue-panel">
+        <div className="section-title-row">
+          <h2>Обращения</h2>
+          <span>{helpRequests.length}</span>
+        </div>
+        <HelpQueue responses={helpRequests} selectedId={selectedId} onOpen={openResponse} />
       </section>
 
       <section className="data-layout">
@@ -1301,6 +1332,58 @@ function QuestionBreakdown({
           </article>
         );
       })}
+    </div>
+  );
+}
+
+function HelpQueue({
+  onOpen,
+  responses,
+  selectedId
+}: {
+  onOpen: (response: SurveyResponse) => void;
+  responses: SurveyResponse[];
+  selectedId: string | null;
+}) {
+  if (responses.length === 0) {
+    return <p className="empty-state">Обращений в текущем срезе нет.</p>;
+  }
+
+  return (
+    <div className="help-queue">
+      {responses.map((response) => (
+        <article
+          className={["help-card", selectedId === response.id ? "is-selected" : ""]
+            .filter(Boolean)
+            .join(" ")}
+          key={response.id}
+        >
+          <div>
+            <span className={`source-pill source-${response.source}`}>{sourceLabels[response.source]}</span>
+            {response.isFake ? <span className="demo-badge">демо</span> : null}
+            <strong>{response.contactName?.trim() || "Без имени"}</strong>
+            <p>
+              {response.surveyDate} · {ageLabels[response.ageGroup]} · {residenceLabels[response.residence]}
+            </p>
+            {response.researchTerritory ? <small>{response.researchTerritory}</small> : null}
+            {response.freeText ? <small>{response.freeText}</small> : null}
+          </div>
+          <div className="help-actions">
+            {response.contactPhone ? (
+              <a href={`tel:${normalizePhone(response.contactPhone)}`}>
+                <Phone aria-hidden size={17} />
+                {response.contactPhone}
+              </a>
+            ) : (
+              <span>Нет телефона</span>
+            )}
+            <button type="button" onClick={() => onOpen(response)}>
+              <ClipboardList aria-hidden size={17} />
+              Открыть
+            </button>
+          </div>
+        </article>
+      ))}
     </div>
   );
 }

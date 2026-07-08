@@ -23,8 +23,9 @@ The test domain has its own interface and UX decisions.
 Current flows use the isolated test backend and test SQLite/PDF storage:
 
 - public online survey submit with browser-local draft restore until successful submit;
-- password-gated operator entry;
-- data filters, summary, row list, row inspector, inline editing/deletion, demo-row generation, fake-only deletion, CSV export;
+- public navigation shows only the online survey and a workspace login until the operator signs in;
+- password-gated operator entry, data, and PDF archive;
+- data filters, summary, q16 help/contact queue, row list, row inspector, inline editing/deletion, demo-row generation, fake-only deletion, CSV export;
 - collapsible yes/no/unknown question breakdown with group focus;
 - PDF upload/list/download/deletion with duplicate-name warning.
 

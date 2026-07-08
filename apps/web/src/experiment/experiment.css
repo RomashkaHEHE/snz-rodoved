@@ -82,11 +82,15 @@ a {
 }
 
 .lab-topbar nav button {
+  align-items: center;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 4px;
   color: var(--muted);
+  display: inline-flex;
   font-weight: 800;
+  gap: 0.35rem;
+  justify-content: center;
   min-height: 40px;
   padding: 0.45rem 0.75rem;
 }
@@ -415,6 +419,8 @@ textarea {
 
 .primary-button,
 .ghost-button,
+.help-actions a,
+.help-actions button,
 .row-actions a,
 .row-actions button,
 .file-drop {
@@ -488,7 +494,8 @@ textarea {
 }
 
 .summary-grid,
-.data-layout {
+.data-layout,
+.help-queue {
   display: grid;
   gap: 1rem;
 }
@@ -629,6 +636,64 @@ textarea {
 
 .bar-unknown {
   background: #d9cbbf;
+}
+
+.help-queue {
+  margin-top: 1rem;
+}
+
+.help-card {
+  align-items: start;
+  background: #fffaf6;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0.9rem;
+}
+
+.help-card.is-selected {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.help-card strong {
+  display: block;
+  font-size: 1.15rem;
+  margin-top: 0.35rem;
+}
+
+.help-card p {
+  color: var(--muted);
+  margin: 0.25rem 0 0;
+}
+
+.help-card small {
+  color: #4f4548;
+  display: block;
+  font-weight: 700;
+  margin-top: 0.35rem;
+  overflow-wrap: anywhere;
+}
+
+.help-actions {
+  align-items: end;
+  display: grid;
+  gap: 0.45rem;
+  justify-items: end;
+}
+
+.help-actions a,
+.help-actions button {
+  background: #eee5dc;
+  border: 1px solid #d6c8bb;
+  color: var(--text);
+}
+
+.help-actions span {
+  color: var(--muted);
+  font-weight: 900;
 }
 
 .row-list,
@@ -911,7 +976,8 @@ textarea {
     .basic-grid,
     .search-grid,
     .compact-grid,
-    .question-breakdown-row {
+    .question-breakdown-row,
+    .help-card {
     grid-template-columns: 1fr;
   }
 
@@ -926,6 +992,11 @@ textarea {
 
   .row-actions {
     justify-content: flex-start;
+  }
+
+  .help-actions {
+    align-items: stretch;
+    justify-items: stretch;
   }
 }
 
@@ -945,12 +1016,19 @@ textarea {
     border-top: 1px solid var(--line);
     bottom: 0;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
     left: 0;
     padding: 0.45rem 0.5rem calc(0.45rem + env(safe-area-inset-bottom));
     position: fixed;
     right: 0;
     z-index: 30;
+  }
+
+  .lab-topbar nav.public-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lab-topbar nav.workspace-nav {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .lab-topbar nav button {
