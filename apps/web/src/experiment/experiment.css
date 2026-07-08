@@ -628,6 +628,77 @@ textarea {
   gap: 1.25rem;
 }
 
+.entry-toolbar {
+  align-items: center;
+  background: #fffaf6;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  justify-content: space-between;
+  padding: 0.75rem;
+  position: sticky;
+  top: 4.75rem;
+  z-index: 12;
+}
+
+.entry-answer-counts,
+.entry-jump-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.entry-answer-counts span {
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  color: var(--muted);
+  font-weight: 900;
+  padding: 0.35rem 0.55rem;
+}
+
+.entry-answer-counts b {
+  color: var(--text);
+}
+
+.entry-jump-row button {
+  background: #eee5dc;
+  border: 1px solid #d6c8bb;
+  border-radius: 4px;
+  color: var(--text);
+  font-weight: 900;
+  min-height: 38px;
+  padding: 0.4rem 0.65rem;
+}
+
+.entry-section {
+  display: grid;
+  gap: 0.75rem;
+  scroll-margin-top: 6.25rem;
+}
+
+.entry-section-title {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+}
+
+.entry-section-title span {
+  background: var(--accent-soft);
+  border-radius: 3px;
+  color: var(--accent);
+  font-weight: 900;
+  padding: 0.25rem 0.5rem;
+}
+
+.entry-section-title h2 {
+  font-size: 1.15rem;
+  margin: 0;
+}
+
 .sticky-actions {
   background: rgba(255, 253, 249, 0.96);
   border-top: 1px solid var(--line);
@@ -1300,6 +1371,25 @@ textarea {
   .segmented.compact button {
     padding-left: 0.4rem;
     padding-right: 0.4rem;
+  }
+
+  .entry-toolbar {
+    align-items: stretch;
+    top: 0.5rem;
+  }
+
+  .entry-answer-counts,
+  .entry-jump-row {
+    width: 100%;
+  }
+
+  .entry-answer-counts span,
+  .entry-jump-row button {
+    flex: 1 1 auto;
+  }
+
+  .entry-section {
+    scroll-margin-top: 1rem;
   }
 
   .contact-grid,

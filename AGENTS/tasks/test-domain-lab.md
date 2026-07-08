@@ -34,6 +34,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - public online survey submits to the server after the review step, shows a completion screen, and stores a browser-local draft until successful submit;
   - public navigation shows only the online survey and workspace login until the operator signs in;
   - operator entry, data, and PDF archive are behind workspace password login;
+  - operator entry remains one continuous form, with section navigation, answer counts, and grouped paper-form sections for phone work;
   - data filters include date range, source, gender, age group, residence, help-only, contact-only, contact workflow status, and free text search;
   - data summary, demographic/source bars, row inspector, inline row editing/deletion, demo-row generation, fake-only deletion, and CSV export use server rows;
   - the protected data screen has a contact/help queue for rows where q16 is `yes`, with persisted status and operator notes;
@@ -75,6 +76,9 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - a response can be created;
   - workspace PATCH can save `contactStatus` and `contactNote`;
   - the built UI bundle contains contact workflow controls and labels.
+- HTTP/asset smoke for operator entry confirmed:
+  - the built JS contains `Навигация по анкете`, `Сводка ответов`, `Данные анкеты`, and `Быстрый ввод`;
+  - the built CSS contains `entry-toolbar`, `entry-jump-row`, and `entry-section-title`.
 - Local browser smoke:
   - unauthenticated public nav on `/` shows only `Опрос` and `Вход`;
   - after workspace login, nav shows `Опрос`, `Ввод`, `Данные`, `PDF`;

@@ -738,11 +738,19 @@ function EntryPage({
     editingResponse ? responseToDraft(editingResponse) : createEmptyDraft("paper")
   );
   const [status, setStatus] = useState("");
+  const answerCounts = countDraftAnswers(draft);
+  const experienceQuestions = questions.filter((question) => question.group === "experience");
+  const interestQuestions = questions.filter((question) => question.group === "interest");
+  const helpQuestions = questions.filter((question) => question.group === "help");
 
   useEffect(() => {
     setDraft(editingResponse ? responseToDraft(editingResponse) : createEmptyDraft("paper"));
     setStatus("");
   }, [editingResponse]);
+
+  function jumpToEntrySection(sectionId: string) {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -770,8 +778,60 @@ function EntryPage({
       </div>
 
       <form className="task-panel entry-panel" onSubmit={handleSubmit}>
-        <BasicFields draft={draft} mode="entry" onChange={setDraft} />
-        <QuestionStack draft={draft} questionsToShow={questions} onChange={setDraft} />
+        <div className="entry-toolbar" aria-label="Навигация по анкете">
+          <div className="entry-answer-counts" aria-label="Сводка ответов">
+            <span>Да <b>{answerCounts.yes}</b></span>
+            <span>Нет <b>{answerCounts.no}</b></span>
+            <span>— <b>{answerCounts.unknown}</b></span>
+          </div>
+          <div className="entry-jump-row">
+            <button type="button" onClick={() => jumpToEntrySection("entry-basic")}>
+              1-3
+            </button>
+            <button type="button" onClick={() => jumpToEntrySection("entry-experience")}>
+              Опыт
+            </button>
+            <button type="button" onClick={() => jumpToEntrySection("entry-interest")}>
+              Интересы
+            </button>
+            <button type="button" onClick={() => jumpToEntrySection("entry-help")}>
+              Помощь
+            </button>
+          </div>
+        </div>
+
+        <section className="entry-section" id="entry-basic">
+          <div className="entry-section-title">
+            <span>1-3</span>
+            <h2>Данные анкеты</h2>
+          </div>
+          <BasicFields draft={draft} mode="entry" onChange={setDraft} />
+        </section>
+
+        <section className="entry-section" id="entry-experience">
+          <div className="entry-section-title">
+            <span>4-6</span>
+            <h2>Опыт</h2>
+          </div>
+          <QuestionStack draft={draft} questionsToShow={experienceQuestions} onChange={setDraft} />
+        </section>
+
+        <section className="entry-section" id="entry-interest">
+          <div className="entry-section-title">
+            <span>7-15</span>
+            <h2>Интересы</h2>
+          </div>
+          <QuestionStack draft={draft} questionsToShow={interestQuestions} onChange={setDraft} />
+        </section>
+
+        <section className="entry-section" id="entry-help">
+          <div className="entry-section-title">
+            <span>16</span>
+            <h2>Помощь</h2>
+          </div>
+          <QuestionStack draft={draft} questionsToShow={helpQuestions} onChange={setDraft} />
+        </section>
+
         <div className="form-actions sticky-actions">
           {status ? <p className="form-status">{status}</p> : null}
           <button className="primary-button wide-button" type="submit">
@@ -2332,6 +2392,16 @@ function buildSummary(responses: SurveyResponse[]) {
 
 function hasContact(response: Pick<SurveyResponse, "contactName" | "contactPhone">): boolean {
   return Boolean(response.contactName?.trim() || response.contactPhone?.trim());
+}
+
+function countDraftAnswers(draft: AnswerFields): Record<Answer, number> {
+  return questions.reduce<Record<Answer, number>>(
+    (counts, question) => {
+      counts[draft[question.id]] += 1;
+      return counts;
+    },
+    { no: 0, unknown: 0, yes: 0 }
+  );
 }
 
 function formatYesAnswers(response: SurveyResponse): string {
