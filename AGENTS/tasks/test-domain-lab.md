@@ -29,23 +29,24 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - `apps/web/src/App.tsx` renders the experimental product app.
 - Experimental UI lives under `apps/web/src/experiment`.
 - The visible test site opens as a product UI with working task screens.
-- Current flows are browser-local prototypes:
-  - online survey;
-  - operator entry;
-  - data filters, summary, rows, and CSV export;
-  - PDF upload/list/download stored in browser storage.
+- Current flows use the isolated test backend:
+  - public online survey submits to the server;
+  - operator entry is behind workspace password login;
+  - data filters, summary, rows, editing/deletion, demo-row generation, fake-only deletion, and CSV export use server rows;
+  - PDF upload/list/download/deletion use server PDF storage.
 
 ## Product Direction
 
 - Keep the first screen useful as a product surface.
 - Avoid visible meta-copy explaining that this is an experiment.
 - Prefer mobile-first controls and dense-but-readable work screens.
-- Treat accepted ideas as product decisions to later implement robustly with backend persistence.
+- Keep contact data and scanned questionnaires behind the workspace flow.
+- Keep fake/demo rows visibly marked and removable only through fake-only API deletion.
 
 ## Next Product Steps
 
-1. Replace browser-local storage with isolated server persistence for the test domain.
-2. Improve the online survey flow after mobile browser review.
-3. Add row editing directly inside the data workspace.
-4. Add real PDF upload to the isolated test backend.
-5. Add more useful visualizations only after the row/PDF workflow feels good.
+1. Improve the online survey flow after mobile browser review.
+2. Add row editing directly inside the data workspace.
+3. Improve PDF upload naming and duplicate handling.
+4. Add more useful visualizations only after the row/PDF workflow feels good.
+5. Explore a better contact-follow-up workflow for q16.

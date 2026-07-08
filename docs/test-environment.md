@@ -20,12 +20,12 @@ The test domain has its own interface and UX decisions.
 - Product UI: `apps/web/src/experiment/ExperimentApp.tsx`
 - Product CSS: `apps/web/src/experiment/experiment.css`
 
-Current flows use browser storage for fast product iteration:
+Current flows use the isolated test backend and test SQLite/PDF storage:
 
-- online survey;
-- operator entry;
-- data filters, summary, row list, CSV export;
-- PDF upload/list/download.
+- public online survey submit;
+- password-gated operator entry;
+- data filters, summary, row list, editing/deletion, demo-row generation, fake-only deletion, CSV export;
+- PDF upload/list/download/deletion.
 
 ## Targets
 

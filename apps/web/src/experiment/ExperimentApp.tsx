@@ -11,6 +11,22 @@ import {
   Upload
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  createLabFakeResponse,
+  createLabOnlineResponse,
+  createLabResponse,
+  deleteLabFakeResponses,
+  deleteLabPdfFile,
+  deleteLabResponse,
+  getLabPdfDownloadUrl,
+  getLabSession,
+  listLabPdfFiles,
+  listLabResponses,
+  loginLabWorkspace,
+  uploadLabPdfFile,
+  updateLabResponse,
+  type LabSession
+} from "./labApi";
 import "./experiment.css";
 
 type RouteId = "survey" | "entry" | "data" | "pdf";
@@ -50,20 +66,21 @@ interface SurveyResponse extends AnswerFields {
   freeText?: string;
   contactName?: string;
   contactPhone?: string;
+  isFake: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-type ResponseDraft = Omit<SurveyResponse, "id" | "createdAt" | "updatedAt">;
+type ResponseDraft = Omit<SurveyResponse, "id" | "createdAt" | "updatedAt" | "isFake">;
 
 interface PdfRecord {
   id: string;
   surveyDate: string;
-  title: string;
-  fileName: string;
-  dataUrl: string;
+  displayName: string;
+  originalFileName: string;
   sizeBytes: number;
   createdAt: string;
+  updatedAt?: string;
 }
 
 interface Filters {
@@ -73,9 +90,6 @@ interface Filters {
   helpOnly: boolean;
   query: string;
 }
-
-const responseStorageKey = "rodoved-test-lab-responses-v2";
-const pdfStorageKey = "rodoved-test-lab-pdfs-v1";
 
 const answerLabels: Record<Answer, string> = {
   yes: "Да",
@@ -150,9 +164,11 @@ const routeTitles: Record<RouteId, string> = {
 
 export function ExperimentApp() {
   const [route, setRoute] = useState<RouteId>(() => routeFromPath(window.location.pathname));
-  const [responses, setResponses] = usePersistentState<SurveyResponse[]>(responseStorageKey, []);
-  const [pdfFiles, setPdfFiles] = usePersistentState<PdfRecord[]>(pdfStorageKey, []);
+  const [session, setSession] = useState<LabSession | null>(null);
+  const [responses, setResponses] = useState<SurveyResponse[]>([]);
+  const [pdfFiles, setPdfFiles] = useState<PdfRecord[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [workspaceStatus, setWorkspaceStatus] = useState("");
 
   useEffect(() => {
     function handlePopState() {
@@ -163,6 +179,17 @@ export function ExperimentApp() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
+  useEffect(() => {
+    getLabSession()
+      .then((nextSession) => {
+        setSession(nextSession);
+        if (nextSession.authenticated) {
+          void refreshWorkspaceData();
+        }
+      })
+      .catch(() => setSession({ authenticated: false, role: null }));
+  }, []);
+
   function navigate(nextRoute: RouteId) {
     const path = routeToPath(nextRoute);
     if (window.location.pathname !== path) {
@@ -171,30 +198,47 @@ export function ExperimentApp() {
     setRoute(nextRoute);
   }
 
-  function saveDraft(draft: ResponseDraft, id?: string) {
-    const now = new Date().toISOString();
-    setResponses((current) => {
-      if (!id) {
-        return [
-          {
-            ...normalizeDraft(draft),
-            id: crypto.randomUUID(),
-            createdAt: now,
-            updatedAt: now
-          },
-          ...current
-        ];
-      }
+  async function refreshWorkspaceData() {
+    const [nextResponses, nextPdfFiles] = await Promise.all([listLabResponses(), listLabPdfFiles()]);
+    setResponses(nextResponses as SurveyResponse[]);
+    setPdfFiles(nextPdfFiles as PdfRecord[]);
+  }
 
-      return current.map((response) =>
-        response.id === id ? { ...response, ...normalizeDraft(draft), updatedAt: now } : response
-      );
-    });
+  async function handleWorkspaceLogin(password: string) {
+    const nextSession = await loginLabWorkspace(password);
+    setSession(nextSession);
+    await refreshWorkspaceData();
+  }
+
+  async function saveDraft(draft: ResponseDraft, id?: string) {
+    if (draft.source === "online") {
+      await createLabOnlineResponse(normalizeDraft(draft));
+    } else if (id) {
+      await updateLabResponse(id, normalizeDraft(draft));
+    } else {
+      await createLabResponse(normalizeDraft(draft));
+    }
+
+    if (session?.authenticated) {
+      await refreshWorkspaceData();
+    }
     setEditingId(null);
   }
 
-  function deleteResponse(id: string) {
-    setResponses((current) => current.filter((response) => response.id !== id));
+  async function removeResponse(id: string) {
+    await deleteLabResponse(id);
+    await refreshWorkspaceData();
+  }
+
+  async function addFakeResponse() {
+    await createLabFakeResponse();
+    await refreshWorkspaceData();
+  }
+
+  async function removeFakeResponses() {
+    const deleted = await deleteLabFakeResponses();
+    await refreshWorkspaceData();
+    return deleted;
   }
 
   function editResponse(id: string) {
@@ -202,15 +246,18 @@ export function ExperimentApp() {
     navigate("entry");
   }
 
-  function addPdf(record: PdfRecord) {
-    setPdfFiles((current) => [record, ...current].sort(comparePdfRecords));
+  async function addPdf(displayName: string, file: File) {
+    await uploadLabPdfFile({ displayName, file });
+    await refreshWorkspaceData();
   }
 
-  function deletePdf(id: string) {
-    setPdfFiles((current) => current.filter((file) => file.id !== id));
+  async function removePdf(id: string) {
+    await deleteLabPdfFile(id);
+    await refreshWorkspaceData();
   }
 
   const editingResponse = responses.find((response) => response.id === editingId) ?? null;
+  const workspaceReady = Boolean(session?.authenticated);
 
   return (
     <main className="lab-shell">
@@ -233,32 +280,96 @@ export function ExperimentApp() {
       </header>
 
       {route === "survey" ? <SurveyPage onSave={(draft) => saveDraft(draft)} /> : null}
-      {route === "entry" ? (
+      {route !== "survey" && !workspaceReady ? (
+        <WorkspaceGate
+          status={workspaceStatus}
+          onLogin={async (password) => {
+            setWorkspaceStatus("");
+            try {
+              await handleWorkspaceLogin(password);
+            } catch {
+              setWorkspaceStatus("Пароль не подошёл.");
+            }
+          }}
+        />
+      ) : null}
+      {route === "entry" && workspaceReady ? (
         <EntryPage
           editingResponse={editingResponse}
           onCancelEdit={() => setEditingId(null)}
           onSave={saveDraft}
         />
       ) : null}
-      {route === "data" ? (
+      {route === "data" && workspaceReady ? (
         <DataPage
           pdfFiles={pdfFiles}
           responses={responses}
-          onDelete={deleteResponse}
+          onCreateFake={addFakeResponse}
+          onDelete={removeResponse}
+          onDeleteFake={removeFakeResponses}
           onEdit={editResponse}
         />
       ) : null}
-      {route === "pdf" ? (
-        <PdfPage files={pdfFiles} onAdd={addPdf} onDelete={deletePdf} />
+      {route === "pdf" && workspaceReady ? (
+        <PdfPage files={pdfFiles} onAdd={addPdf} onDelete={removePdf} />
       ) : null}
     </main>
   );
 }
 
-function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => void }) {
+function WorkspaceGate({
+  onLogin,
+  status
+}: {
+  onLogin: (password: string) => Promise<void>;
+  status: string;
+}) {
+  const [password, setPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await onLogin(password);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="task-page gate-task">
+      <form className="task-panel gate-panel" onSubmit={handleSubmit}>
+        <div>
+          <p className="eyebrow">Доступ</p>
+          <h1>Рабочая зона</h1>
+        </div>
+        <label>
+          Пароль
+          <input
+            autoComplete="current-password"
+            required
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </label>
+        <div className="form-actions">
+          {status ? <p className="form-status error-status">{status}</p> : null}
+          <button className="primary-button" disabled={saving} type="submit">
+            Войти
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void> }) {
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<ResponseDraft>(() => createEmptyDraft("online"));
   const [status, setStatus] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const sections = [
     {
@@ -302,17 +413,24 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => void }) {
     }
   ];
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (draft.q16 === "yes" && (!draft.contactName?.trim() || !draft.contactPhone?.trim())) {
       setStatus("Укажите имя и телефон, чтобы можно было связаться по запросу.");
       return;
     }
 
-    onSave(draft);
-    setDraft(createEmptyDraft("online"));
-    setStep(0);
-    setStatus("Анкета сохранена.");
+    setSaving(true);
+    try {
+      await onSave(draft);
+      setDraft(createEmptyDraft("online"));
+      setStep(0);
+      setStatus("Анкета сохранена.");
+    } catch {
+      setStatus("Не удалось сохранить анкету.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -352,9 +470,9 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => void }) {
               Далее
             </button>
           ) : (
-            <button className="primary-button" type="submit">
+            <button className="primary-button" disabled={saving} type="submit">
               <Save aria-hidden size={18} />
-              Сохранить
+              {saving ? "Сохранение..." : "Сохранить"}
             </button>
           )}
         </div>
@@ -370,7 +488,7 @@ function EntryPage({
 }: {
   editingResponse: SurveyResponse | null;
   onCancelEdit: () => void;
-  onSave: (draft: ResponseDraft, id?: string) => void;
+  onSave: (draft: ResponseDraft, id?: string) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<ResponseDraft>(() =>
     editingResponse ? responseToDraft(editingResponse) : createEmptyDraft("paper")
@@ -382,11 +500,15 @@ function EntryPage({
     setStatus("");
   }, [editingResponse]);
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    onSave(draft, editingResponse?.id);
-    setDraft(createEmptyDraft("paper"));
-    setStatus(editingResponse ? "Изменения сохранены." : "Анкета добавлена.");
+    try {
+      await onSave(draft, editingResponse?.id);
+      setDraft(createEmptyDraft("paper"));
+      setStatus(editingResponse ? "Изменения сохранены." : "Анкета добавлена.");
+    } catch {
+      setStatus("Не удалось сохранить анкету.");
+    }
   }
 
   return (
@@ -420,13 +542,17 @@ function EntryPage({
 
 function DataPage({
   pdfFiles,
+  onCreateFake,
   responses,
   onDelete,
+  onDeleteFake,
   onEdit
 }: {
   pdfFiles: PdfRecord[];
+  onCreateFake: () => Promise<void>;
   responses: SurveyResponse[];
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
+  onDeleteFake: () => Promise<number>;
   onEdit: (id: string) => void;
 }) {
   const [filters, setFilters] = useState<Filters>({
@@ -436,6 +562,8 @@ function DataPage({
     helpOnly: false,
     query: ""
   });
+  const [dataStatus, setDataStatus] = useState("");
+  const [busyAction, setBusyAction] = useState<"fake-add" | "fake-delete" | null>(null);
   const filteredResponses = useMemo(
     () => responses.filter((response) => matchesFilters(response, filters)),
     [responses, filters]
@@ -446,6 +574,42 @@ function DataPage({
   );
   const summary = buildSummary(filteredResponses);
 
+  async function handleCreateFake() {
+    setBusyAction("fake-add");
+    setDataStatus("");
+    try {
+      await onCreateFake();
+      setDataStatus("Демо-анкета добавлена.");
+    } catch {
+      setDataStatus("Не удалось добавить демо-анкету.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleDeleteFake() {
+    const fakeCount = responses.filter((response) => response.isFake).length;
+    if (fakeCount === 0) {
+      setDataStatus("Демо-анкет сейчас нет.");
+      return;
+    }
+
+    if (!window.confirm(`Удалить ${fakeCount} демо-анкет? Реальные строки не будут затронуты.`)) {
+      return;
+    }
+
+    setBusyAction("fake-delete");
+    setDataStatus("");
+    try {
+      const deleted = await onDeleteFake();
+      setDataStatus(`Удалено демо-анкет: ${deleted}.`);
+    } catch {
+      setDataStatus("Не удалось удалить демо-анкеты.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   return (
     <section className="task-page data-task">
       <div className="task-heading">
@@ -453,15 +617,26 @@ function DataPage({
           <p className="eyebrow">Работа</p>
           <h1>Данные</h1>
         </div>
-        <button
-          className="primary-button"
-          type="button"
-          onClick={() => downloadCsv(filteredResponses)}
-        >
-          <Download aria-hidden size={18} />
-          CSV
-        </button>
+        <div className="header-action-row">
+          <button className="ghost-button" disabled={busyAction !== null} type="button" onClick={handleCreateFake}>
+            <Plus aria-hidden size={18} />
+            Добавить демо
+          </button>
+          <button className="ghost-button" disabled={busyAction !== null} type="button" onClick={handleDeleteFake}>
+            <Trash2 aria-hidden size={18} />
+            Удалить демо
+          </button>
+          <button
+            className="primary-button"
+            type="button"
+            onClick={() => downloadCsv(filteredResponses)}
+          >
+            <Download aria-hidden size={18} />
+            CSV
+          </button>
+        </div>
       </div>
+      {dataStatus ? <p className="form-status">{dataStatus}</p> : null}
 
       <section className="task-panel filter-panel">
         <div className="compact-grid">
@@ -518,6 +693,7 @@ function DataPage({
         <Metric icon={ClipboardList} label="Онлайн" value={summary.online} />
         <Metric icon={PenLine} label="Бумага" value={summary.paper} />
         <Metric icon={Search} label="Нужна помощь" value={summary.help} />
+        <Metric icon={Database} label="Демо" value={summary.fake} />
       </section>
 
       <section className="data-layout">
@@ -555,12 +731,12 @@ function PdfPage({
   onDelete
 }: {
   files: PdfRecord[];
-  onAdd: (record: PdfRecord) => void;
-  onDelete: (id: string) => void;
+  onAdd: (displayName: string, file: File) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }) {
   const [surveyDate, setSurveyDate] = useState(todayString());
-  const [title, setTitle] = useState("");
   const [status, setStatus] = useState("");
+  const displayName = `${surveyDate.replaceAll("-", "")}_анкеты.pdf`;
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -574,21 +750,11 @@ function PdfPage({
     }
 
     try {
-      const dataUrl = await readFileAsDataUrl(file);
-      onAdd({
-        id: crypto.randomUUID(),
-        surveyDate,
-        title: title.trim() || file.name.replace(/\.pdf$/i, ""),
-        fileName: file.name,
-        dataUrl,
-        sizeBytes: file.size,
-        createdAt: new Date().toISOString()
-      });
-      setTitle("");
-      setStatus("PDF добавлен.");
+      await onAdd(displayName, file);
+      setStatus(`${displayName} добавлен.`);
       event.target.value = "";
     } catch {
-      setStatus("Не удалось сохранить файл в браузере.");
+      setStatus("Не удалось сохранить PDF.");
     }
   }
 
@@ -607,14 +773,10 @@ function PdfPage({
             Дата опроса
             <input type="date" value={surveyDate} onChange={(event) => setSurveyDate(event.target.value)} />
           </label>
-          <label>
+          <div className="file-name-preview">
             Название
-            <input
-              placeholder="20260708_анкеты"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-            />
-          </label>
+            <strong>{displayName}</strong>
+          </div>
           <label className="file-drop">
             <Upload aria-hidden size={22} />
             Загрузить PDF
@@ -929,7 +1091,7 @@ function ResponseRows({
   onEdit,
   responses
 }: {
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
   onEdit: (id: string) => void;
   responses: SurveyResponse[];
 }) {
@@ -940,9 +1102,10 @@ function ResponseRows({
   return (
     <div className="row-list">
       {responses.map((response) => (
-        <article className="response-row" key={response.id}>
+        <article className={response.isFake ? "response-row is-demo" : "response-row"} key={response.id}>
           <div>
             <span className={`source-pill source-${response.source}`}>{sourceLabels[response.source]}</span>
+            {response.isFake ? <span className="demo-badge">демо</span> : null}
             <strong>{response.surveyDate}</strong>
             <p>
               {genderLabels[response.gender]} · {ageLabels[response.ageGroup]} ·{" "}
@@ -978,9 +1141,9 @@ function PdfMiniList({ files }: { files: PdfRecord[] }) {
   return (
     <div className="mini-list">
       {files.slice(0, 5).map((file) => (
-        <a href={file.dataUrl} download={file.fileName} key={file.id}>
+        <a href={getLabPdfDownloadUrl(file.id)} key={file.id}>
           <FileText aria-hidden size={18} />
-          <span>{file.title}</span>
+          <span>{file.displayName}</span>
           <b>{file.surveyDate}</b>
         </a>
       ))}
@@ -999,13 +1162,13 @@ function PdfRows({ files, onDelete }: { files: PdfRecord[]; onDelete: (id: strin
         <article className="pdf-row" key={file.id}>
           <FileText aria-hidden size={24} />
           <div>
-            <strong>{file.title}</strong>
+            <strong>{file.displayName}</strong>
             <p>
               {file.surveyDate} · {formatFileSize(file.sizeBytes)}
             </p>
           </div>
           <div className="row-actions">
-            <a href={file.dataUrl} download={file.fileName}>
+            <a href={getLabPdfDownloadUrl(file.id)}>
               <Download aria-hidden size={17} />
               Скачать
             </a>
@@ -1018,23 +1181,6 @@ function PdfRows({ files, onDelete }: { files: PdfRecord[]; onDelete: (id: strin
       ))}
     </div>
   );
-}
-
-function usePersistentState<T>(key: string, initialValue: T) {
-  const [value, setValue] = useState<T>(() => {
-    try {
-      const raw = window.localStorage.getItem(key);
-      return raw ? (JSON.parse(raw) as T) : initialValue;
-    } catch {
-      return initialValue;
-    }
-  });
-
-  useEffect(() => {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  }, [key, value]);
-
-  return [value, setValue] as const;
 }
 
 function createEmptyDraft(source: ResponseSource): ResponseDraft {
@@ -1133,6 +1279,7 @@ function matchesFilters(response: SurveyResponse, filters: Filters): boolean {
 
 function buildSummary(responses: SurveyResponse[]) {
   return {
+    fake: responses.filter((response) => response.isFake).length,
     help: responses.filter((response) => response.q16 === "yes").length,
     online: responses.filter((response) => response.source === "online").length,
     paper: responses.filter((response) => response.source === "paper").length,
@@ -1177,19 +1324,6 @@ function downloadCsv(responses: SurveyResponse[]) {
   link.download = "rodoved-test.csv";
   link.click();
   URL.revokeObjectURL(url);
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error);
-    reader.onload = () => resolve(String(reader.result));
-    reader.readAsDataURL(file);
-  });
-}
-
-function comparePdfRecords(left: PdfRecord, right: PdfRecord): number {
-  return right.surveyDate.localeCompare(left.surveyDate) || right.createdAt.localeCompare(left.createdAt);
 }
 
 function routeFromPath(pathname: string): RouteId {

@@ -111,6 +111,14 @@ a {
   justify-content: space-between;
 }
 
+.header-action-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: flex-end;
+}
+
 .task-heading h1 {
   font-size: clamp(2rem, 5vw, 4rem);
   line-height: 1;
@@ -447,7 +455,7 @@ textarea {
 }
 
 .summary-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
 .data-layout {
@@ -520,6 +528,11 @@ textarea {
   grid-template-columns: minmax(14rem, 1fr) minmax(12rem, 0.8fr) auto;
 }
 
+.response-row.is-demo {
+  background: #fbf6ee;
+  border-color: #c9b4bd;
+}
+
 .pdf-row {
   align-items: center;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -554,6 +567,17 @@ textarea {
 
 .source-pill {
   border-radius: 3px;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 900;
+  margin-right: 0.45rem;
+  padding: 0.15rem 0.45rem;
+}
+
+.demo-badge {
+  background: #f1dfe4;
+  border-radius: 3px;
+  color: var(--accent);
   display: inline-flex;
   font-size: 0.82rem;
   font-weight: 900;
@@ -596,6 +620,23 @@ textarea {
   position: relative;
 }
 
+.file-name-preview {
+  background: #fffaf6;
+  border: 1px solid #cdbfb3;
+  border-radius: 4px;
+  color: #3b3135;
+  display: grid;
+  font-weight: 800;
+  gap: 0.35rem;
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+}
+
+.file-name-preview strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
 .file-drop input {
   inset: 0;
   opacity: 0;
@@ -606,6 +647,10 @@ textarea {
   .task-heading {
     align-items: start;
     display: grid;
+  }
+
+  .header-action-row {
+    justify-content: flex-start;
   }
 
   .step-rail,
@@ -698,6 +743,8 @@ textarea {
 
   .form-actions,
   .form-actions button,
+  .header-action-row,
+  .header-action-row button,
   .row-actions,
   .row-actions a,
   .row-actions button {
