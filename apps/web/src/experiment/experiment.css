@@ -736,6 +736,38 @@ textarea {
   font-size: 1.25rem;
 }
 
+.active-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.active-filter-chips button {
+  align-items: center;
+  background: var(--accent-soft);
+  border: 1px solid #dfbdc7;
+  border-radius: 4px;
+  color: var(--accent);
+  display: inline-flex;
+  font-size: 0.9rem;
+  font-weight: 900;
+  gap: 0.45rem;
+  min-height: 36px;
+  overflow-wrap: anywhere;
+  padding: 0.35rem 0.55rem;
+}
+
+.active-filter-chips span {
+  align-items: center;
+  background: rgba(100, 0, 27, 0.12);
+  border-radius: 3px;
+  display: inline-flex;
+  height: 1.25rem;
+  justify-content: center;
+  line-height: 1;
+  width: 1.25rem;
+}
+
 .filter-choice-grid {
   display: grid;
   gap: 1rem;
@@ -1312,6 +1344,10 @@ textarea {
 
   .filter-title-row {
     align-items: start;
+  }
+
+  .active-filter-chips button {
+    max-width: 100%;
   }
 }
 

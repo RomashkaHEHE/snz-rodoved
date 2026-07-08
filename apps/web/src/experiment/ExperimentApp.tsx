@@ -110,6 +110,11 @@ interface Filters {
   residence: Residence[];
 }
 
+interface FilterChip {
+  key: string;
+  label: string;
+}
+
 const answerLabels: Record<Answer, string> = {
   yes: "Да",
   no: "Нет",
@@ -890,6 +895,7 @@ function DataPage({
   const summary = buildSummary(filteredResponses);
   const selectedResponse = filteredResponses.find((response) => response.id === selectedId) ?? null;
   const filtersActive = hasActiveFilters(filters);
+  const activeFilterChips = useMemo(() => buildFilterChips(filters), [filters]);
 
   useEffect(() => {
     function handlePopState() {
@@ -1080,6 +1086,20 @@ function DataPage({
             Сбросить
           </button>
         </div>
+        {activeFilterChips.length > 0 ? (
+          <div className="active-filter-chips" aria-label="Активные фильтры">
+            {activeFilterChips.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                onClick={() => setFilters((current) => clearFilterChip(current, chip.key))}
+              >
+                {chip.label}
+                <span aria-hidden>x</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="compact-grid">
           <label>
             Дата с
@@ -2372,6 +2392,93 @@ function toSurveyFilters(filters: Filters): SurveyFilters {
     residence: filters.residence.length > 0 ? filters.residence : undefined,
     source: filters.source === "all" ? undefined : [filters.source]
   };
+}
+
+function buildFilterChips(filters: Filters): FilterChip[] {
+  const chips: FilterChip[] = [];
+
+  if (filters.dateFrom) {
+    chips.push({ key: "dateFrom", label: `Дата с ${filters.dateFrom}` });
+  }
+
+  if (filters.dateTo) {
+    chips.push({ key: "dateTo", label: `Дата по ${filters.dateTo}` });
+  }
+
+  if (filters.source !== "all") {
+    chips.push({ key: "source", label: `Источник: ${sourceLabels[filters.source]}` });
+  }
+
+  for (const gender of filters.gender) {
+    chips.push({ key: `gender:${gender}`, label: `Пол: ${genderLabels[gender]}` });
+  }
+
+  for (const ageGroup of filters.ageGroup) {
+    chips.push({ key: `ageGroup:${ageGroup}`, label: `Возраст: ${ageLabels[ageGroup]}` });
+  }
+
+  for (const residence of filters.residence) {
+    chips.push({ key: `residence:${residence}`, label: `Проживание: ${residenceLabels[residence]}` });
+  }
+
+  for (const contactStatus of filters.contactStatus) {
+    chips.push({
+      key: `contactStatus:${contactStatus}`,
+      label: `Статус: ${contactStatusLabels[contactStatus]}`
+    });
+  }
+
+  if (filters.helpOnly) {
+    chips.push({ key: "helpOnly", label: "Нужна помощь" });
+  }
+
+  if (filters.contactOnly) {
+    chips.push({ key: "contactOnly", label: "Есть контакт" });
+  }
+
+  const query = filters.query.trim();
+  if (query) {
+    chips.push({ key: "query", label: `Поиск: ${query}` });
+  }
+
+  return chips;
+}
+
+function clearFilterChip(filters: Filters, key: string): Filters {
+  if (key === "dateFrom") {
+    return { ...filters, dateFrom: "" };
+  }
+  if (key === "dateTo") {
+    return { ...filters, dateTo: "" };
+  }
+  if (key === "source") {
+    return { ...filters, source: "all" };
+  }
+  if (key === "helpOnly") {
+    return { ...filters, helpOnly: false };
+  }
+  if (key === "contactOnly") {
+    return { ...filters, contactOnly: false };
+  }
+  if (key === "query") {
+    return { ...filters, query: "" };
+  }
+
+  const [group, value] = key.split(":");
+  if (group === "gender") {
+    return { ...filters, gender: filters.gender.filter((item) => item !== value) };
+  }
+  if (group === "ageGroup") {
+    return { ...filters, ageGroup: filters.ageGroup.filter((item) => item !== value) };
+  }
+  if (group === "residence") {
+    return { ...filters, residence: filters.residence.filter((item) => item !== value) };
+  }
+  if (group === "contactStatus") {
+    return { ...filters, contactStatus: filters.contactStatus.filter((item) => item !== value) };
+  }
+
+  return filters;
 }
 
 function hasActiveFilters(filters: Filters): boolean {
