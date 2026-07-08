@@ -1011,6 +1011,85 @@ textarea {
   gap: 1rem;
 }
 
+.pdf-coverage {
+  background: #fffaf6;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.9rem;
+}
+
+.pdf-coverage-heading {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.pdf-coverage-heading span,
+.pdf-date-checklist > strong {
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.pdf-coverage-heading strong {
+  font-size: 1.05rem;
+}
+
+.pdf-coverage-stats {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.pdf-coverage-stat {
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.65rem;
+}
+
+.pdf-coverage-stat span {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.pdf-coverage-stat strong {
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.pdf-coverage-stat.is-danger {
+  border-color: #dfbdc7;
+  color: var(--accent);
+}
+
+.pdf-date-checklist {
+  border-top: 1px solid var(--line-soft);
+  display: grid;
+  gap: 0.55rem;
+  padding-top: 0.75rem;
+}
+
+.pdf-date-checklist div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.pdf-date-checklist button {
+  background: var(--accent-soft);
+  border: 1px solid #dfbdc7;
+  border-radius: 4px;
+  color: var(--accent);
+  font-weight: 900;
+  min-height: 38px;
+  padding: 0.45rem 0.65rem;
+}
+
 .insight-panel summary {
   align-items: center;
   cursor: pointer;
@@ -1563,6 +1642,10 @@ textarea {
     grid-column: 1 / -1;
   }
 
+  .pdf-coverage-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .data-mode-tabs {
     top: 0.75rem;
   }
@@ -1663,6 +1746,10 @@ textarea {
   .period-presets {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pdf-coverage-stats {
+    grid-template-columns: 1fr;
   }
 
   .contact-grid,

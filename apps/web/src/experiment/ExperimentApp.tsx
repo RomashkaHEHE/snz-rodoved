@@ -123,6 +123,14 @@ interface FilterPreset {
   name: string;
 }
 
+interface PdfCoverage {
+  coveredDates: string[];
+  missingPdfDates: string[];
+  paperDates: string[];
+  pdfDates: string[];
+  pdfWithoutPaperDates: string[];
+}
+
 const answerLabels: Record<Answer, string> = {
   yes: "Да",
   no: "Нет",
@@ -913,6 +921,10 @@ function DataPage({
     () => pdfFiles.filter((file) => isDateInRange(file.surveyDate, filters.dateFrom, filters.dateTo)),
     [pdfFiles, filters.dateFrom, filters.dateTo]
   );
+  const pdfCoverage = useMemo(
+    () => buildPdfCoverage(filteredResponses, matchingPdfs),
+    [filteredResponses, matchingPdfs]
+  );
   const helpRequests = useMemo(
     () => filteredResponses.filter((response) => response.q16 === "yes"),
     [filteredResponses]
@@ -1080,6 +1092,10 @@ function DataPage({
 
   function resetFilters() {
     setFilters(createInitialFilters());
+  }
+
+  function focusPaperDate(date: string) {
+    setFilters({ ...filters, dateFrom: date, dateTo: date, source: "paper" });
   }
 
   function saveFilterPreset() {
@@ -1415,6 +1431,7 @@ function DataPage({
             <h2>PDF за период</h2>
             <span>{matchingPdfs.length}</span>
           </div>
+          <PdfCoveragePanel coverage={pdfCoverage} onFocusDate={focusPaperDate} />
           <PdfMiniList files={matchingPdfs} />
           <div className="form-actions">
             <button className="ghost-button" type="button" onClick={onOpenPdfArchive}>
@@ -2379,6 +2396,91 @@ function Detail({
   );
 }
 
+function PdfCoveragePanel({
+  coverage,
+  onFocusDate
+}: {
+  coverage: PdfCoverage;
+  onFocusDate: (date: string) => void;
+}) {
+  const hasWarnings = coverage.missingPdfDates.length > 0 || coverage.pdfWithoutPaperDates.length > 0;
+  let statusText = "Бумажные даты закрыты PDF.";
+  if (coverage.paperDates.length === 0) {
+    statusText = "Бумажных строк в текущем срезе нет.";
+  } else if (hasWarnings) {
+    statusText = "Есть даты, которые стоит проверить.";
+  }
+
+  return (
+    <div className="pdf-coverage">
+      <div className="pdf-coverage-heading">
+        <span>Сверка</span>
+        <strong>{statusText}</strong>
+      </div>
+      <div className="pdf-coverage-stats" aria-label="Состояние PDF-архива">
+        <PdfCoverageStat label="Бумажные даты" value={coverage.paperDates.length} />
+        <PdfCoverageStat label="С PDF" value={coverage.coveredDates.length} />
+        <PdfCoverageStat label="Без PDF" value={coverage.missingPdfDates.length} danger={coverage.missingPdfDates.length > 0} />
+        <PdfCoverageStat label="PDF без строк" value={coverage.pdfWithoutPaperDates.length} danger={coverage.pdfWithoutPaperDates.length > 0} />
+      </div>
+      {coverage.missingPdfDates.length > 0 ? (
+        <PdfDateChecklist
+          dates={coverage.missingPdfDates}
+          title="Бумажные строки без PDF"
+          onFocusDate={onFocusDate}
+        />
+      ) : null}
+      {coverage.pdfWithoutPaperDates.length > 0 ? (
+        <PdfDateChecklist
+          dates={coverage.pdfWithoutPaperDates}
+          title="PDF без бумажных строк"
+          onFocusDate={onFocusDate}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function PdfCoverageStat({
+  danger,
+  label,
+  value
+}: {
+  danger?: boolean;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className={danger ? "pdf-coverage-stat is-danger" : "pdf-coverage-stat"}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function PdfDateChecklist({
+  dates,
+  onFocusDate,
+  title
+}: {
+  dates: string[];
+  onFocusDate: (date: string) => void;
+  title: string;
+}) {
+  return (
+    <div className="pdf-date-checklist">
+      <strong>{title}</strong>
+      <div>
+        {dates.map((date) => (
+          <button key={date} type="button" onClick={() => onFocusDate(date)}>
+            {date}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PdfMiniList({ files }: { files: PdfRecord[] }) {
   if (files.length === 0) {
     return <p className="empty-state">PDF за выбранный период не добавлены.</p>;
@@ -2966,6 +3068,29 @@ function formatYesAnswers(response: SurveyResponse): string {
     .map((question) => `Q${question.number}`);
 
   return yesQuestions.length > 0 ? yesQuestions.join(", ") : "Нет ответов «Да».";
+}
+
+function buildPdfCoverage(responses: SurveyResponse[], files: PdfRecord[]): PdfCoverage {
+  const paperDates = uniqueDescending(
+    responses
+      .filter((response) => response.source === "paper")
+      .map((response) => response.surveyDate)
+  );
+  const pdfDates = uniqueDescending(files.map((file) => file.surveyDate));
+  const pdfDateSet = new Set(pdfDates);
+  const paperDateSet = new Set(paperDates);
+
+  return {
+    coveredDates: paperDates.filter((date) => pdfDateSet.has(date)),
+    missingPdfDates: paperDates.filter((date) => !pdfDateSet.has(date)),
+    paperDates,
+    pdfDates,
+    pdfWithoutPaperDates: pdfDates.filter((date) => !paperDateSet.has(date))
+  };
+}
+
+function uniqueDescending(values: string[]): string[] {
+  return Array.from(new Set(values)).sort((left, right) => right.localeCompare(left));
 }
 
 function routeFromPath(pathname: string): RouteId {
