@@ -868,7 +868,7 @@ function DataPage({
   ) => Promise<void>;
   onSave: (draft: ResponseDraft, id?: string) => Promise<void>;
 }) {
-  const [filters, setFilters] = useState<Filters>(() => createInitialFilters());
+  const [filters, setFilters] = useState<Filters>(() => filtersFromSearch(window.location.search));
   const [dataStatus, setDataStatus] = useState("");
   const [busyAction, setBusyAction] = useState<"csv" | "fake-add" | "fake-delete" | "row-delete" | "row-save" | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -890,6 +890,22 @@ function DataPage({
   const summary = buildSummary(filteredResponses);
   const selectedResponse = filteredResponses.find((response) => response.id === selectedId) ?? null;
   const filtersActive = hasActiveFilters(filters);
+
+  useEffect(() => {
+    function handlePopState() {
+      setFilters(filtersFromSearch(window.location.search));
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const nextSearch = filtersToSearch(filters);
+    if (window.location.pathname === "/data" && window.location.search !== nextSearch) {
+      window.history.replaceState(null, "", `${routeToPath("data")}${nextSearch}`);
+    }
+  }, [filters]);
 
   useEffect(() => {
     if (selectedId && !filteredResponses.some((response) => response.id === selectedId)) {
@@ -2305,6 +2321,44 @@ function createInitialFilters(): Filters {
   };
 }
 
+function filtersFromSearch(search: string): Filters {
+  const params = new URLSearchParams(search);
+  const source = params.get("source");
+
+  return {
+    ageGroup: readFilterList(params, "ageGroup", isAgeGroup),
+    contactOnly: readFilterBoolean(params, "contactOnly"),
+    contactStatus: readFilterList(params, "contactStatus", isContactStatus),
+    dateFrom: readFilterDate(params, "dateFrom"),
+    dateTo: readFilterDate(params, "dateTo"),
+    gender: readFilterList(params, "gender", isGender),
+    helpOnly: readFilterBoolean(params, "helpOnly"),
+    query: params.get("query")?.trim() ?? "",
+    residence: readFilterList(params, "residence", isResidence),
+    source: source === "paper" || source === "online" ? source : "all"
+  };
+}
+
+function filtersToSearch(filters: Filters): string {
+  const params = new URLSearchParams();
+
+  setSearchParam(params, "dateFrom", filters.dateFrom);
+  setSearchParam(params, "dateTo", filters.dateTo);
+  if (filters.source !== "all") {
+    params.set("source", filters.source);
+  }
+  setSearchList(params, "gender", filters.gender);
+  setSearchList(params, "ageGroup", filters.ageGroup);
+  setSearchList(params, "residence", filters.residence);
+  setSearchList(params, "contactStatus", filters.contactStatus);
+  setSearchBoolean(params, "helpOnly", filters.helpOnly);
+  setSearchBoolean(params, "contactOnly", filters.contactOnly);
+  setSearchParam(params, "query", filters.query.trim());
+
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
 function toSurveyFilters(filters: Filters): SurveyFilters {
   return {
     ageGroup: filters.ageGroup.length > 0 ? filters.ageGroup : undefined,
@@ -2514,8 +2568,51 @@ function isResidence(value: unknown): value is Residence {
   return value === "snezhinsk" || value === "other";
 }
 
+function isContactStatus(value: unknown): value is ContactStatus {
+  return value === "new" || value === "in_progress" || value === "done" || value === "no_contact";
+}
+
 function isIsoDate(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function readFilterDate(params: URLSearchParams, key: string): string {
+  const value = params.get(key);
+  return isIsoDate(value) ? value : "";
+}
+
+function readFilterBoolean(params: URLSearchParams, key: string): boolean {
+  const value = params.get(key)?.toLowerCase();
+  return value === "true" || value === "1" || value === "yes";
+}
+
+function readFilterList<TValue extends string>(
+  params: URLSearchParams,
+  key: string,
+  isAllowed: (value: unknown) => value is TValue
+): TValue[] {
+  return (params.get(key) ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(isAllowed);
+}
+
+function setSearchParam(params: URLSearchParams, key: string, value: string): void {
+  if (value) {
+    params.set(key, value);
+  }
+}
+
+function setSearchList(params: URLSearchParams, key: string, value: string[]): void {
+  if (value.length > 0) {
+    params.set(key, value.join(","));
+  }
+}
+
+function setSearchBoolean(params: URLSearchParams, key: string, value: boolean): void {
+  if (value) {
+    params.set(key, "true");
+  }
 }
 
 function isDateInRange(date: string, dateFrom: string, dateTo: string): boolean {
