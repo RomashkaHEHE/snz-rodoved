@@ -140,6 +140,10 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - the built API CSV code contains `Следующий контакт`;
   - the built DB migration code contains `contact_next_date`;
   - forbidden meta-copy about the test domain is absent.
+- Live server check for next-contact planning confirmed:
+  - `test.snz-rodoved.ru` serves the new JS/CSS bundle;
+  - the user service `snz-rodoved-test.service` is active on release `655d615`;
+  - the SQLite `responses` table on the test server contains `contact_next_date`.
 - Local browser smoke:
   - unauthenticated public nav on `/` shows only `Опрос` and `Вход`;
   - after workspace login, nav shows `Опрос`, `Ввод`, `Данные`, `PDF`;
