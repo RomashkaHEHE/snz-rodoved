@@ -31,6 +31,7 @@ const columns: CsvColumn[] = [
   { header: "Имя", value: (response) => response.contactName ?? "" },
   { header: "Номер телефона", value: (response) => response.contactPhone ?? "" },
   { header: "Статус обращения", value: (response) => contactStatusLabels[response.contactStatus] },
+  { header: "Следующий контакт", value: (response) => response.contactNextDate ?? "" },
   { header: "Заметка по обращению", value: (response) => response.contactNote ?? "" },
   ...answerQuestions.flatMap<CsvColumn>((question) => {
     const questionColumn: CsvColumn = {

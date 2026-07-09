@@ -171,6 +171,11 @@ const dateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Дата должна быть в формате YYYY-MM-DD");
 
+const optionalDateSchema = dateSchema
+  .optional()
+  .nullable()
+  .transform((value) => value ?? undefined);
+
 const answerFieldSchemas = {
   q4: answerSchema,
   q5: answerSchema,
@@ -260,7 +265,8 @@ export const onlineSurveyResponseInputSchema = surveyResponseInputSchema.refine(
 export const partialSurveyResponseInputSchema = surveyResponseInputObjectSchema
   .extend({
     contactStatus: contactStatusSchema.optional(),
-    contactNote: optionalTextField(800, "Заметка по обращению должна быть короче 800 символов")
+    contactNote: optionalTextField(800, "Заметка по обращению должна быть короче 800 символов"),
+    contactNextDate: optionalDateSchema
   })
   .partial()
   .refine(hasValidResearchPeriod, {
@@ -292,6 +298,7 @@ export interface SurveyResponse extends Omit<SurveyResponseInput, "source"> {
   source: ResponseSource;
   contactStatus: ContactStatus;
   contactNote?: string;
+  contactNextDate?: string;
   isFake: boolean;
   createdAt: string;
   updatedAt: string;

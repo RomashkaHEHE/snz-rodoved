@@ -131,11 +131,13 @@ describe("survey response schema", () => {
   it("accepts workspace contact workflow fields for response updates", () => {
     const parsed = partialSurveyResponseInputSchema.parse({
       contactNote: "Перезвонить после мероприятия",
+      contactNextDate: "2026-05-19",
       contactStatus: "in_progress"
     });
 
     expect(parsed.contactStatus).toBe("in_progress");
     expect(parsed.contactNote).toBe("Перезвонить после мероприятия");
+    expect(parsed.contactNextDate).toBe("2026-05-19");
   });
 
   it("accepts data workspace filters used by the test product", () => {

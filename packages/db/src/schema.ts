@@ -39,6 +39,7 @@ export const responses = sqliteTable(
     contactPhone: text("contact_phone"),
     contactStatus: text("contact_status").$type<ContactStatus>().notNull().default("new"),
     contactNote: text("contact_note"),
+    contactNextDate: text("contact_next_date"),
     isFake: text("is_fake").$type<"true" | "false">().notNull().default("false"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull()
@@ -50,6 +51,7 @@ export const responses = sqliteTable(
     residenceIdx: index("responses_residence_idx").on(table.residence),
     sourceIdx: index("responses_source_idx").on(table.source),
     contactStatusIdx: index("responses_contact_status_idx").on(table.contactStatus),
+    contactNextDateIdx: index("responses_contact_next_date_idx").on(table.contactNextDate),
     isFakeIdx: index("responses_is_fake_idx").on(table.isFake)
   })
 );

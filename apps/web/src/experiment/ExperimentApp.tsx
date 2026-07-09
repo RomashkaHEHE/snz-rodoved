@@ -79,6 +79,7 @@ interface SurveyResponse extends AnswerFields {
   contactPhone?: string;
   contactStatus: ContactStatus;
   contactNote?: string;
+  contactNextDate?: string;
   isFake: boolean;
   createdAt: string;
   updatedAt: string;
@@ -289,7 +290,7 @@ export function ExperimentApp() {
 
   async function saveContactWorkflow(
     id: string,
-    input: { contactNote?: string; contactStatus: ContactStatus }
+    input: { contactNextDate?: string; contactNote?: string; contactStatus: ContactStatus }
   ) {
     await updateLabContactWorkflow(id, input);
     await refreshWorkspaceData();
@@ -954,7 +955,7 @@ function DataPage({
   onOpenPdfArchive: () => void;
   onSaveContact: (
     id: string,
-    input: { contactNote?: string; contactStatus: ContactStatus }
+    input: { contactNextDate?: string; contactNote?: string; contactStatus: ContactStatus }
   ) => Promise<void>;
   onSave: (draft: ResponseDraft, id?: string) => Promise<void>;
 }) {
@@ -1082,7 +1083,7 @@ function DataPage({
 
   async function handleSaveContactWorkflow(
     response: SurveyResponse,
-    input: { contactNote?: string; contactStatus: ContactStatus }
+    input: { contactNextDate?: string; contactNote?: string; contactStatus: ContactStatus }
   ) {
     setDataStatus("");
     try {
@@ -2182,6 +2183,7 @@ function HelpQueue({
               {response.surveyDate} · {ageLabels[response.ageGroup]} · {residenceLabels[response.residence]}
             </p>
             {response.researchTerritory ? <small>{response.researchTerritory}</small> : null}
+            {response.contactNextDate ? <small>Следующий контакт: {response.contactNextDate}</small> : null}
             {response.freeText ? <small>{response.freeText}</small> : null}
           </div>
           <div className="help-actions">
@@ -2341,7 +2343,7 @@ function ResponseInspector({
   onOpenEntry: (id: string) => void;
   onSaveContact: (
     response: SurveyResponse,
-    input: { contactNote?: string; contactStatus: ContactStatus }
+    input: { contactNextDate?: string; contactNote?: string; contactStatus: ContactStatus }
   ) => Promise<void>;
   onSave: () => Promise<void>;
   response: SurveyResponse | null;
@@ -2414,6 +2416,7 @@ function ResponseInspector({
         <Detail label="Имя" masked={hideContacts && Boolean(response.contactName)} value={response.contactName} />
         <Detail label="Телефон" masked={hideContacts && Boolean(response.contactPhone)} value={response.contactPhone} phone />
         <Detail label="Статус" value={contactStatusLabels[response.contactStatus]} />
+        <Detail label="Следующий контакт" value={response.contactNextDate} />
         <Detail label="Территория" value={response.researchTerritory} />
         <Detail label="Период" value={formatResearchPeriod(response)} />
         <Detail label="Война" value={response.q11WarDetails} />
@@ -2479,20 +2482,22 @@ function ContactWorkflowPanel({
 }: {
   onSave: (
     response: SurveyResponse,
-    input: { contactNote?: string; contactStatus: ContactStatus }
+    input: { contactNextDate?: string; contactNote?: string; contactStatus: ContactStatus }
   ) => Promise<void>;
   response: SurveyResponse;
 }) {
   const [contactStatus, setContactStatus] = useState<ContactStatus>(response.contactStatus);
+  const [contactNextDate, setContactNextDate] = useState(response.contactNextDate ?? "");
   const [contactNote, setContactNote] = useState(response.contactNote ?? "");
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState("");
 
   useEffect(() => {
     setContactStatus(response.contactStatus);
+    setContactNextDate(response.contactNextDate ?? "");
     setContactNote(response.contactNote ?? "");
     setStatus("");
-  }, [response.contactNote, response.contactStatus, response.id]);
+  }, [response.contactNextDate, response.contactNote, response.contactStatus, response.id]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -2500,6 +2505,7 @@ function ContactWorkflowPanel({
     setStatus("");
     try {
       await onSave(response, {
+        contactNextDate: cleanOptional(contactNextDate),
         contactNote: cleanOptional(contactNote),
         contactStatus
       });
@@ -2526,6 +2532,28 @@ function ContactWorkflowPanel({
         value={contactStatus}
         onChange={(value) => setContactStatus(value as ContactStatus)}
       />
+      <label>
+        Следующий контакт
+        <input
+          type="date"
+          value={contactNextDate}
+          onChange={(event) => setContactNextDate(event.target.value)}
+        />
+      </label>
+      <div className="quick-date-row" aria-label="Быстрые даты следующего контакта">
+        <button type="button" onClick={() => setContactNextDate(todayString())}>
+          Сегодня
+        </button>
+        <button type="button" onClick={() => setContactNextDate(addDaysString(1))}>
+          Завтра
+        </button>
+        <button type="button" onClick={() => setContactNextDate(addDaysString(7))}>
+          +7 дней
+        </button>
+        <button type="button" onClick={() => setContactNextDate("")}>
+          Снять
+        </button>
+      </div>
       <label>
         Заметка
         <textarea
@@ -2932,6 +2960,7 @@ function responseToDraft(response: SurveyResponse): ResponseDraft {
     ageGroup: response.ageGroup,
     contactName: response.contactName,
     contactPhone: response.contactPhone,
+    contactNextDate: response.contactNextDate,
     freeText: response.freeText,
     gender: response.gender,
     q4: response.q4,
@@ -2961,6 +2990,7 @@ function normalizeDraft(draft: ResponseDraft): ResponseDraft {
   return {
     ...draft,
     contactName: draft.q16 === "yes" ? cleanOptional(draft.contactName) : undefined,
+    contactNextDate: draft.q16 === "yes" ? cleanOptional(draft.contactNextDate) : undefined,
     contactPhone: draft.q16 === "yes" ? cleanOptional(draft.contactPhone) : undefined,
     freeText: cleanOptional(draft.freeText),
     q11WarDetails: cleanOptional(draft.q11WarDetails) ?? "—",
@@ -3269,6 +3299,11 @@ function compareContactQueue(a: SurveyResponse, b: SurveyResponse): number {
     return byStatus;
   }
 
+  const byNextDate = compareOptionalDate(a.contactNextDate, b.contactNextDate);
+  if (byNextDate !== 0) {
+    return byNextDate;
+  }
+
   const byContact = Number(hasContact(b)) - Number(hasContact(a));
   if (byContact !== 0) {
     return byContact;
@@ -3276,6 +3311,22 @@ function compareContactQueue(a: SurveyResponse, b: SurveyResponse): number {
 
   const byDate = b.surveyDate.localeCompare(a.surveyDate);
   return byDate !== 0 ? byDate : b.createdAt.localeCompare(a.createdAt);
+}
+
+function compareOptionalDate(a: string | undefined, b: string | undefined): number {
+  if (a && b) {
+    return a.localeCompare(b);
+  }
+
+  if (a) {
+    return -1;
+  }
+
+  if (b) {
+    return 1;
+  }
+
+  return 0;
 }
 
 function countDraftAnswers(draft: AnswerFields): Record<Answer, number> {
@@ -3330,6 +3381,12 @@ function routeToPath(route: RouteId): string {
 
 function todayString(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function addDaysString(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 function createClientId(): string {

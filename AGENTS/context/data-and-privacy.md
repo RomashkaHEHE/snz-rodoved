@@ -15,6 +15,7 @@ Survey answer rules:
 - responses have `source=paper` or `source=online`;
 - online responses may have territory, period, and free-text search context.
 - online responses may have `contactName` and `contactPhone` when q16 is `yes`.
+- workspace contact workflow may add `contactStatus`, `contactNextDate`, and `contactNote`; these are internal operator fields and must not be shown publicly.
 
 Public statistics are intentionally absent in v1. Adding them later requires a new privacy/product decision.
 

@@ -1566,6 +1566,22 @@ textarea {
   margin: 0;
 }
 
+.quick-date-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.quick-date-row button {
+  background: #eee5dc;
+  border: 1px solid #d6c8bb;
+  border-radius: 4px;
+  color: var(--text);
+  font-weight: 900;
+  min-height: 36px;
+  padding: 0.35rem 0.55rem;
+}
+
 .inline-editor {
   display: grid;
   gap: 1rem;

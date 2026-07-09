@@ -67,7 +67,7 @@ export async function updateLabResponse(
 
 export async function updateLabContactWorkflow(
   id: string,
-  input: { contactNote?: string; contactStatus: ContactStatus }
+  input: { contactNextDate?: string; contactNote?: string; contactStatus: ContactStatus }
 ): Promise<SurveyResponse> {
   const result = await request<{ response: SurveyResponse }>(`/api/responses/${id}`, {
     method: "PATCH",

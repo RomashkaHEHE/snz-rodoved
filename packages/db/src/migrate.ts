@@ -74,6 +74,11 @@ ALTER TABLE responses ADD COLUMN contact_note TEXT;
 CREATE INDEX IF NOT EXISTS responses_contact_status_idx ON responses (contact_status);
 `;
 
+export const contactNextDateMigrationSql = `
+ALTER TABLE responses ADD COLUMN contact_next_date TEXT;
+CREATE INDEX IF NOT EXISTS responses_contact_next_date_idx ON responses (contact_next_date);
+`;
+
 const migrations = [
   {
     id: "0001_initial",
@@ -98,6 +103,10 @@ const migrations = [
   {
     id: "0006_contact_workflow",
     sql: contactWorkflowMigrationSql
+  },
+  {
+    id: "0007_contact_next_date",
+    sql: contactNextDateMigrationSql
   }
 ] as const;
 

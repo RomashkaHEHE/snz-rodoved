@@ -150,12 +150,14 @@ describe("api app", () => {
       headers: { cookie },
       payload: {
         contactNote: "Связаться после мероприятия",
+        contactNextDate: "2026-05-22",
         contactStatus: "in_progress"
       }
     });
     expect(workflow.statusCode).toBe(200);
     expect(workflow.json().response.contactStatus).toBe("in_progress");
     expect(workflow.json().response.contactNote).toBe("Связаться после мероприятия");
+    expect(workflow.json().response.contactNextDate).toBe("2026-05-22");
 
     await app.inject({
       method: "POST",
@@ -199,7 +201,9 @@ describe("api app", () => {
     expect(exported.body).toContain("Источник");
     expect(exported.body).toContain("Номер телефона");
     expect(exported.body).toContain("Статус обращения");
+    expect(exported.body).toContain("Следующий контакт");
     expect(exported.body).toContain("Заметка по обращению");
+    expect(exported.body).toContain("2026-05-22");
     expect(exported.body).toContain("В работе");
     expect(exported.body).toContain("Дата опроса");
     expect(exported.body).toContain("7. Найти предков, живших в 20 в. (СССР)");

@@ -117,16 +117,19 @@ describe("SurveyRepository", () => {
 
     const withWorkflow = repository.update(created.id, {
       contactNote: "Позвонить в пятницу",
+      contactNextDate: "2026-05-22",
       contactStatus: "in_progress"
     });
 
     expect(withWorkflow?.contactStatus).toBe("in_progress");
     expect(withWorkflow?.contactNote).toBe("Позвонить в пятницу");
+    expect(withWorkflow?.contactNextDate).toBe("2026-05-22");
 
     const withoutHelp = repository.update(created.id, { q16: "no" });
 
     expect(withoutHelp?.contactStatus).toBe("new");
     expect(withoutHelp?.contactNote).toBeUndefined();
+    expect(withoutHelp?.contactNextDate).toBeUndefined();
     expect(withoutHelp?.contactName).toBeUndefined();
     expect(withoutHelp?.contactPhone).toBeUndefined();
   });
