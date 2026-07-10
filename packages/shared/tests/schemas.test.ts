@@ -143,12 +143,18 @@ describe("survey response schema", () => {
   it("accepts data workspace filters used by the test product", () => {
     const parsed = surveyFiltersSchema.parse({
       contactOnly: true,
+      contactNextFrom: "2026-05-01",
+      contactNextMissing: true,
+      contactNextTo: "2026-05-31",
       contactStatus: ["in_progress", "no_contact"],
       helpOnly: true,
       query: "Челябинская область"
     });
 
     expect(parsed.contactOnly).toBe(true);
+    expect(parsed.contactNextFrom).toBe("2026-05-01");
+    expect(parsed.contactNextMissing).toBe(true);
+    expect(parsed.contactNextTo).toBe("2026-05-31");
     expect(parsed.helpOnly).toBe(true);
     expect(parsed.contactStatus).toEqual(["in_progress", "no_contact"]);
     expect(parsed.query).toBe("Челябинская область");

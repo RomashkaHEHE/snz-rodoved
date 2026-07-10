@@ -150,15 +150,24 @@ describe("SurveyRepository", () => {
       contactName: "Борис",
       freeText: "Пермская ветка"
     });
+    const third = repository.create({
+      ...baseInput,
+      contactName: "Вера",
+      contactPhone: "+7 901 111-11-11",
+      residence: "other"
+    });
     repository.create({ ...baseInput, q16: "no", q7: "no" });
 
-    repository.update(first.id, { contactStatus: "in_progress" });
-    repository.update(second.id, { contactStatus: "done" });
+    repository.update(first.id, { contactNextDate: "2026-05-20", contactStatus: "in_progress" });
+    repository.update(second.id, { contactNextDate: "2026-05-27", contactStatus: "done" });
 
-    expect(repository.list({ helpOnly: true })).toHaveLength(2);
-    expect(repository.list({ contactOnly: true })).toHaveLength(2);
+    expect(repository.list({ helpOnly: true })).toHaveLength(3);
+    expect(repository.list({ contactOnly: true })).toHaveLength(3);
     expect(repository.list({ contactStatus: ["in_progress"] }).map((row) => row.id)).toEqual([first.id]);
     expect(repository.list({ contactStatus: ["done"] }).map((row) => row.id)).toEqual([second.id]);
+    expect(repository.list({ contactNextTo: "2026-05-21" }).map((row) => row.id)).toEqual([first.id]);
+    expect(repository.list({ contactNextFrom: "2026-05-21" }).map((row) => row.id)).toEqual([second.id]);
+    expect(repository.list({ contactNextMissing: true }).map((row) => row.id)).toEqual([third.id]);
     expect(repository.list({ query: "Ивановы" }).map((row) => row.id)).toEqual([first.id]);
     expect(repository.list({ query: "Пермская" }).map((row) => row.id)).toEqual([second.id]);
   });

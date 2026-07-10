@@ -269,6 +269,18 @@ function buildFilterConditions(filters: SurveyFilters): SQL[] {
     }
   }
 
+  if (filters.contactNextFrom) {
+    conditions.push(and(eq(responses.q16, "yes"), gte(responses.contactNextDate, filters.contactNextFrom))!);
+  }
+
+  if (filters.contactNextTo) {
+    conditions.push(and(eq(responses.q16, "yes"), lte(responses.contactNextDate, filters.contactNextTo))!);
+  }
+
+  if (filters.contactNextMissing) {
+    conditions.push(and(eq(responses.q16, "yes"), sql`coalesce(${responses.contactNextDate}, '') = ''`)!);
+  }
+
   const searchQuery = filters.query?.trim();
   if (searchQuery) {
     const pattern = `%${searchQuery}%`;

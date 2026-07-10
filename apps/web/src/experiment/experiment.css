@@ -1295,6 +1295,44 @@ textarea {
   line-height: 1;
 }
 
+.contact-plan-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+}
+
+.contact-plan-button {
+  align-items: center;
+  background: #eee5dc;
+  border: 1px solid #d6c8bb;
+  border-radius: 4px;
+  color: var(--text);
+  display: inline-flex;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0.4rem 0.6rem;
+}
+
+.contact-plan-button.is-active {
+  background: var(--accent-soft);
+  border-color: #dfbdc7;
+  color: var(--accent);
+}
+
+.contact-plan-button span,
+.contact-plan-button b {
+  font-weight: 900;
+}
+
+.contact-plan-button b {
+  background: rgba(100, 0, 27, 0.1);
+  border-radius: 3px;
+  min-width: 1.75rem;
+  padding: 0.15rem 0.35rem;
+  text-align: center;
+}
+
 .help-card {
   align-items: start;
   background: #fffaf6;
@@ -1864,6 +1902,11 @@ textarea {
 
   .contact-queue-controls {
     grid-template-columns: 1fr;
+  }
+
+  .contact-plan-button {
+    justify-content: space-between;
+    width: 100%;
   }
 
   .period-heading {

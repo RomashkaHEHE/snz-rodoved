@@ -173,6 +173,9 @@ function buildFilterQuery(filters: SurveyFilters | Pick<SurveyFilters, "dateFrom
   setListParam(params, "ageGroup", responseFilters.ageGroup);
   setListParam(params, "residence", responseFilters.residence);
   setListParam(params, "contactStatus", responseFilters.contactStatus);
+  setParam(params, "contactNextFrom", responseFilters.contactNextFrom);
+  setParam(params, "contactNextTo", responseFilters.contactNextTo);
+  setBooleanParam(params, "contactNextMissing", responseFilters.contactNextMissing);
   setBooleanParam(params, "contactOnly", responseFilters.contactOnly);
   setBooleanParam(params, "helpOnly", responseFilters.helpOnly);
   setParam(params, "query", responseFilters.query);

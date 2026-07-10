@@ -209,6 +209,13 @@ function buildFilterQuery(filters: SurveyFilters): string {
   setListParam(params, "gender", filters.gender);
   setListParam(params, "ageGroup", filters.ageGroup);
   setListParam(params, "residence", filters.residence);
+  setListParam(params, "contactStatus", filters.contactStatus);
+  setParam(params, "contactNextFrom", filters.contactNextFrom);
+  setParam(params, "contactNextTo", filters.contactNextTo);
+  setBooleanParam(params, "contactNextMissing", filters.contactNextMissing);
+  setBooleanParam(params, "contactOnly", filters.contactOnly);
+  setBooleanParam(params, "helpOnly", filters.helpOnly);
+  setParam(params, "query", filters.query);
 
   for (const [questionId, values] of Object.entries(filters.answerFilters ?? {}) as Array<
     [AnswerQuestionId, AnswerValue[]]
@@ -229,5 +236,11 @@ function setParam(params: URLSearchParams, key: string, value: string | undefine
 function setListParam(params: URLSearchParams, key: string, value: string[] | undefined): void {
   if (value?.length) {
     params.set(key, value.join(","));
+  }
+}
+
+function setBooleanParam(params: URLSearchParams, key: string, value: boolean | undefined): void {
+  if (value) {
+    params.set(key, "true");
   }
 }

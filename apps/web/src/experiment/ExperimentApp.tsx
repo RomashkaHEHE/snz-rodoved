@@ -46,6 +46,7 @@ type QuestionGroup = "experience" | "interest" | "help";
 type QuestionGroupFilter = "all" | QuestionGroup;
 type DataMode = "contacts" | "rows" | "pdf" | "charts";
 type ContactQueueStatus = ContactStatus | "all";
+type ContactPlanFilter = "all" | "due" | "today" | "future" | "missing";
 type QuestionId =
   | "q4"
   | "q5"
@@ -102,6 +103,9 @@ interface PdfRecord {
 
 interface Filters {
   ageGroup: AgeGroup[];
+  contactNextFrom: string;
+  contactNextMissing: boolean;
+  contactNextTo: string;
   contactOnly: boolean;
   contactStatus: ContactStatus[];
   dateFrom: string;
@@ -1000,7 +1004,24 @@ function DataPage({
       ),
     [filters, responses]
   );
+  const contactPlanBase = useMemo(
+    () =>
+      responses.filter(
+        (response) =>
+          response.q16 === "yes" &&
+          matchesFilters(response, {
+            ...filters,
+            contactNextFrom: "",
+            contactNextMissing: false,
+            contactNextTo: "",
+            helpOnly: false
+          })
+      ),
+    [filters, responses]
+  );
   const contactQueueCounts = useMemo(() => buildContactQueueCounts(contactQueueBase), [contactQueueBase]);
+  const contactPlanCounts = useMemo(() => buildContactPlanCounts(contactPlanBase), [contactPlanBase]);
+  const activeContactPlan = getContactPlanFilter(filters);
   const sortedHelpRequests = useMemo(() => [...helpRequests].sort(compareContactQueue), [helpRequests]);
   const summary = buildSummary(filteredResponses);
   const selectedResponse = filteredResponses.find((response) => response.id === selectedId) ?? null;
@@ -1181,6 +1202,31 @@ function DataPage({
       contactStatus: status === "all" ? [] : [status],
       helpOnly: true
     });
+    setDataMode("contacts");
+  }
+
+  function applyContactPlan(plan: ContactPlanFilter) {
+    const nextFilters: Filters = {
+      ...filters,
+      contactNextFrom: "",
+      contactNextMissing: false,
+      contactNextTo: "",
+      helpOnly: true
+    };
+    const today = todayString();
+
+    if (plan === "due") {
+      nextFilters.contactNextTo = addDaysString(-1);
+    } else if (plan === "today") {
+      nextFilters.contactNextFrom = today;
+      nextFilters.contactNextTo = today;
+    } else if (plan === "future") {
+      nextFilters.contactNextFrom = addDaysString(1);
+    } else if (plan === "missing") {
+      nextFilters.contactNextMissing = true;
+    }
+
+    setFilters(nextFilters);
     setDataMode("contacts");
   }
 
@@ -1498,6 +1544,11 @@ function DataPage({
               activeStatuses={filters.contactStatus}
               counts={contactQueueCounts}
               onSelect={applyContactQueue}
+            />
+            <ContactPlanControls
+              activePlan={activeContactPlan}
+              counts={contactPlanCounts}
+              onSelect={applyContactPlan}
             />
             <HelpQueue
               hideContacts={hideContacts}
@@ -2248,6 +2299,41 @@ function ContactQueueControls({
   );
 }
 
+function ContactPlanControls({
+  activePlan,
+  counts,
+  onSelect
+}: {
+  activePlan: ContactPlanFilter;
+  counts: Record<ContactPlanFilter, number>;
+  onSelect: (plan: ContactPlanFilter) => void;
+}) {
+  const items: Array<{ id: ContactPlanFilter; label: string }> = [
+    { id: "all", label: "Весь план" },
+    { id: "due", label: "Просрочено" },
+    { id: "today", label: "Сегодня" },
+    { id: "future", label: "Дальше" },
+    { id: "missing", label: "Без даты" }
+  ];
+
+  return (
+    <div className="contact-plan-controls" aria-label="План контактов">
+      {items.map((item) => (
+        <button
+          aria-pressed={activePlan === item.id}
+          className={activePlan === item.id ? "contact-plan-button is-active" : "contact-plan-button"}
+          key={item.id}
+          type="button"
+          onClick={() => onSelect(item.id)}
+        >
+          <span>{item.label}</span>
+          <b>{counts[item.id]}</b>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function ResponseRows({
   hideContacts,
   onDelete,
@@ -2890,6 +2976,9 @@ function coerceStoredFilterPreset(value: unknown): FilterPreset | null {
 function coerceStoredFilters(value: Record<string, unknown>): Filters {
   return {
     ageGroup: readStoredList(value.ageGroup, isAgeGroup),
+    contactNextFrom: isIsoDate(value.contactNextFrom) ? value.contactNextFrom : "",
+    contactNextMissing: value.contactNextMissing === true,
+    contactNextTo: isIsoDate(value.contactNextTo) ? value.contactNextTo : "",
     contactOnly: value.contactOnly === true,
     contactStatus: readStoredList(value.contactStatus, isContactStatus),
     dateFrom: isIsoDate(value.dateFrom) ? value.dateFrom : "",
@@ -3001,6 +3090,9 @@ function normalizeDraft(draft: ResponseDraft): ResponseDraft {
 function createInitialFilters(): Filters {
   return {
     ageGroup: [],
+    contactNextFrom: "",
+    contactNextMissing: false,
+    contactNextTo: "",
     contactOnly: false,
     contactStatus: [],
     dateFrom: "",
@@ -3019,6 +3111,9 @@ function filtersFromSearch(search: string): Filters {
 
   return {
     ageGroup: readFilterList(params, "ageGroup", isAgeGroup),
+    contactNextFrom: readFilterDate(params, "contactNextFrom"),
+    contactNextMissing: readFilterBoolean(params, "contactNextMissing"),
+    contactNextTo: readFilterDate(params, "contactNextTo"),
     contactOnly: readFilterBoolean(params, "contactOnly"),
     contactStatus: readFilterList(params, "contactStatus", isContactStatus),
     dateFrom: readFilterDate(params, "dateFrom"),
@@ -3043,6 +3138,9 @@ function filtersToSearch(filters: Filters): string {
   setSearchList(params, "ageGroup", filters.ageGroup);
   setSearchList(params, "residence", filters.residence);
   setSearchList(params, "contactStatus", filters.contactStatus);
+  setSearchParam(params, "contactNextFrom", filters.contactNextFrom);
+  setSearchParam(params, "contactNextTo", filters.contactNextTo);
+  setSearchBoolean(params, "contactNextMissing", filters.contactNextMissing);
   setSearchBoolean(params, "helpOnly", filters.helpOnly);
   setSearchBoolean(params, "contactOnly", filters.contactOnly);
   setSearchParam(params, "query", filters.query.trim());
@@ -3054,6 +3152,9 @@ function filtersToSearch(filters: Filters): string {
 function toSurveyFilters(filters: Filters): SurveyFilters {
   return {
     ageGroup: filters.ageGroup.length > 0 ? filters.ageGroup : undefined,
+    contactNextFrom: filters.contactNextFrom || undefined,
+    contactNextMissing: filters.contactNextMissing || undefined,
+    contactNextTo: filters.contactNextTo || undefined,
     contactOnly: filters.contactOnly || undefined,
     contactStatus: filters.contactStatus.length > 0 ? filters.contactStatus : undefined,
     dateFrom: filters.dateFrom || undefined,
@@ -3119,6 +3220,18 @@ function buildFilterChips(filters: Filters): FilterChip[] {
     });
   }
 
+  if (filters.contactNextFrom) {
+    chips.push({ key: "contactNextFrom", label: `Контакт с ${filters.contactNextFrom}` });
+  }
+
+  if (filters.contactNextTo) {
+    chips.push({ key: "contactNextTo", label: `Контакт по ${filters.contactNextTo}` });
+  }
+
+  if (filters.contactNextMissing) {
+    chips.push({ key: "contactNextMissing", label: "Контакт без даты" });
+  }
+
   if (filters.helpOnly) {
     chips.push({ key: "helpOnly", label: "Нужна помощь" });
   }
@@ -3151,6 +3264,15 @@ function clearFilterChip(filters: Filters, key: string): Filters {
   if (key === "contactOnly") {
     return { ...filters, contactOnly: false };
   }
+  if (key === "contactNextFrom") {
+    return { ...filters, contactNextFrom: "" };
+  }
+  if (key === "contactNextTo") {
+    return { ...filters, contactNextTo: "" };
+  }
+  if (key === "contactNextMissing") {
+    return { ...filters, contactNextMissing: false };
+  }
   if (key === "query") {
     return { ...filters, query: "" };
   }
@@ -3175,6 +3297,9 @@ function clearFilterChip(filters: Filters, key: string): Filters {
 function hasActiveFilters(filters: Filters): boolean {
   return (
     filters.ageGroup.length > 0 ||
+    Boolean(filters.contactNextFrom) ||
+    filters.contactNextMissing ||
+    Boolean(filters.contactNextTo) ||
     filters.contactOnly ||
     filters.contactStatus.length > 0 ||
     Boolean(filters.dateFrom) ||
@@ -3220,6 +3345,18 @@ function matchesFilters(response: SurveyResponse, filters: Filters): boolean {
     filters.contactStatus.length > 0 &&
     (response.q16 !== "yes" || !filters.contactStatus.includes(response.contactStatus))
   ) {
+    return false;
+  }
+
+  if (filters.contactNextFrom && (response.q16 !== "yes" || !response.contactNextDate || response.contactNextDate < filters.contactNextFrom)) {
+    return false;
+  }
+
+  if (filters.contactNextTo && (response.q16 !== "yes" || !response.contactNextDate || response.contactNextDate > filters.contactNextTo)) {
+    return false;
+  }
+
+  if (filters.contactNextMissing && (response.q16 !== "yes" || Boolean(response.contactNextDate))) {
     return false;
   }
 
@@ -3285,6 +3422,41 @@ function buildContactQueueCounts(responses: SurveyResponse[]): Record<ContactQue
     new: responses.filter((response) => response.contactStatus === "new").length,
     no_contact: responses.filter((response) => response.contactStatus === "no_contact").length
   };
+}
+
+function buildContactPlanCounts(responses: SurveyResponse[]): Record<ContactPlanFilter, number> {
+  const today = todayString();
+  const tomorrow = addDaysString(1);
+
+  return {
+    all: responses.length,
+    due: responses.filter((response) => response.contactNextDate && response.contactNextDate < today).length,
+    future: responses.filter((response) => response.contactNextDate && response.contactNextDate >= tomorrow).length,
+    missing: responses.filter((response) => !response.contactNextDate).length,
+    today: responses.filter((response) => response.contactNextDate === today).length
+  };
+}
+
+function getContactPlanFilter(filters: Filters): ContactPlanFilter {
+  const today = todayString();
+  const yesterday = addDaysString(-1);
+  if (filters.contactNextMissing) {
+    return "missing";
+  }
+
+  if (filters.contactNextFrom === today && filters.contactNextTo === today) {
+    return "today";
+  }
+
+  if (!filters.contactNextFrom && filters.contactNextTo === yesterday) {
+    return "due";
+  }
+
+  if (filters.contactNextFrom === addDaysString(1) && !filters.contactNextTo) {
+    return "future";
+  }
+
+  return "all";
 }
 
 function compareContactQueue(a: SurveyResponse, b: SurveyResponse): number {
@@ -3380,13 +3552,18 @@ function routeToPath(route: RouteId): string {
 }
 
 function todayString(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toDateInputString(new Date());
 }
 
 function addDaysString(days: number): string {
   const date = new Date();
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  return toDateInputString(date);
+}
+
+function toDateInputString(date: Date): string {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 10);
 }
 
 function createClientId(): string {

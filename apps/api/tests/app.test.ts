@@ -181,6 +181,14 @@ describe("api app", () => {
     expect(contactFiltered.json().responses).toHaveLength(1);
     expect(contactFiltered.json().responses[0].contactStatus).toBe("in_progress");
 
+    const nextContactFiltered = await app.inject({
+      method: "GET",
+      url: "/api/responses?contactNextTo=2026-05-22",
+      headers: { cookie }
+    });
+    expect(nextContactFiltered.json().responses).toHaveLength(1);
+    expect(nextContactFiltered.json().responses[0].contactNextDate).toBe("2026-05-22");
+
     const analytics = await app.inject({
       method: "GET",
       url: "/api/analytics/summary",
