@@ -1,16 +1,18 @@
 import {
+  BarChart3,
   CalendarDays,
   CheckCircle,
+  ChevronDown,
   ClipboardList,
   Database,
   Download,
+  Ellipsis,
   FileText,
   LockKeyhole,
   PenLine,
   Phone,
   Plus,
   Save,
-  Search,
   Trash2,
   Upload
 } from "lucide-react";
@@ -240,12 +242,18 @@ const routeTitles: Record<RouteId, string> = {
   data: "Данные",
   pdf: "PDF"
 };
+const routeIcons: Record<RouteId, typeof Database> = {
+  survey: ClipboardList,
+  entry: PenLine,
+  data: Database,
+  pdf: FileText
+};
 const workspaceRoutes: RouteId[] = ["entry", "data", "pdf"];
 const surveyStepCount = 5;
 const surveyDraftStorageKey = "rodoved-test-online-draft-v1";
 const entryBatchStorageKey = "rodoved-test-entry-batch-v1";
 const dataFilterPresetsStorageKey = "rodoved-test-data-filter-presets-v1";
-const dataFilterPanelStorageKey = "rodoved-test-data-filter-panel-open-v1";
+const dataFilterPanelStorageKey = "rodoved-test-data-filter-panel-open-v2";
 const contactPrivacyStorageKey = "rodoved-test-hide-contacts-v1";
 const researchYearMin = 1500;
 const researchYearMax = 2100;
@@ -372,17 +380,22 @@ export function ExperimentApp() {
           aria-label={workspaceReady ? "Рабочие разделы" : "Основные разделы"}
           className={workspaceReady ? "workspace-nav" : "public-nav"}
         >
-          {visibleRoutes.map((item) => (
-            <button
-              aria-current={route === item ? "page" : undefined}
-              className={route === item ? "is-active" : ""}
-              key={item}
-              type="button"
-              onClick={() => navigate(item)}
-            >
-              {routeTitles[item]}
-            </button>
-          ))}
+          {visibleRoutes.map((item) => {
+            const Icon = routeIcons[item];
+
+            return (
+              <button
+                aria-current={route === item ? "page" : undefined}
+                className={route === item ? "is-active" : ""}
+                key={item}
+                type="button"
+                onClick={() => navigate(item)}
+              >
+                <Icon aria-hidden size={18} />
+                <span>{routeTitles[item]}</span>
+              </button>
+            );
+          })}
           {!workspaceReady ? (
             <button
               aria-current={route !== "survey" ? "page" : undefined}
@@ -874,7 +887,6 @@ function EntryPage({
   const [saving, setSaving] = useState(false);
   const [highlightedQuestionId, setHighlightedQuestionId] = useState<QuestionId | null>(null);
   const [unknownJumpIndex, setUnknownJumpIndex] = useState(0);
-  const answerCounts = countDraftAnswers(draft);
   const unknownQuestions = questions.filter((question) => draft[question.id] === "unknown");
   const experienceQuestions = questions.filter((question) => question.group === "experience");
   const interestQuestions = questions.filter((question) => question.group === "interest");
@@ -1035,10 +1047,14 @@ function EntryPage({
         ) : null}
 
         <div className="entry-toolbar" aria-label="Навигация по анкете">
-          <div className="entry-answer-counts" aria-label="Сводка ответов">
-            <span>Да <b>{answerCounts.yes}</b></span>
-            <span>Нет <b>{answerCounts.no}</b></span>
-            <span>— <b>{answerCounts.unknown}</b></span>
+          <div className="entry-progress" aria-label={`Заполнено ${questions.length - unknownQuestions.length} из ${questions.length}`}>
+            <div>
+              <strong>Заполнено {questions.length - unknownQuestions.length} из {questions.length}</strong>
+              <span>{unknownQuestions.length > 0 ? `Осталось: ${unknownQuestions.length}` : "Все ответы отмечены"}</span>
+            </div>
+            <i aria-hidden>
+              <b style={{ width: `${((questions.length - unknownQuestions.length) / questions.length) * 100}%` }} />
+            </i>
           </div>
           <div className="entry-jump-row">
             <button
@@ -1047,20 +1063,26 @@ function EntryPage({
               type="button"
               onClick={jumpToNextUnknown}
             >
-              Следующий — {unknownQuestions.length}
+              Найти пропуск
             </button>
-            <button type="button" onClick={() => jumpToEntrySection("entry-basic")}>
-              1-3
-            </button>
-            <button type="button" onClick={() => jumpToEntrySection("entry-experience")}>
-              Опыт
-            </button>
-            <button type="button" onClick={() => jumpToEntrySection("entry-interest")}>
-              Интересы
-            </button>
-            <button type="button" onClick={() => jumpToEntrySection("entry-help")}>
-              Помощь
-            </button>
+            <label className="entry-section-select">
+              <span>Раздел</span>
+              <select
+                defaultValue=""
+                onChange={(event) => {
+                  if (event.currentTarget.value) {
+                    jumpToEntrySection(event.currentTarget.value);
+                    event.currentTarget.value = "";
+                  }
+                }}
+              >
+                <option disabled value="">Перейти к...</option>
+                <option value="entry-basic">1-3 · Данные</option>
+                <option value="entry-experience">4-6 · Опыт</option>
+                <option value="entry-interest">7-15 · Интересы</option>
+                <option value="entry-help">16 · Помощь</option>
+              </select>
+            </label>
           </div>
         </div>
 
@@ -1218,7 +1240,7 @@ function DataPage({
     { count: helpRequests.length, icon: Phone, id: "contacts", label: "Обращения" },
     { count: filteredResponses.length, icon: Database, id: "rows", label: "Анкеты" },
     { count: matchingPdfs.length, icon: FileText, id: "pdf", label: "PDF" },
-    { count: filteredResponses.length, icon: Search, id: "charts", label: "Графики" }
+    { count: filteredResponses.length, icon: BarChart3, id: "charts", label: "Графики" }
   ];
 
   useEffect(() => {
@@ -1497,23 +1519,6 @@ function DataPage({
         </div>
         <div className="header-action-row">
           <button
-            aria-pressed={hideContacts}
-            className={hideContacts ? "ghost-button privacy-button is-active" : "ghost-button privacy-button"}
-            type="button"
-            onClick={() => setHideContacts((current) => !current)}
-          >
-            <LockKeyhole aria-hidden size={18} />
-            {hideContacts ? "Контакты скрыты" : "Контакты видны"}
-          </button>
-          <button className="ghost-button" disabled={busyAction !== null} type="button" onClick={handleCreateFake}>
-            <Plus aria-hidden size={18} />
-            Добавить демо
-          </button>
-          <button className="ghost-button" disabled={busyAction !== null} type="button" onClick={handleDeleteFake}>
-            <Trash2 aria-hidden size={18} />
-            Удалить демо
-          </button>
-          <button
             className="primary-button"
             disabled={busyAction !== null}
             type="button"
@@ -1522,6 +1527,49 @@ function DataPage({
             <Download aria-hidden size={18} />
             {busyAction === "csv" ? "CSV..." : "CSV"}
           </button>
+          <details className="action-menu">
+            <summary className="ghost-button">
+              <Ellipsis aria-hidden size={19} />
+              Ещё
+            </summary>
+            <div className="action-menu-popover">
+              <button
+                aria-pressed={hideContacts}
+                className={hideContacts ? "privacy-button is-active" : "privacy-button"}
+                type="button"
+                onClick={(event) => {
+                  setHideContacts((current) => !current);
+                  event.currentTarget.closest("details")?.removeAttribute("open");
+                }}
+              >
+                <LockKeyhole aria-hidden size={18} />
+                {hideContacts ? "Показать контакты" : "Скрыть контакты"}
+              </button>
+              <button
+                disabled={busyAction !== null}
+                type="button"
+                onClick={(event) => {
+                  event.currentTarget.closest("details")?.removeAttribute("open");
+                  void handleCreateFake();
+                }}
+              >
+                <Plus aria-hidden size={18} />
+                Добавить демо-анкету
+              </button>
+              <button
+                className="danger-menu-action"
+                disabled={busyAction !== null}
+                type="button"
+                onClick={(event) => {
+                  event.currentTarget.closest("details")?.removeAttribute("open");
+                  void handleDeleteFake();
+                }}
+              >
+                <Trash2 aria-hidden size={18} />
+                Удалить все демо
+              </button>
+            </div>
+          </details>
         </div>
       </div>
       {dataStatus ? <p className="form-status">{dataStatus}</p> : null}
@@ -1541,9 +1589,11 @@ function DataPage({
             >
               {filtersOpen ? "Свернуть" : "Фильтры"}
             </button>
-            <button className="ghost-button compact-button" disabled={!filtersActive} type="button" onClick={resetFilters}>
-              Сбросить
-            </button>
+            {filtersActive ? (
+              <button className="link-button" type="button" onClick={resetFilters}>
+                Очистить
+              </button>
+            ) : null}
           </div>
         </div>
         {activeFilterChips.length > 0 ? (
@@ -1691,6 +1741,17 @@ function DataPage({
         ) : null}
       </section>
 
+      <label className="data-mode-select">
+        Раздел данных
+        <select value={dataMode} onChange={(event) => changeDataMode(event.target.value as DataMode)}>
+          {dataModeItems.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.label} · {item.count}
+            </option>
+          ))}
+        </select>
+      </label>
+
       <div className="data-mode-tabs" aria-label="Рабочий режим">
         {dataModeItems.map((item) => {
           const Icon = item.icon;
@@ -1711,15 +1772,6 @@ function DataPage({
         })}
       </div>
 
-      <section className="summary-grid" aria-label="Сводка">
-        <Metric icon={Database} label="Анкет" value={filteredResponses.length} />
-        <Metric icon={ClipboardList} label="Онлайн" value={summary.online} />
-        <Metric icon={PenLine} label="Бумага" value={summary.paper} />
-        <Metric icon={Search} label="Нужна помощь" value={summary.help} />
-        <Metric icon={Phone} label="Контакты" value={summary.contacts} />
-        <Metric icon={Database} label="Демо" value={summary.fake} />
-      </section>
-
       {dataMode === "contacts" ? (
         <section className="data-mode-panel contact-mode-panel">
           <div className="task-panel help-queue-panel">
@@ -1727,16 +1779,18 @@ function DataPage({
               <h2>Обращения</h2>
               <span>{helpRequests.length}</span>
             </div>
-            <ContactQueueControls
-              activeStatuses={filters.contactStatus}
-              counts={contactQueueCounts}
-              onSelect={applyContactQueue}
-            />
-            <ContactPlanControls
-              activePlan={activeContactPlan}
-              counts={contactPlanCounts}
-              onSelect={applyContactPlan}
-            />
+            <div className="contact-filter-row">
+              <ContactQueueControls
+                activeStatuses={filters.contactStatus}
+                counts={contactQueueCounts}
+                onSelect={applyContactQueue}
+              />
+              <ContactPlanControls
+                activePlan={activeContactPlan}
+                counts={contactPlanCounts}
+                onSelect={applyContactPlan}
+              />
+            </div>
             <HelpQueue
               hideContacts={hideContacts}
               responses={sortedHelpRequests}
@@ -1759,8 +1813,6 @@ function DataPage({
               hideContacts={hideContacts}
               responses={filteredResponses}
               selectedId={selectedId}
-              onDelete={handleDeleteResponse}
-              onEdit={editResponseInline}
               onOpen={openResponse}
             />
             {responseInspector}
@@ -1787,6 +1839,12 @@ function DataPage({
 
       {dataMode === "charts" ? (
         <>
+          <section className="summary-grid" aria-label="Сводка">
+            <Metric icon={Database} label="Анкет" value={filteredResponses.length} />
+            <Metric icon={ClipboardList} label="Онлайн" value={summary.online} />
+            <Metric icon={PenLine} label="Бумага" value={summary.paper} />
+            <Metric icon={Phone} label="Обращения" value={summary.help} />
+          </section>
           <section className="data-layout data-charts-grid">
             <div className="task-panel">
               <div className="section-title-row">
@@ -2058,80 +2116,89 @@ function PeriodControl({
   }
 
   return (
-    <section className="period-control">
-      <div className="period-heading">
+    <details className="period-control">
+      <summary className="period-summary">
         <div>
           <span>Период поиска</span>
           <strong>{formatDraftResearchPeriod(draft)}</strong>
         </div>
-        <button type="button" disabled={!hasPeriod} onClick={() => setPeriod(undefined, undefined)}>
-          Сбросить
-        </button>
-      </div>
+        <span className="period-summary-action">
+          {hasPeriod ? "Изменить" : "Указать"}
+          <ChevronDown aria-hidden size={18} />
+        </span>
+      </summary>
 
-      <div className="period-presets" aria-label="Быстрый выбор периода">
-        {periodPresets.map((preset) => (
-          <button
-            className={draft.researchPeriodStart === preset.start && draft.researchPeriodEnd === preset.end ? "is-active" : ""}
-            key={preset.label}
-            type="button"
-            onClick={() => setPeriod(preset.start, preset.end)}
-          >
-            {preset.label}
+      <div className="period-content">
+        <div className="period-presets" aria-label="Быстрый выбор периода">
+          {periodPresets.map((preset) => (
+            <button
+              className={draft.researchPeriodStart === preset.start && draft.researchPeriodEnd === preset.end ? "is-active" : ""}
+              key={preset.label}
+              type="button"
+              onClick={() => setPeriod(preset.start, preset.end)}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="period-sliders">
+          <label>
+            С
+            <input
+              max={researchYearMax}
+              min={researchYearMin}
+              type="range"
+              value={start}
+              onChange={(event) => setPeriod(Number(event.target.value), end)}
+            />
+          </label>
+          <label>
+            По
+            <input
+              max={researchYearMax}
+              min={researchYearMin}
+              type="range"
+              value={end}
+              onChange={(event) => setPeriod(start, Number(event.target.value))}
+            />
+          </label>
+        </div>
+
+        <div className="period-pair">
+          <label>
+            с
+            <input
+              inputMode="numeric"
+              max={researchYearMax}
+              min={researchYearMin}
+              placeholder="1850"
+              type="number"
+              value={draft.researchPeriodStart ?? ""}
+              onChange={(event) => setPeriod(parseOptionalNumber(event.target.value), draft.researchPeriodEnd)}
+            />
+          </label>
+          <label>
+            по
+            <input
+              inputMode="numeric"
+              max={researchYearMax}
+              min={researchYearMin}
+              placeholder="1945"
+              type="number"
+              value={draft.researchPeriodEnd ?? ""}
+              onChange={(event) => setPeriod(draft.researchPeriodStart, parseOptionalNumber(event.target.value))}
+            />
+          </label>
+        </div>
+
+        {hasPeriod ? (
+          <button className="link-button period-reset" type="button" onClick={() => setPeriod(undefined, undefined)}>
+            Не ограничивать период
           </button>
-        ))}
+        ) : null}
       </div>
-
-      <div className="period-sliders">
-        <label>
-          С
-          <input
-            max={researchYearMax}
-            min={researchYearMin}
-            type="range"
-            value={start}
-            onChange={(event) => setPeriod(Number(event.target.value), end)}
-          />
-        </label>
-        <label>
-          По
-          <input
-            max={researchYearMax}
-            min={researchYearMin}
-            type="range"
-            value={end}
-            onChange={(event) => setPeriod(start, Number(event.target.value))}
-          />
-        </label>
-      </div>
-
-      <div className="period-pair">
-        <label>
-          с
-          <input
-            inputMode="numeric"
-            max={researchYearMax}
-            min={researchYearMin}
-            placeholder="1850"
-            type="number"
-            value={draft.researchPeriodStart ?? ""}
-            onChange={(event) => setPeriod(parseOptionalNumber(event.target.value), draft.researchPeriodEnd)}
-          />
-        </label>
-        <label>
-          по
-          <input
-            inputMode="numeric"
-            max={researchYearMax}
-            min={researchYearMin}
-            placeholder="1945"
-            type="number"
-            value={draft.researchPeriodEnd ?? ""}
-            onChange={(event) => setPeriod(draft.researchPeriodStart, parseOptionalNumber(event.target.value))}
-          />
-        </label>
-      </div>
-    </section>
+    </details>
   );
 }
 
@@ -2325,8 +2392,8 @@ function StepRail({
           type="button"
           onClick={() => onChange(index)}
         >
-          <span>{index + 1}</span>
-          {label}
+          <span className="step-number">{index + 1}</span>
+          <span className="step-label">{label}</span>
         </button>
       ))}
     </div>
@@ -2503,26 +2570,19 @@ function ContactQueueControls({
     { id: "no_contact", label: contactStatusLabels.no_contact }
   ];
 
-  return (
-    <div className="contact-queue-controls" aria-label="Очереди обращений">
-      {items.map((item) => {
-        const isActive =
-          item.id === "all" ? activeStatuses.length === 0 : activeStatuses.length === 1 && activeStatuses[0] === item.id;
+  const activeStatus = activeStatuses.length === 1 ? activeStatuses[0] : "all";
 
-        return (
-          <button
-            aria-pressed={isActive}
-            className={isActive ? "contact-queue-button is-active" : "contact-queue-button"}
-            key={item.id}
-            type="button"
-            onClick={() => onSelect(item.id)}
-          >
-            <span>{item.label}</span>
-            <b>{counts[item.id]}</b>
-          </button>
-        );
-      })}
-    </div>
+  return (
+    <label className="contact-filter-select">
+      Статус
+      <select value={activeStatus} onChange={(event) => onSelect(event.target.value as ContactQueueStatus)}>
+        {items.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.label} · {counts[item.id]}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -2544,34 +2604,26 @@ function ContactPlanControls({
   ];
 
   return (
-    <div className="contact-plan-controls" aria-label="План контактов">
-      {items.map((item) => (
-        <button
-          aria-pressed={activePlan === item.id}
-          className={activePlan === item.id ? "contact-plan-button is-active" : "contact-plan-button"}
-          key={item.id}
-          type="button"
-          onClick={() => onSelect(item.id)}
-        >
-          <span>{item.label}</span>
-          <b>{counts[item.id]}</b>
-        </button>
-      ))}
-    </div>
+    <label className="contact-filter-select">
+      Следующий контакт
+      <select value={activePlan} onChange={(event) => onSelect(event.target.value as ContactPlanFilter)}>
+        {items.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.label} · {counts[item.id]}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
 function ResponseRows({
   hideContacts,
-  onDelete,
-  onEdit,
   onOpen,
   selectedId,
   responses
 }: {
   hideContacts: boolean;
-  onDelete: (response: SurveyResponse) => Promise<void>;
-  onEdit: (response: SurveyResponse) => void;
   onOpen: (response: SurveyResponse) => void;
   selectedId: string | null;
   responses: SurveyResponse[];
@@ -2613,14 +2665,6 @@ function ResponseRows({
             <button type="button" onClick={() => onOpen(response)}>
               <ClipboardList aria-hidden size={17} />
               Открыть
-            </button>
-            <button type="button" onClick={() => onEdit(response)}>
-              <PenLine aria-hidden size={17} />
-              Изменить
-            </button>
-            <button type="button" onClick={() => onDelete(response)}>
-              <Trash2 aria-hidden size={17} />
-              Удалить
             </button>
           </div>
         </article>
@@ -3214,9 +3258,9 @@ function writeDataFilterPresets(presets: FilterPreset[]): void {
 function readDataFilterPanelOpen(): boolean {
   try {
     const raw = window.localStorage.getItem(dataFilterPanelStorageKey);
-    return raw === null ? true : raw === "true";
+    return raw === "true";
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -3786,16 +3830,6 @@ function compareOptionalDate(a: string | undefined, b: string | undefined): numb
   }
 
   return 0;
-}
-
-function countDraftAnswers(draft: AnswerFields): Record<Answer, number> {
-  return questions.reduce<Record<Answer, number>>(
-    (counts, question) => {
-      counts[draft[question.id]] += 1;
-      return counts;
-    },
-    { no: 0, unknown: 0, yes: 0 }
-  );
 }
 
 function buildPdfCoverage(responses: SurveyResponse[], files: PdfRecord[]): PdfCoverage {

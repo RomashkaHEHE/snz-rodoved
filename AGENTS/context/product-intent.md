@@ -6,7 +6,9 @@ The project now also supports a public online survey for people who can answer d
 
 The first version must be useful enough for real data entry, but it is also a design макет for согласование. Avoid hard-coding design assumptions deep into backend/data code.
 
-Public visitors should see a calm project page. The operator should see a dense, readable working interface.
+Public visitors should see a calm project page. Operator screens may contain advanced tools, but they must use progressive disclosure: the current task and primary action stay visible, while filters, test-data controls, privacy controls, and destructive actions appear only when the operator asks for them. Density is useful only when the visual hierarchy remains obvious.
+
+Desktop and phone layouts may use different controls for the same state. For example, desktop data modes use tabs while phone layouts use one select. This is intentional when it keeps every option reachable without creating a wall of buttons.
 
 The operator also needs a small private catalog of scanned paper questionnaires. This is archival storage for source documents, not a replacement for structured data entry.
 

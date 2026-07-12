@@ -22,19 +22,20 @@ The test domain has its own interface and UX decisions.
 
 Current flows use the isolated test backend and test SQLite/PDF storage:
 
-- public online survey with browser-local draft restore, a mobile-oriented research-period control with presets/range sliders/exact years, a full-answer review step before submit, and a completion screen after successful submit;
+- public online survey with browser-local draft restore, a collapsed-on-demand research-period control with presets/range sliders/exact years, a full-answer review step before submit, and a completion screen after successful submit;
 - online demographic controls start without a selected value and require an explicit gender, age-group, and residence choice before later steps can open; paper entry keeps its operator-oriented defaults;
 - online drafts expire after 24 hours and never store `contactName` or `contactPhone`; a restored help request returns to the help step so contacts can be entered again;
 - clearing a non-empty online survey requires confirmation;
 - public navigation shows only the online survey and a workspace login until the operator signs in;
 - password-gated operator entry, data, and PDF archive;
-- operator entry keeps one continuous paper-form flow, but adds section navigation, answer counts, a next-`Нет ответа` jump button, temporary question highlighting, and visual groups for phone work;
+- operator entry keeps one continuous paper-form flow, with one answered/remaining progress indicator, a next-missing-answer action, one section selector, temporary question highlighting, and visual groups for phone work;
 - repeated paper entry uses a tab-scoped series: the survey date stays after a successful save, the confirmed-row counter increases only after the API responds, the next form starts empty at the first field, and `Завершить` clears the series;
 - the entry submit button is disabled while a response is being saved, preventing duplicate rows from a repeated phone tap;
-- data filters for date range, source, gender, age group, residence, help requests, contacts, contact workflow status, and free text; active filters are shown as removable chips, mirrored in `/data` URL query, restored on reload/back-forward, can be collapsed for mobile work, and can be saved as local browser presets;
-- data workspace with one shared filter slice and task modes for contacts, questionnaire rows, PDF files, and charts;
+- data filters for date range, source, gender, age group, residence, help requests, contacts, contact workflow status, and free text; controls start collapsed, active filters are shown as removable chips, mirrored in `/data` URL query, restored on reload/back-forward, and can be saved as local browser presets;
+- data workspace with one shared filter slice and task modes for contacts, questionnaire rows, PDF files, and charts; desktop uses low-chrome tabs, while phone layouts use one mode select;
 - PDF data mode compares paper questionnaire dates in the current slice with matching PDF files and shows missing scans or scans without entered paper rows;
-- data summary, demographic/source bars, q16 help/contact queue with quick status queues, next-contact planning slices, persisted status and operator notes, row list, row inspector with full Q4-Q16 answer review, inline editing/deletion, demo-row generation, fake-only deletion, server CSV export for the current filter slice;
+- data summary, demographic/source bars, q16 help/contact queue with compact status/plan selects, persisted status and operator notes, row list, row inspector with full Q4-Q16 answer review, inline editing/deletion, demo-row generation, fake-only deletion, server CSV export for the current filter slice;
+- CSV remains a visible data-page action; contact visibility and demo-data actions live in the secondary action menu. Rows expose only `Открыть`; editing and deletion stay in the selected-row inspector;
 - local contact privacy mode on `/data` hides names and phone numbers in lists and inspectors by default until the operator explicitly shows them;
 - collapsible yes/no/unknown question breakdown with group focus;
 - PDF upload/list/download/deletion with duplicate-name warning.
