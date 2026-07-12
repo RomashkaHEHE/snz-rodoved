@@ -43,6 +43,7 @@ import {
 } from "./entryBatch";
 import {
   areBasicSelectionsComplete,
+  clearSurveyHelpDetails,
   coerceBasicSelections,
   createEmptyBasicSelections,
   hasAnyBasicSelection,
@@ -525,7 +526,6 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
             onChange={setDraft}
             onSelection={handleBasicSelection}
           />
-          <SearchFields collapsible draft={draft} onChange={setDraft} />
         </>
       )
     },
@@ -554,6 +554,7 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
       render: (
         <QuestionStack
           draft={draft}
+          showOnlineHelpFields
           questionsToShow={questions.filter((question) => question.group === "help")}
           onChange={setDraft}
         />
@@ -747,29 +748,6 @@ function SurveyReview({ draft, onEdit }: { draft: ResponseDraft; onEdit: (step: 
 
       <div className="review-block">
         <div>
-          <span>Поиск</span>
-          <button className="link-button" type="button" onClick={() => onEdit(0)}>
-            Изменить
-          </button>
-        </div>
-        <dl className="review-list">
-          <div>
-            <dt>Территория</dt>
-            <dd>{draft.researchTerritory || "—"}</dd>
-          </div>
-          <div>
-            <dt>Период</dt>
-            <dd>{formatResearchPeriod(draft) || "—"}</dd>
-          </div>
-          <div className="review-wide">
-            <dt>Свободный текст</dt>
-            <dd>{draft.freeText || "—"}</dd>
-          </div>
-        </dl>
-      </div>
-
-      <div className="review-block">
-        <div>
           <span>Опыт</span>
           <button className="link-button" type="button" onClick={() => onEdit(1)}>
             Изменить
@@ -806,14 +784,30 @@ function SurveyReview({ draft, onEdit }: { draft: ResponseDraft; onEdit: (step: 
             <dt>Нужна помощь</dt>
             <dd>{answerLabels[draft.q16]}</dd>
           </div>
-          <div>
-            <dt>Имя</dt>
-            <dd>{draft.contactName || "—"}</dd>
-          </div>
-          <div>
-            <dt>Телефон</dt>
-            <dd>{draft.contactPhone || "—"}</dd>
-          </div>
+          {draft.q16 === "yes" ? (
+            <>
+              <div>
+                <dt>Имя</dt>
+                <dd>{draft.contactName || "—"}</dd>
+              </div>
+              <div>
+                <dt>Телефон</dt>
+                <dd>{draft.contactPhone || "—"}</dd>
+              </div>
+              <div>
+                <dt>Территория</dt>
+                <dd>{draft.researchTerritory || "—"}</dd>
+              </div>
+              <div>
+                <dt>Период</dt>
+                <dd>{formatResearchPeriod(draft) || "—"}</dd>
+              </div>
+              <div className="review-wide">
+                <dt>Свободный текст</dt>
+                <dd>{draft.freeText || "—"}</dd>
+              </div>
+            </>
+          ) : null}
         </dl>
       </div>
     </div>
@@ -2055,15 +2049,13 @@ function BasicFields({
 }
 
 function SearchFields({
-  collapsible = false,
   draft,
   onChange
 }: {
-  collapsible?: boolean;
   draft: ResponseDraft;
   onChange: (draft: ResponseDraft) => void;
 }) {
-  const fields = (
+  return (
     <div className="search-grid">
       <label>
         Территория поиска
@@ -2084,33 +2076,6 @@ function SearchFields({
         />
       </label>
     </div>
-  );
-
-  if (!collapsible) {
-    return fields;
-  }
-
-  const hasResearchDetails = Boolean(
-    draft.researchTerritory ||
-    draft.researchPeriodStart ||
-    draft.researchPeriodEnd ||
-    draft.freeText
-  );
-
-  return (
-    <details className="survey-research">
-      <summary>
-        <div>
-          <strong>Область поиска</strong>
-          <span>необязательно</span>
-        </div>
-        <span className="survey-research-action">
-          {hasResearchDetails ? "Изменить" : "Добавить"}
-          <ChevronDown aria-hidden size={18} />
-        </span>
-      </summary>
-      <div className="survey-research-content">{fields}</div>
-    </details>
   );
 }
 
@@ -2231,12 +2196,14 @@ function QuestionStack({
   draft,
   highlightedQuestionId,
   idPrefix,
+  showOnlineHelpFields = false,
   questionsToShow,
   onChange
 }: {
   draft: ResponseDraft;
   highlightedQuestionId?: QuestionId | null;
   idPrefix?: string;
+  showOnlineHelpFields?: boolean;
   questionsToShow: typeof questions;
   onChange: (draft: ResponseDraft) => void;
 }) {
@@ -2261,17 +2228,20 @@ function QuestionStack({
               { value: "unknown", label: "—" }
             ]}
             value={draft[question.id]}
-            onChange={(value) =>
-              onChange({
+            onChange={(value) => {
+              const nextDraft = {
                 ...draft,
                 [question.id]: value as Answer,
-                ...(question.id === "q16" && value !== "yes"
-                  ? { contactName: undefined, contactPhone: undefined }
-                  : {})
-              })
-            }
+                ...(question.id === "q11" && value !== "yes" ? { q11WarDetails: "—" } : {})
+              };
+              onChange(
+                question.id === "q16" && value !== "yes"
+                  ? clearSurveyHelpDetails(nextDraft)
+                  : nextDraft
+              );
+            }}
           />
-          {question.id === "q11" ? (
+          {question.id === "q11" && draft.q11 === "yes" ? (
             <label className="war-select">
               Какая война
               <select
@@ -2308,6 +2278,15 @@ function QuestionStack({
                   onChange={(event) => onChange({ ...draft, contactPhone: event.target.value || undefined })}
                 />
               </label>
+            </div>
+          ) : null}
+          {question.id === "q16" && draft.q16 === "yes" && showOnlineHelpFields ? (
+            <div className="online-help-fields">
+              <div className="online-help-fields-title">
+                <strong>Детали поиска</strong>
+                <span>необязательно</span>
+              </div>
+              <SearchFields draft={draft} onChange={onChange} />
             </div>
           ) : null}
         </div>
@@ -3371,7 +3350,7 @@ function coerceStoredOnlineDraft(value: unknown): ResponseDraft {
   draft.contactName = undefined;
   draft.contactPhone = undefined;
 
-  return draft;
+  return draft.q16 === "yes" ? draft : clearSurveyHelpDetails(draft);
 }
 
 function responseToDraft(response: SurveyResponse): ResponseDraft {
@@ -3406,7 +3385,7 @@ function responseToDraft(response: SurveyResponse): ResponseDraft {
 }
 
 function normalizeDraft(draft: ResponseDraft): ResponseDraft {
-  return {
+  const normalized = {
     ...draft,
     contactName: draft.q16 === "yes" ? cleanOptional(draft.contactName) : undefined,
     contactNextDate: draft.q16 === "yes" ? cleanOptional(draft.contactNextDate) : undefined,
@@ -3415,6 +3394,8 @@ function normalizeDraft(draft: ResponseDraft): ResponseDraft {
     q11WarDetails: cleanOptional(draft.q11WarDetails) ?? "—",
     researchTerritory: cleanOptional(draft.researchTerritory)
   };
+
+  return draft.q16 === "yes" ? normalized : clearSurveyHelpDetails(normalized);
 }
 
 function createInitialFilters(): Filters {

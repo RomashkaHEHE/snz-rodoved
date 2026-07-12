@@ -10,6 +10,8 @@ Public visitors should see a calm project page. Operator screens may contain adv
 
 The public online survey and the private workspace are separate product zones. They must not link to each other or share one navigation shell: `/` is only the respondent flow, while `/entry`, `/data`, and `/pdf` are only the operator workspace. Direct URLs and browser controls remain the boundary between them.
 
+The online survey should preserve the paper questionnaire's sequence through Q16. Digital-only follow-up fields are not an independent opening section: name, phone, research territory, period, and free text belong to a request for help and appear only when Q16 is answered `yes`. If that answer changes, hidden dependent values must be cleared rather than retained invisibly.
+
 Desktop and phone layouts may use different controls for the same state. For example, desktop data modes use tabs while phone layouts use one select. This is intentional when it keeps every option reachable without creating a wall of buttons.
 
 The operator also needs a small private catalog of scanned paper questionnaires. This is archival storage for source documents, not a replacement for structured data entry.

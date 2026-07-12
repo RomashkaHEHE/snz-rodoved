@@ -22,7 +22,9 @@ The test domain has its own interface and UX decisions.
 
 Current flows use the isolated test backend and test SQLite/PDF storage:
 
-- public online survey with browser-local draft restore, a narrow single-task layout, a collapsed optional research block, a full-answer review step before submit, and a completion screen after successful submit;
+- public online survey with browser-local draft restore, a narrow single-task layout that follows paper questions 1-16, a Q16-dependent contact/search continuation, a full-answer review step before submit, and a completion screen after successful submit;
+- Q16 `yes` reveals required name/phone and optional territory/period/free-text fields; changing Q16 to another answer clears those dependent values;
+- the Q11 war selector is shown only for a `yes` answer and resets to `—` otherwise;
 - online demographic controls start without a selected value and require an explicit gender, age-group, and residence choice before later steps can open; paper entry keeps its operator-oriented defaults;
 - online drafts expire after 24 hours and never store `contactName` or `contactPhone`; a restored help request returns to the help step so contacts can be entered again;
 - clearing a non-empty online survey requires confirmation;

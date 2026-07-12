@@ -58,6 +58,29 @@ export function redactSurveyDraftContacts<
   return { ...draft, contactName: undefined, contactPhone: undefined };
 }
 
+export function clearSurveyHelpDetails<
+  T extends {
+    contactName?: string;
+    contactNextDate?: string;
+    contactPhone?: string;
+    freeText?: string;
+    researchPeriodEnd?: number;
+    researchPeriodStart?: number;
+    researchTerritory?: string;
+  }
+>(draft: T): T {
+  return {
+    ...draft,
+    contactName: undefined,
+    contactNextDate: undefined,
+    contactPhone: undefined,
+    freeText: undefined,
+    researchPeriodEnd: undefined,
+    researchPeriodStart: undefined,
+    researchTerritory: undefined
+  };
+}
+
 export function isSurveyDraftFresh(
   savedAt: unknown,
   nowMs: number,

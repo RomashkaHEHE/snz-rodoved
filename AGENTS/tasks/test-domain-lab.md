@@ -30,11 +30,12 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - Experimental UI lives under `apps/web/src/experiment`.
 - The visible test site opens as a product UI with working task screens.
 - Current flows use the isolated test backend:
-  - public online survey has a narrow five-step flow: basic/search fields, experience, interests, help, full-answer review. Only the current title and progress are shown instead of a clickable map of every step;
+  - public online survey has a narrow five-step flow: demographics, experience, interests, help, and full-answer review. Only the current title and progress are shown instead of a clickable map of every step;
   - the first online step starts with no selected demographics and blocks later steps until gender, age group, and residence have each been chosen deliberately;
   - online draft persistence expires after 24 hours and redacts name/phone; restored q16 help requests reopen the help step with empty contact fields;
   - resetting a non-empty online survey requires confirmation, and missing restored contacts return focus to the name input instead of leaving the visitor on review;
-  - online survey territory, period, and free text stay in one optional `Область поиска` disclosure. The nested period control keeps quick presets, two range sliders, exact year inputs, and the same data contract;
+  - the online survey follows the paper form through Q16. A `yes` answer to Q16 reveals required name/phone fields and optional territory, period, and free-text fields; changing Q16 away from `yes` hides and clears every dependent value. The period control keeps quick presets, two range sliders, exact year inputs, and the same data contract;
+  - Q11 war details follow the paper form's condition: the selector appears only for a `yes` answer and resets to `—` when that answer changes;
   - public online survey submits to the server after the review step, shows a completion screen, and stores a browser-local draft until successful submit;
   - public survey and workspace are separate shells without links between them. `/` has no workspace entry; `/entry`, `/data`, and `/pdf` have no survey entry;
   - operator entry, data, and PDF archive are behind workspace password login; authenticated workspace navigation contains only `Ввод`, `Данные`, and `PDF`;
@@ -90,11 +91,18 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - one demo row exposed one `Открыть` action; the inspector retained edit, open-in-entry, delete, contact workflow, and all 13 answer rows;
   - the initial empty data screen had 14 visible buttons including global navigation, compared with the previous always-open filters and metric dashboard.
 - Local browser smoke for respondent/workspace separation confirmed:
-  - `/` has no `nav`, workspace entry, or survey step button rail; it shows one current title, `Шаг N из 5`, required demographics, the closed optional `Область поиска`, and the primary action;
+  - `/` has no `nav`, workspace entry, or survey step button rail; its first step shows only required demographics and the primary action;
   - unauthenticated `/entry` has no survey link or navigation; authenticated workspace navigation is exactly `Ввод`, `Данные`, `PDF`;
   - at `1280x720`, the public form is constrained to a 680px reading column with unused space around it rather than spreading controls across the viewport;
-  - at iPhone 12 mini `375x812`, the complete first survey step fits in the viewport, the optional research block starts closed, and there is no horizontal overflow;
+  - at iPhone 12 mini `375x812`, the complete first survey step fits in the viewport and has no horizontal overflow;
   - mobile authenticated workspace navigation has three equal items, stays fixed at the viewport bottom, and contains no survey transition.
+- Local browser smoke for the Q16-dependent online continuation confirmed:
+  - steps 1-3 contain demographics and paper questions Q4-Q15 without contact or research fields;
+  - Q11 initially has no war selector; `Да` reveals the full-name options, and changing the answer hides the selector and resets it to `—`;
+  - the help step initially contains only Q16; choosing `Да` reveals name, phone, territory, period, and free text directly below it;
+  - changing Q16 to `Нет` removes and clears every dependent value, and choosing `Да` again opens empty fields;
+  - the review step keeps the dependent values inside `Помощь` rather than showing a separate early search section;
+  - at iPhone 12 mini `375x812`, the continuation uses one column and has no horizontal overflow.
 - HTTP/asset smoke against a temporary local server confirmed:
   - `/api/health` responds;
   - `/data` serves the built test app;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   areBasicSelectionsComplete,
+  clearSurveyHelpDetails,
   coerceBasicSelections,
   createEmptyBasicSelections,
   hasAnyBasicSelection,
@@ -39,6 +40,31 @@ describe("online survey draft safety", () => {
     expect(JSON.stringify(safeDraft)).not.toContain("Алёна");
     expect(JSON.stringify(safeDraft)).not.toContain("900");
     expect(draft.contactName).toBe("Алёна");
+  });
+
+  it("clears every field that depends on a request for help", () => {
+    const draft = {
+      contactName: "Алёна",
+      contactNextDate: "2026-07-20",
+      contactPhone: "+7 900 000-00-00",
+      freeText: "Нужны метрические книги",
+      q16: "no",
+      researchPeriodEnd: 1917,
+      researchPeriodStart: 1850,
+      researchTerritory: "Челябинская область"
+    };
+
+    expect(clearSurveyHelpDetails(draft)).toEqual({
+      contactName: undefined,
+      contactNextDate: undefined,
+      contactPhone: undefined,
+      freeText: undefined,
+      q16: "no",
+      researchPeriodEnd: undefined,
+      researchPeriodStart: undefined,
+      researchTerritory: undefined
+    });
+    expect(draft.researchTerritory).toBe("Челябинская область");
   });
 
   it("returns restored help requests to the contact step", () => {
