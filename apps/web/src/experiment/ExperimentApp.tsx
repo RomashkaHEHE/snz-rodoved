@@ -1,4 +1,5 @@
 import {
+  CalendarDays,
   CheckCircle,
   ClipboardList,
   Database,
@@ -13,7 +14,7 @@ import {
   Trash2,
   Upload
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   exportLabResponsesCsv,
   createLabFakeResponse,
@@ -32,6 +33,12 @@ import {
   updateLabResponse,
   type LabSession
 } from "./labApi";
+import {
+  advanceEntryBatch,
+  changeEntryBatchDate,
+  parseEntryBatchState,
+  type EntryBatchState
+} from "./entryBatch";
 import type { SurveyFilters } from "@snz-rodoved/shared";
 import "./experiment.css";
 
@@ -217,6 +224,7 @@ const routeTitles: Record<RouteId, string> = {
 const workspaceRoutes: RouteId[] = ["entry", "data", "pdf"];
 const surveyStepCount = 5;
 const surveyDraftStorageKey = "rodoved-test-online-draft-v1";
+const entryBatchStorageKey = "rodoved-test-entry-batch-v1";
 const dataFilterPresetsStorageKey = "rodoved-test-data-filter-presets-v1";
 const dataFilterPanelStorageKey = "rodoved-test-data-filter-panel-open-v1";
 const contactPrivacyStorageKey = "rodoved-test-hide-contacts-v1";
@@ -472,7 +480,7 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
       title: "О себе",
       render: (
         <>
-          <BasicFields draft={draft} mode="survey" onChange={setDraft} />
+          <BasicFields draft={draft} showDate={false} onChange={setDraft} />
           <SearchFields draft={draft} onChange={setDraft} />
         </>
       )
@@ -775,10 +783,13 @@ function EntryPage({
   onCancelEdit: () => void;
   onSave: (draft: ResponseDraft, id?: string) => Promise<void>;
 }) {
+  const [batchState, setBatchState] = useState<EntryBatchState>(() => readEntryBatchState());
+  const batchStateRef = useRef(batchState);
   const [draft, setDraft] = useState<ResponseDraft>(() =>
-    editingResponse ? responseToDraft(editingResponse) : createEmptyDraft("paper")
+    editingResponse ? responseToDraft(editingResponse) : createPaperDraftForDate(batchState.surveyDate)
   );
   const [status, setStatus] = useState("");
+  const [saving, setSaving] = useState(false);
   const [highlightedQuestionId, setHighlightedQuestionId] = useState<QuestionId | null>(null);
   const [unknownJumpIndex, setUnknownJumpIndex] = useState(0);
   const answerCounts = countDraftAnswers(draft);
@@ -788,7 +799,16 @@ function EntryPage({
   const helpQuestions = questions.filter((question) => question.group === "help");
 
   useEffect(() => {
-    setDraft(editingResponse ? responseToDraft(editingResponse) : createEmptyDraft("paper"));
+    batchStateRef.current = batchState;
+    writeEntryBatchState(batchState);
+  }, [batchState]);
+
+  useEffect(() => {
+    setDraft(
+      editingResponse
+        ? responseToDraft(editingResponse)
+        : createPaperDraftForDate(batchStateRef.current.surveyDate)
+    );
     setStatus("");
     setHighlightedQuestionId(null);
     setUnknownJumpIndex(0);
@@ -821,14 +841,69 @@ function EntryPage({
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
+  function jumpToEntryStart() {
+    window.requestAnimationFrame(() => {
+      document.getElementById("entry-batch")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.querySelector<HTMLButtonElement>("#entry-basic .segmented button")?.focus({ preventScroll: true });
+    });
+  }
+
+  function handleBatchDateChange(surveyDate: string) {
+    if (!surveyDate || surveyDate === batchState.surveyDate) {
+      return;
+    }
+
+    if (
+      batchState.count > 0 &&
+      !window.confirm("Начать новую серию за выбранную дату? Счётчик текущей серии будет сброшен.")
+    ) {
+      return;
+    }
+
+    const nextBatchState = changeEntryBatchDate(batchState, surveyDate);
+    batchStateRef.current = nextBatchState;
+    setBatchState(nextBatchState);
+    setDraft((current) => ({ ...current, surveyDate }));
+    setStatus("");
+  }
+
+  function finishBatch() {
+    if (isPaperDraftTouched(draft) && !window.confirm("Очистить несохранённые ответы и завершить серию?")) {
+      return;
+    }
+
+    const nextBatchState = { count: 0, surveyDate: todayString() };
+    batchStateRef.current = nextBatchState;
+    setBatchState(nextBatchState);
+    setDraft(createPaperDraftForDate(nextBatchState.surveyDate));
+    setStatus("Серия завершена.");
+    jumpToEntryStart();
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    setSaving(true);
     try {
       await onSave(draft, editingResponse?.id);
-      setDraft(createEmptyDraft("paper"));
-      setStatus(editingResponse ? "Изменения сохранены." : "Анкета добавлена.");
+
+      if (editingResponse) {
+        setDraft(createPaperDraftForDate(batchStateRef.current.surveyDate));
+        setStatus("Изменения сохранены.");
+        return;
+      }
+
+      const nextBatchState = advanceEntryBatch(
+        changeEntryBatchDate(batchStateRef.current, draft.surveyDate)
+      );
+      batchStateRef.current = nextBatchState;
+      setBatchState(nextBatchState);
+      setDraft(createPaperDraftForDate(nextBatchState.surveyDate));
+      setStatus(`Анкета добавлена. В серии: ${nextBatchState.count}.`);
+      jumpToEntryStart();
     } catch {
       setStatus("Не удалось сохранить анкету.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -847,6 +922,36 @@ function EntryPage({
       </div>
 
       <form className="task-panel entry-panel" onSubmit={handleSubmit}>
+        {!editingResponse ? (
+          <section className="entry-batch" id="entry-batch" aria-label="Текущая серия бумажных анкет">
+            <div className="entry-batch-title">
+              <CalendarDays aria-hidden size={22} />
+              <div>
+                <span>Текущая серия</span>
+                <strong>Бумажные анкеты</strong>
+              </div>
+            </div>
+            <label className="entry-batch-date">
+              Дата опроса
+              <input
+                required
+                type="date"
+                value={draft.surveyDate}
+                onInput={(event) => handleBatchDateChange(event.currentTarget.value)}
+              />
+            </label>
+            <div className="entry-batch-count" aria-label={`Добавлено в серии: ${batchState.count}`}>
+              <span>Добавлено</span>
+              <strong>{batchState.count}</strong>
+            </div>
+            <button className="ghost-button entry-batch-end" type="button" onClick={finishBatch}>
+              <CheckCircle aria-hidden size={17} />
+              Завершить
+            </button>
+            {status ? <p className="form-status entry-batch-status" role="status">{status}</p> : null}
+          </section>
+        ) : null}
+
         <div className="entry-toolbar" aria-label="Навигация по анкете">
           <div className="entry-answer-counts" aria-label="Сводка ответов">
             <span>Да <b>{answerCounts.yes}</b></span>
@@ -882,7 +987,7 @@ function EntryPage({
             <span>1-3</span>
             <h2>Данные анкеты</h2>
           </div>
-          <BasicFields draft={draft} mode="entry" onChange={setDraft} />
+          <BasicFields draft={draft} showDate={Boolean(editingResponse)} onChange={setDraft} />
         </section>
 
         <section className="entry-section" id="entry-experience">
@@ -928,10 +1033,10 @@ function EntryPage({
         </section>
 
         <div className="form-actions sticky-actions">
-          {status ? <p className="form-status">{status}</p> : null}
-          <button className="primary-button wide-button" type="submit">
-            <Plus aria-hidden size={18} />
-            {editingResponse ? "Сохранить изменения" : "Добавить анкету"}
+          {editingResponse && status ? <p className="form-status" role="status">{status}</p> : null}
+          <button className="primary-button wide-button" disabled={saving} type="submit">
+            {editingResponse ? <Save aria-hidden size={18} /> : <Plus aria-hidden size={18} />}
+            {saving ? "Сохраняем..." : editingResponse ? "Сохранить изменения" : "Добавить и продолжить"}
           </button>
         </div>
       </form>
@@ -1737,16 +1842,16 @@ function PdfPage({
 
 function BasicFields({
   draft,
-  mode,
+  showDate,
   onChange
 }: {
   draft: ResponseDraft;
-  mode: "survey" | "entry";
+  showDate: boolean;
   onChange: (draft: ResponseDraft) => void;
 }) {
   return (
     <div className="basic-grid">
-      {mode === "entry" ? (
+      {showDate ? (
         <label>
           Дата
           <input
@@ -2464,7 +2569,7 @@ function ResponseInspector({
             void onSave();
           }}
         >
-          <BasicFields draft={draft} mode="entry" onChange={onChange} />
+          <BasicFields draft={draft} showDate onChange={onChange} />
           <SearchFields draft={draft} onChange={onChange} />
           <QuestionStack draft={draft} questionsToShow={questions} onChange={onChange} />
           <div className="form-actions">
@@ -2845,6 +2950,41 @@ function createEmptyDraft(source: ResponseSource): ResponseDraft {
     q15: "unknown",
     q16: "unknown"
   };
+}
+
+function createPaperDraftForDate(surveyDate: string): ResponseDraft {
+  return { ...createEmptyDraft("paper"), surveyDate };
+}
+
+function isPaperDraftTouched(draft: ResponseDraft): boolean {
+  const empty = createPaperDraftForDate(draft.surveyDate);
+
+  return (
+    draft.gender !== empty.gender ||
+    draft.ageGroup !== empty.ageGroup ||
+    draft.residence !== empty.residence ||
+    questions.some((question) => draft[question.id] !== "unknown") ||
+    Boolean(draft.q11WarDetails && draft.q11WarDetails !== "—")
+  );
+}
+
+function readEntryBatchState(): EntryBatchState {
+  const fallbackSurveyDate = todayString();
+
+  try {
+    const raw = window.sessionStorage.getItem(entryBatchStorageKey);
+    return parseEntryBatchState(raw ? JSON.parse(raw) : null, fallbackSurveyDate);
+  } catch {
+    return { count: 0, surveyDate: fallbackSurveyDate };
+  }
+}
+
+function writeEntryBatchState(state: EntryBatchState): void {
+  try {
+    window.sessionStorage.setItem(entryBatchStorageKey, JSON.stringify(state));
+  } catch {
+    // Batch continuity is a convenience; paper entry must work without browser storage.
+  }
 }
 
 function readSurveyDraftState(): { draft: ResponseDraft; restored: boolean; step: number } {

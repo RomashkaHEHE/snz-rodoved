@@ -14,7 +14,7 @@
     "dev:web": "npm run dev -w @snz-rodoved/web",
     "lint": "eslint .",
     "start": "npm run start -w @snz-rodoved/api",
-    "test": "npm run build -w @snz-rodoved/shared && npm run build -w @snz-rodoved/db && npm run test -w @snz-rodoved/shared && npm run test -w @snz-rodoved/db && npm run test -w @snz-rodoved/api",
+    "test": "npm run build -w @snz-rodoved/shared && npm run build -w @snz-rodoved/db && npm run test -w @snz-rodoved/shared && npm run test -w @snz-rodoved/db && npm run test -w @snz-rodoved/api && npm run test -w @snz-rodoved/web",
     "typecheck": "npm run build -w @snz-rodoved/shared && npm run build -w @snz-rodoved/db && npm run typecheck -w @snz-rodoved/shared && npm run typecheck -w @snz-rodoved/db && npm run typecheck -w @snz-rodoved/api && npm run typecheck -w @snz-rodoved/web"
   },
   "devDependencies": {

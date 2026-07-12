@@ -26,6 +26,8 @@ Current flows use the isolated test backend and test SQLite/PDF storage:
 - public navigation shows only the online survey and a workspace login until the operator signs in;
 - password-gated operator entry, data, and PDF archive;
 - operator entry keeps one continuous paper-form flow, but adds section navigation, answer counts, a next-`Нет ответа` jump button, temporary question highlighting, and visual groups for phone work;
+- repeated paper entry uses a tab-scoped series: the survey date stays after a successful save, the confirmed-row counter increases only after the API responds, the next form starts empty at the first field, and `Завершить` clears the series;
+- the entry submit button is disabled while a response is being saved, preventing duplicate rows from a repeated phone tap;
 - data filters for date range, source, gender, age group, residence, help requests, contacts, contact workflow status, and free text; active filters are shown as removable chips, mirrored in `/data` URL query, restored on reload/back-forward, can be collapsed for mobile work, and can be saved as local browser presets;
 - data workspace with one shared filter slice and task modes for contacts, questionnaire rows, PDF files, and charts;
 - PDF data mode compares paper questionnaire dates in the current slice with matching PDF files and shows missing scans or scans without entered paper rows;

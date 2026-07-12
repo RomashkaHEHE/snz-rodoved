@@ -721,6 +721,74 @@ textarea {
   gap: 1.25rem;
 }
 
+.entry-batch {
+  align-items: end;
+  background: var(--accent-soft);
+  border: 1px solid #dfbdc7;
+  border-left: 4px solid var(--accent);
+  border-radius: 4px;
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: minmax(180px, 1fr) minmax(170px, 220px) auto auto;
+  padding: 0.9rem;
+  scroll-margin-top: 5.5rem;
+}
+
+.entry-batch-title {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+}
+
+.entry-batch-title > svg {
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+
+.entry-batch-title div,
+.entry-batch-count {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.entry-batch-title span,
+.entry-batch-count span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.entry-batch-title strong {
+  font-size: 1.05rem;
+}
+
+.entry-batch-date {
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.entry-batch-count {
+  min-width: 78px;
+}
+
+.entry-batch-count strong {
+  color: var(--accent);
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.entry-batch-end {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.entry-batch-status {
+  border-top: 1px solid #dfbdc7;
+  grid-column: 1 / -1;
+  padding-top: 0.7rem;
+}
+
 .entry-toolbar {
   align-items: center;
   background: #fffaf6;
@@ -1876,6 +1944,21 @@ textarea {
     top: 0.5rem;
   }
 
+  .entry-batch {
+    align-items: end;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .entry-batch-title,
+  .entry-batch-end,
+  .entry-batch-status {
+    grid-column: 1 / -1;
+  }
+
+  .entry-batch-end {
+    width: 100%;
+  }
+
   .entry-answer-counts,
   .entry-jump-row {
     width: 100%;
@@ -1956,6 +2039,10 @@ textarea {
 
   .task-heading h1 {
     font-size: 2.25rem;
+  }
+
+  .entry-batch {
+    padding: 0.8rem;
   }
 
   .form-actions,

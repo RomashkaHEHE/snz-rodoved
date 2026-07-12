@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-07-09
+Last updated: 2026-07-12
 
 ## Baseline
 
@@ -53,6 +53,7 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - Test-domain public navigation hides operator sections until workspace login. After login the operator sees survey, entry, data, and PDF sections.
 - Test-domain public survey uses a five-step flow with a mobile-oriented research-period control, full-answer review step before submit, and a completion screen after successful submit.
 - Test-domain operator entry keeps one continuous paper-form flow, but adds section navigation, yes/no/unknown counts, a next-`Нет ответа` jump button with temporary question highlighting, and grouped blocks for phone work.
+- Test-domain paper entry has a tab-scoped series state. A successful create retains the selected survey date, clears respondent answers, focuses the first field, and increments a server-confirmed counter. `Завершить` resets the date and counter; in-flight submit is disabled to prevent double-tap duplicates.
 - Test-domain data screen includes URL-backed filters with removable active-filter chips, collapsible filter controls with browser-local open/collapsed state, local saved filter presets, server CSV export for the current slice, and mode tabs for `Обращения`, `Анкеты`, `PDF`, and `Графики`. This keeps the mobile data workspace focused on one task at a time while preserving the same filter slice.
 - The test-domain `Обращения` mode is a contact-work queue for q16 help requests. It shows quick status queues (`Все`, `Новое`, `В работе`, `Закрыто`, `Не дозвонились`), quick next-contact plan slices (`Просрочено`, `Сегодня`, `Дальше`, `Без даты`), sorts open work first, and persists contact status, next-contact date, plus operator notes.
 - Test-domain row inspector on `/data` shows the selected row's demographics, contact/search fields, contact workflow, and a compact full Q4-Q16 answer review. It should not collapse the row down to only `Да` answers because operators need to audit missing and negative answers too.

@@ -36,6 +36,8 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - public navigation shows only the online survey and workspace login until the operator signs in;
   - operator entry, data, and PDF archive are behind workspace password login;
   - operator entry remains one continuous form, with section navigation, answer counts, a next-`Нет ответа` jump button, temporary question highlighting, and grouped paper-form sections for phone work;
+  - paper rows can be entered as a tab-scoped series: the selected survey date and API-confirmed count survive route reloads in the same tab, each successful save clears respondent answers and returns focus to the start, and `Завершить` resets the series;
+  - entry submission is locked while the request is in flight so a repeated mobile tap cannot create duplicate rows;
   - data filters include date range, source, gender, age group, residence, help-only, contact-only, contact workflow status, next-contact date, missing next-contact date, and free text search;
   - active data filters are shown as removable chips so the operator can clear one constraint without resetting the whole slice;
   - data filter controls can be collapsed and the open/collapsed state is stored locally in the browser;
@@ -156,5 +158,11 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - after workspace login, nav shows `Опрос`, `Ввод`, `Данные`, `PDF`;
   - protected data screen shows q16 help rows in `Обращения` with a `tel:` link;
   - iPhone-width checks had no horizontal overflow.
+- Local browser smoke for paper-entry series confirmed:
+  - changing the series date to `2026-07-11`, changing q4, and saving retained that date while resetting q4 to `Нет ответа`;
+  - the confirmed series count changed from `0` to `1` only after the success response;
+  - a page reload restored the date and count from tab-scoped storage;
+  - `Завершить` reset the series to the local current date and count `0`;
+  - desktop `1280x720` and iPhone 12 mini `375x812` had no horizontal overflow; the date, counter, navigation, and sticky save action remained usable.
 
 Note: the browser tool timed out while opening the temporary local server during the filter iteration, so the newest filter work was verified by TypeScript/lint/tests/build and HTTP/asset smoke. Re-run browser checks for filter clicks when the browser automation session is stable.
