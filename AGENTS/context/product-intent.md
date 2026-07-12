@@ -8,6 +8,8 @@ The first version must be useful enough for real data entry, but it is also a de
 
 Public visitors should see a calm project page. Operator screens may contain advanced tools, but they must use progressive disclosure: the current task and primary action stay visible, while filters, test-data controls, privacy controls, and destructive actions appear only when the operator asks for them. Density is useful only when the visual hierarchy remains obvious.
 
+The public online survey and the private workspace are separate product zones. They must not link to each other or share one navigation shell: `/` is only the respondent flow, while `/entry`, `/data`, and `/pdf` are only the operator workspace. Direct URLs and browser controls remain the boundary between them.
+
 Desktop and phone layouts may use different controls for the same state. For example, desktop data modes use tabs while phone layouts use one select. This is intentional when it keeps every option reachable without creating a wall of buttons.
 
 The operator also needs a small private catalog of scanned paper questionnaires. This is archival storage for source documents, not a replacement for structured data entry.

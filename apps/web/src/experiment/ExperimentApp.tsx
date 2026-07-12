@@ -368,50 +368,52 @@ export function ExperimentApp() {
 
   const editingResponse = responses.find((response) => response.id === editingId) ?? null;
   const workspaceReady = Boolean(session?.authenticated);
-  const visibleRoutes = workspaceReady ? (["survey", ...workspaceRoutes] as RouteId[]) : (["survey"] as RouteId[]);
+
+  if (route === "survey") {
+    return (
+      <main className="survey-shell">
+        <header className="survey-wordmark">Родовед</header>
+        <SurveyPage onSave={(draft) => saveDraft(draft)} />
+      </main>
+    );
+  }
 
   return (
-    <main className="lab-shell">
+    <main className="lab-shell workspace-shell">
       <header className="lab-topbar">
-        <button className="brand-mark" type="button" onClick={() => navigate("survey")}>
-          Родовед
-        </button>
-        <nav
-          aria-label={workspaceReady ? "Рабочие разделы" : "Основные разделы"}
-          className={workspaceReady ? "workspace-nav" : "public-nav"}
-        >
-          {visibleRoutes.map((item) => {
-            const Icon = routeIcons[item];
-
-            return (
-              <button
-                aria-current={route === item ? "page" : undefined}
-                className={route === item ? "is-active" : ""}
-                key={item}
-                type="button"
-                onClick={() => navigate(item)}
-              >
-                <Icon aria-hidden size={18} />
-                <span>{routeTitles[item]}</span>
-              </button>
-            );
-          })}
-          {!workspaceReady ? (
-            <button
-              aria-current={route !== "survey" ? "page" : undefined}
-              className={route !== "survey" ? "is-active" : ""}
-              type="button"
-              onClick={() => navigate("entry")}
-            >
-              <LockKeyhole aria-hidden size={16} />
-              Вход
+        <div className="workspace-brand">
+          {workspaceReady ? (
+            <button className="brand-mark" type="button" onClick={() => navigate("entry")}>
+              Родовед
             </button>
-          ) : null}
-        </nav>
+          ) : (
+            <span className="brand-mark">Родовед</span>
+          )}
+          <span>Рабочая зона</span>
+        </div>
+        {workspaceReady ? (
+          <nav aria-label="Рабочие разделы" className="workspace-nav">
+            {workspaceRoutes.map((item) => {
+              const Icon = routeIcons[item];
+
+              return (
+                <button
+                  aria-current={route === item ? "page" : undefined}
+                  className={route === item ? "is-active" : ""}
+                  key={item}
+                  type="button"
+                  onClick={() => navigate(item)}
+                >
+                  <Icon aria-hidden size={18} />
+                  <span>{routeTitles[item]}</span>
+                </button>
+              );
+            })}
+          </nav>
+        ) : null}
       </header>
 
-      {route === "survey" ? <SurveyPage onSave={(draft) => saveDraft(draft)} /> : null}
-      {route !== "survey" && !workspaceReady ? (
+      {!workspaceReady ? (
         <WorkspaceGate
           status={workspaceStatus}
           onLogin={async (password) => {
@@ -523,7 +525,7 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
             onChange={setDraft}
             onSelection={handleBasicSelection}
           />
-          <SearchFields draft={draft} onChange={setDraft} />
+          <SearchFields collapsible draft={draft} onChange={setDraft} />
         </>
       )
     },
@@ -657,67 +659,61 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
 
   if (submitted) {
     return (
-      <section className="task-page survey-task">
+      <section className="survey-page">
         <SurveySuccess onNewSurvey={resetSurvey} />
       </section>
     );
   }
 
   return (
-    <section className="task-page survey-task">
-      <div className="task-heading">
+    <section className="survey-page">
+      <header className="survey-heading">
         <div>
-          <p className="eyebrow">Онлайн</p>
-          <h1>Опрос</h1>
+          <p className="eyebrow">Онлайн-опрос</p>
+          <h1>{sections[step].title}</h1>
         </div>
         <div className="survey-progress-block">
-          <StepRail labels={sections.map((section) => section.title)} step={step} onChange={navigateSurveyStep} />
+          <div className="survey-progress-meta">
+            <span>Шаг {step + 1} из {sections.length}</span>
+            {hasSurveyDraftContent(draft) || hasAnyBasicSelection(basicSelections) ? (
+              <button className="link-button" type="button" onClick={confirmSurveyReset}>
+                Очистить ответы
+              </button>
+            ) : null}
+          </div>
           <div className="survey-progress" aria-hidden>
             <i style={{ width: `${((step + 1) / sections.length) * 100}%` }} />
           </div>
         </div>
-      </div>
+      </header>
 
-      <form className="task-panel survey-panel" onSubmit={handleSubmit}>
-        <div className="section-title-row">
-          <h2>{sections[step].title}</h2>
-          <div className="survey-state">
-            {hasSurveyDraftContent(draft) || hasAnyBasicSelection(basicSelections) ? (
-              <button className="link-button" type="button" onClick={confirmSurveyReset}>
-                Сбросить
-              </button>
-            ) : null}
-            <span>{step + 1} / {sections.length}</span>
-          </div>
-        </div>
-
+      <form className="survey-panel" onSubmit={handleSubmit}>
         {sections[step].render}
 
-        <div className="form-actions">
+        <footer className="survey-footer">
           {status ? <p className="form-status">{status}</p> : null}
-          <button
-            className="ghost-button"
-            disabled={step === 0}
-            type="button"
-            onClick={() => navigateSurveyStep(step - 1)}
-          >
-            Назад
-          </button>
-          {step < sections.length - 1 ? (
-            <button
-              className="primary-button"
-              type="button"
-              onClick={() => navigateSurveyStep(step + 1)}
-            >
-              Далее
-            </button>
-          ) : (
-            <button className="primary-button" disabled={saving} type="submit">
-              <Save aria-hidden size={18} />
-              {saving ? "Отправка..." : "Отправить"}
-            </button>
-          )}
-        </div>
+          <div className="survey-footer-actions">
+            {step > 0 ? (
+              <button className="ghost-button" type="button" onClick={() => navigateSurveyStep(step - 1)}>
+                Назад
+              </button>
+            ) : null}
+            {step < sections.length - 1 ? (
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => navigateSurveyStep(step + 1)}
+              >
+                Далее
+              </button>
+            ) : (
+              <button className="primary-button" disabled={saving} type="submit">
+                <Save aria-hidden size={18} />
+                {saving ? "Отправка..." : "Отправить"}
+              </button>
+            )}
+          </div>
+        </footer>
       </form>
     </section>
   );
@@ -855,7 +851,7 @@ function ReviewQuestionList({
 
 function SurveySuccess({ onNewSurvey }: { onNewSurvey: () => void }) {
   return (
-    <section className="task-panel survey-success">
+    <section className="survey-success">
       <CheckCircle aria-hidden size={42} />
       <div>
         <p className="eyebrow">Готово</p>
@@ -2059,13 +2055,15 @@ function BasicFields({
 }
 
 function SearchFields({
+  collapsible = false,
   draft,
   onChange
 }: {
+  collapsible?: boolean;
   draft: ResponseDraft;
   onChange: (draft: ResponseDraft) => void;
 }) {
-  return (
+  const fields = (
     <div className="search-grid">
       <label>
         Территория поиска
@@ -2086,6 +2084,33 @@ function SearchFields({
         />
       </label>
     </div>
+  );
+
+  if (!collapsible) {
+    return fields;
+  }
+
+  const hasResearchDetails = Boolean(
+    draft.researchTerritory ||
+    draft.researchPeriodStart ||
+    draft.researchPeriodEnd ||
+    draft.freeText
+  );
+
+  return (
+    <details className="survey-research">
+      <summary>
+        <div>
+          <strong>Область поиска</strong>
+          <span>необязательно</span>
+        </div>
+        <span className="survey-research-action">
+          {hasResearchDetails ? "Изменить" : "Добавить"}
+          <ChevronDown aria-hidden size={18} />
+        </span>
+      </summary>
+      <div className="survey-research-content">{fields}</div>
+    </details>
   );
 }
 
@@ -2371,32 +2396,6 @@ function MultiSegmentedGroup({
         ))}
       </div>
     </fieldset>
-  );
-}
-
-function StepRail({
-  labels,
-  onChange,
-  step
-}: {
-  labels: string[];
-  onChange: (step: number) => void;
-  step: number;
-}) {
-  return (
-    <div className="step-rail">
-      {labels.map((label, index) => (
-        <button
-          className={index === step ? "is-active" : ""}
-          key={label}
-          type="button"
-          onClick={() => onChange(index)}
-        >
-          <span className="step-number">{index + 1}</span>
-          <span className="step-label">{label}</span>
-        </button>
-      ))}
-    </div>
   );
 }
 

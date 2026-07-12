@@ -50,8 +50,8 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - `test.snz-rodoved.ru` is a separate experimental Rodoved product for checking new organization of online surveys, manual entry, data work, PDF archive, mobile workflow, and safe contact/scan handling.
 - Test-domain UI code lives under `apps/web/src/experiment`.
 - `test.snz-rodoved.ru` resolves to `46.16.36.87`, has a separate nginx config `snz-rodoved-test.conf`, and has Let's Encrypt HTTPS enabled. HTTP redirects to HTTPS. Test runtime uses `COOKIE_SECURE=true`.
-- Test-domain public navigation hides operator sections until workspace login. After login the operator sees survey, entry, data, and PDF sections.
-- Test-domain public survey uses a five-step flow with a collapsed-on-demand research-period control, full-answer review step before submit, and a completion screen after successful submit.
+- Test-domain public survey and private workspace are separate interface shells with no cross-links. `/` contains only the respondent flow; `/entry`, `/data`, and `/pdf` contain only the workspace. Authenticated workspace navigation lists `Ввод`, `Данные`, and `PDF`.
+- Test-domain public survey uses a narrow five-step flow with only the current title and progress visible. The first screen shows required demographics; territory, period, and free text stay inside one optional disclosure. Full-answer review and completion screens remain.
 - Test-domain online demographics have no visual defaults: gender, age group, and residence must each be selected explicitly before leaving the first step. This rule is client-side and does not change the shared response schema or paper-entry defaults.
 - Test-domain online drafts expire after 24 hours and redact `contactName`/`contactPhone` before localStorage writes. Restoring a q16 help request routes to the help step with empty contact fields; resetting a non-empty survey requires confirmation.
 - Test-domain operator entry keeps one continuous paper-form flow, with answered/remaining progress, a next-missing-answer action, one section selector, temporary question highlighting, and grouped blocks for phone work.

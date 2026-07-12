@@ -30,14 +30,14 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - Experimental UI lives under `apps/web/src/experiment`.
 - The visible test site opens as a product UI with working task screens.
 - Current flows use the isolated test backend:
-  - public online survey has a five-step flow: basic/search fields, experience, interests, help, full-answer review;
+  - public online survey has a narrow five-step flow: basic/search fields, experience, interests, help, full-answer review. Only the current title and progress are shown instead of a clickable map of every step;
   - the first online step starts with no selected demographics and blocks later steps until gender, age group, and residence have each been chosen deliberately;
   - online draft persistence expires after 24 hours and redacts name/phone; restored q16 help requests reopen the help step with empty contact fields;
   - resetting a non-empty online survey requires confirmation, and missing restored contacts return focus to the name input instead of leaving the visitor on review;
-  - online survey search fields keep the full research-period control behind a compact disclosure, with quick presets, two range sliders, exact year inputs, and the same `researchPeriodStart`/`researchPeriodEnd` data contract;
+  - online survey territory, period, and free text stay in one optional `Область поиска` disclosure. The nested period control keeps quick presets, two range sliders, exact year inputs, and the same data contract;
   - public online survey submits to the server after the review step, shows a completion screen, and stores a browser-local draft until successful submit;
-  - public navigation shows only the online survey and workspace login until the operator signs in;
-  - operator entry, data, and PDF archive are behind workspace password login;
+  - public survey and workspace are separate shells without links between them. `/` has no workspace entry; `/entry`, `/data`, and `/pdf` have no survey entry;
+  - operator entry, data, and PDF archive are behind workspace password login; authenticated workspace navigation contains only `Ввод`, `Данные`, and `PDF`;
   - operator entry remains one continuous form, with answered/remaining progress, a next-missing-answer action, one section selector, temporary question highlighting, and grouped paper-form sections for phone work;
   - paper rows can be entered as a tab-scoped series: the selected survey date and API-confirmed count survive route reloads in the same tab, each successful save clears respondent answers and returns focus to the start, and `Завершить` resets the series;
   - entry submission is locked while the request is in flight so a repeated mobile tap cannot create duplicate rows;
@@ -64,6 +64,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - Avoid visible meta-copy explaining that this is an experiment.
 - Prefer mobile-first controls and dense-but-readable work screens.
 - Use progressive disclosure: current work and primary actions stay visible; rare, destructive, and configuration actions do not compete with them.
+- Keep respondent and operator zones independent. Do not reintroduce a shared survey/workspace navigation.
 - Keep contact data and scanned questionnaires behind the workspace flow.
 - Keep fake/demo rows visibly marked and removable only through fake-only API deletion.
 
@@ -82,12 +83,18 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - `npm run test`
 - `VITE_APP_ENV=test npm run build`
 - Local browser smoke for the calmer interface confirmed:
-  - public survey at `1280x720` and iPhone 12 mini `375x812` has no horizontal overflow; mobile step navigation collapses to numbered progress and the research-period controls stay closed until requested;
+  - public survey at `1280x720` and iPhone 12 mini `375x812` has no horizontal overflow; only the current title and progress are visible, and research fields stay closed until requested;
   - mobile bottom navigation is fixed to the viewport rather than the blurred header containing block;
   - paper entry replaces the former button toolbar with one progress indicator, `Найти пропуск`, and one section select; toolbar height is 65px on desktop and the mobile layout remains usable without horizontal overflow;
   - data filters are closed on first open, summary metrics only appear in `Графики`, desktop uses low-chrome mode tabs, and mobile uses one mode select;
   - one demo row exposed one `Открыть` action; the inspector retained edit, open-in-entry, delete, contact workflow, and all 13 answer rows;
   - the initial empty data screen had 14 visible buttons including global navigation, compared with the previous always-open filters and metric dashboard.
+- Local browser smoke for respondent/workspace separation confirmed:
+  - `/` has no `nav`, workspace entry, or survey step button rail; it shows one current title, `Шаг N из 5`, required demographics, the closed optional `Область поиска`, and the primary action;
+  - unauthenticated `/entry` has no survey link or navigation; authenticated workspace navigation is exactly `Ввод`, `Данные`, `PDF`;
+  - at `1280x720`, the public form is constrained to a 680px reading column with unused space around it rather than spreading controls across the viewport;
+  - at iPhone 12 mini `375x812`, the complete first survey step fits in the viewport, the optional research block starts closed, and there is no horizontal overflow;
+  - mobile authenticated workspace navigation has three equal items, stays fixed at the viewport bottom, and contains no survey transition.
 - HTTP/asset smoke against a temporary local server confirmed:
   - `/api/health` responds;
   - `/data` serves the built test app;
@@ -166,8 +173,8 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - the built UI uses local date formatting through `getTimezoneOffset`;
   - forbidden meta-copy about the test domain is absent.
 - Local browser smoke:
-  - unauthenticated public nav on `/` shows only `Опрос` and `Вход`;
-  - after workspace login, nav shows `Опрос`, `Ввод`, `Данные`, `PDF`;
+  - public `/` has no workspace navigation or entry link;
+  - unauthenticated `/entry` has no survey link; after workspace login, navigation shows only `Ввод`, `Данные`, `PDF`;
   - protected data screen shows q16 help rows in `Обращения` with a `tel:` link;
   - iPhone-width checks had no horizontal overflow.
 - Local browser smoke for paper-entry series confirmed:
