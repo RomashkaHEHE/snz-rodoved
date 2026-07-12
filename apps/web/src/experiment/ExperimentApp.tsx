@@ -39,6 +39,18 @@ import {
   parseEntryBatchState,
   type EntryBatchState
 } from "./entryBatch";
+import {
+  areBasicSelectionsComplete,
+  coerceBasicSelections,
+  createEmptyBasicSelections,
+  hasAnyBasicSelection,
+  isSurveyDraftFresh,
+  markBasicSelection,
+  redactSurveyDraftContacts,
+  resolveSurveyDraftStep,
+  type SurveyBasicField,
+  type SurveyBasicSelections
+} from "./surveyDraft";
 import type { SurveyFilters } from "@snz-rodoved/shared";
 import "./experiment.css";
 
@@ -127,6 +139,13 @@ interface Filters {
 interface FilterChip {
   key: string;
   label: string;
+}
+
+interface SurveyDraftState {
+  basicSelections: SurveyBasicSelections;
+  draft: ResponseDraft;
+  restored: boolean;
+  step: number;
 }
 
 interface FilterPreset {
@@ -471,16 +490,26 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
   const [restoredDraft] = useState(() => readSurveyDraftState());
   const [step, setStep] = useState(restoredDraft.step);
   const [draft, setDraft] = useState<ResponseDraft>(restoredDraft.draft);
+  const [basicSelections, setBasicSelections] = useState(restoredDraft.basicSelections);
+  const [basicValidationAttempted, setBasicValidationAttempted] = useState(false);
   const [status, setStatus] = useState(restoredDraft.restored ? "Черновик восстановлен." : "");
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const basicsComplete = areBasicSelectionsComplete(basicSelections);
 
   const sections = [
     {
       title: "О себе",
       render: (
         <>
-          <BasicFields draft={draft} showDate={false} onChange={setDraft} />
+          <BasicFields
+            draft={draft}
+            selectedBasics={basicSelections}
+            showDate={false}
+            showMissing={basicValidationAttempted}
+            onChange={setDraft}
+            onSelection={handleBasicSelection}
+          />
           <SearchFields draft={draft} onChange={setDraft} />
         </>
       )
@@ -517,23 +546,66 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
     },
     {
       title: "Проверка",
-      render: <SurveyReview draft={draft} onEdit={setStep} />
+      render: <SurveyReview draft={draft} onEdit={navigateSurveyStep} />
     }
   ];
 
   useEffect(() => {
-    if (hasSurveyDraftContent(draft) || step > 0) {
-      writeSurveyDraftState({ draft, step });
+    if (hasSurveyDraftContent(draft) || hasAnyBasicSelection(basicSelections) || step > 0) {
+      writeSurveyDraftState({ basicSelections, draft, step });
       return;
     }
 
     clearSurveyDraftState();
-  }, [draft, step]);
+  }, [basicSelections, draft, step]);
+
+  function handleBasicSelection(field: SurveyBasicField) {
+    setBasicSelections((current) => markBasicSelection(current, field));
+    setStatus("");
+  }
+
+  function focusFirstMissingBasic() {
+    const firstMissing = (["gender", "ageGroup", "residence"] as SurveyBasicField[]).find(
+      (field) => !basicSelections[field]
+    );
+
+    if (!firstMissing) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLButtonElement>(`[data-basic-field="${firstMissing}"] button`)
+        ?.focus({ preventScroll: false });
+    });
+  }
+
+  function navigateSurveyStep(nextStep: number) {
+    if (nextStep > 0 && !basicsComplete) {
+      setBasicValidationAttempted(true);
+      setStatus("Выберите пол, возраст и место проживания.");
+      setStep(0);
+      focusFirstMissingBasic();
+      return;
+    }
+
+    setStatus("");
+    setStep(Math.min(sections.length - 1, Math.max(0, nextStep)));
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!basicsComplete) {
+      navigateSurveyStep(1);
+      return;
+    }
+
     if (draft.q16 === "yes" && (!draft.contactName?.trim() || !draft.contactPhone?.trim())) {
       setStatus("Укажите имя и телефон, чтобы можно было связаться по запросу.");
+      setStep(3);
+      window.requestAnimationFrame(() => {
+        document.querySelector<HTMLInputElement>('.contact-grid input[autocomplete="name"]')?.focus();
+      });
       return;
     }
 
@@ -542,6 +614,8 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
       await onSave(draft);
       clearSurveyDraftState();
       setDraft(createEmptyDraft("online"));
+      setBasicSelections(createEmptyBasicSelections());
+      setBasicValidationAttempted(false);
       setStep(0);
       setStatus("");
       setSubmitted(true);
@@ -555,9 +629,17 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
   function resetSurvey() {
     clearSurveyDraftState();
     setDraft(createEmptyDraft("online"));
+    setBasicSelections(createEmptyBasicSelections());
+    setBasicValidationAttempted(false);
     setStep(0);
     setStatus("");
     setSubmitted(false);
+  }
+
+  function confirmSurveyReset() {
+    if (window.confirm("Очистить все ответы анкеты?")) {
+      resetSurvey();
+    }
   }
 
   if (submitted) {
@@ -576,7 +658,7 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
           <h1>Опрос</h1>
         </div>
         <div className="survey-progress-block">
-          <StepRail labels={sections.map((section) => section.title)} step={step} onChange={setStep} />
+          <StepRail labels={sections.map((section) => section.title)} step={step} onChange={navigateSurveyStep} />
           <div className="survey-progress" aria-hidden>
             <i style={{ width: `${((step + 1) / sections.length) * 100}%` }} />
           </div>
@@ -587,8 +669,8 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
         <div className="section-title-row">
           <h2>{sections[step].title}</h2>
           <div className="survey-state">
-            {hasSurveyDraftContent(draft) ? (
-              <button className="link-button" type="button" onClick={resetSurvey}>
+            {hasSurveyDraftContent(draft) || hasAnyBasicSelection(basicSelections) ? (
+              <button className="link-button" type="button" onClick={confirmSurveyReset}>
                 Сбросить
               </button>
             ) : null}
@@ -604,7 +686,7 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
             className="ghost-button"
             disabled={step === 0}
             type="button"
-            onClick={() => setStep((current) => Math.max(0, current - 1))}
+            onClick={() => navigateSurveyStep(step - 1)}
           >
             Назад
           </button>
@@ -612,7 +694,7 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
             <button
               className="primary-button"
               type="button"
-              onClick={() => setStep((current) => Math.min(sections.length - 1, current + 1))}
+              onClick={() => navigateSurveyStep(step + 1)}
             >
               Далее
             </button>
@@ -1842,12 +1924,18 @@ function PdfPage({
 
 function BasicFields({
   draft,
+  selectedBasics,
   showDate,
-  onChange
+  showMissing,
+  onChange,
+  onSelection
 }: {
   draft: ResponseDraft;
+  selectedBasics?: SurveyBasicSelections;
   showDate: boolean;
+  showMissing?: boolean;
   onChange: (draft: ResponseDraft) => void;
+  onSelection?: (field: SurveyBasicField) => void;
 }) {
   return (
     <div className="basic-grid">
@@ -1863,32 +1951,50 @@ function BasicFields({
         </label>
       ) : null}
       <SegmentedGroup
+        dataField={selectedBasics ? "gender" : undefined}
+        invalid={Boolean(showMissing && selectedBasics && !selectedBasics.gender)}
         label="Пол"
         options={[
           { value: "female", label: genderLabels.female },
           { value: "male", label: genderLabels.male }
         ]}
-        value={draft.gender}
-        onChange={(value) => onChange({ ...draft, gender: value as Gender })}
+        required={Boolean(selectedBasics)}
+        value={!selectedBasics || selectedBasics.gender ? draft.gender : undefined}
+        onChange={(value) => {
+          onChange({ ...draft, gender: value as Gender });
+          onSelection?.("gender");
+        }}
       />
       <SegmentedGroup
+        dataField={selectedBasics ? "ageGroup" : undefined}
+        invalid={Boolean(showMissing && selectedBasics && !selectedBasics.ageGroup)}
         label="Возраст"
         options={[
           { value: "under_18", label: ageLabels.under_18 },
           { value: "18_40", label: ageLabels["18_40"] },
           { value: "over_40", label: ageLabels.over_40 }
         ]}
-        value={draft.ageGroup}
-        onChange={(value) => onChange({ ...draft, ageGroup: value as AgeGroup })}
+        required={Boolean(selectedBasics)}
+        value={!selectedBasics || selectedBasics.ageGroup ? draft.ageGroup : undefined}
+        onChange={(value) => {
+          onChange({ ...draft, ageGroup: value as AgeGroup });
+          onSelection?.("ageGroup");
+        }}
       />
       <SegmentedGroup
+        dataField={selectedBasics ? "residence" : undefined}
+        invalid={Boolean(showMissing && selectedBasics && !selectedBasics.residence)}
         label="Место проживания"
         options={[
           { value: "snezhinsk", label: residenceLabels.snezhinsk },
           { value: "other", label: residenceLabels.other }
         ]}
-        value={draft.residence}
-        onChange={(value) => onChange({ ...draft, residence: value as Residence })}
+        required={Boolean(selectedBasics)}
+        value={!selectedBasics || selectedBasics.residence ? draft.residence : undefined}
+        onChange={(value) => {
+          onChange({ ...draft, residence: value as Residence });
+          onSelection?.("residence");
+        }}
       />
     </div>
   );
@@ -2120,23 +2226,39 @@ function QuestionStack({
 
 function SegmentedGroup({
   compact,
+  dataField,
+  invalid,
   label,
   onChange,
   options,
+  required,
   value
 }: {
   compact?: boolean;
+  dataField?: SurveyBasicField;
+  invalid?: boolean;
   label: string;
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
-  value: string;
+  required?: boolean;
+  value?: string;
 }) {
+  const className = ["segmented", compact ? "compact" : "", invalid ? "is-invalid" : ""]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <fieldset className={compact ? "segmented compact" : "segmented"}>
+    <fieldset
+      aria-invalid={invalid || undefined}
+      aria-required={required || undefined}
+      className={className}
+      data-basic-field={dataField}
+    >
       {label ? <legend>{label}</legend> : null}
       <div>
         {options.map((option) => (
           <button
+            aria-pressed={value === option.value}
             className={value === option.value ? "is-selected" : ""}
             key={option.value}
             type="button"
@@ -2987,8 +3109,13 @@ function writeEntryBatchState(state: EntryBatchState): void {
   }
 }
 
-function readSurveyDraftState(): { draft: ResponseDraft; restored: boolean; step: number } {
-  const fallback = { draft: createEmptyDraft("online"), restored: false, step: 0 };
+function readSurveyDraftState(): SurveyDraftState {
+  const fallback = {
+    basicSelections: createEmptyBasicSelections(),
+    draft: createEmptyDraft("online"),
+    restored: false,
+    step: 0
+  };
 
   try {
     const raw = window.localStorage.getItem(surveyDraftStorageKey);
@@ -2996,25 +3123,51 @@ function readSurveyDraftState(): { draft: ResponseDraft; restored: boolean; step
       return fallback;
     }
 
-    const parsed = JSON.parse(raw) as { draft?: unknown; step?: unknown };
-    const draft = coerceStoredOnlineDraft(parsed.draft);
-    const step = clampSurveyStep(parsed.step);
-
-    if (!hasSurveyDraftContent(draft) && step === 0) {
+    const parsed = JSON.parse(raw) as {
+      basicSelections?: unknown;
+      draft?: unknown;
+      savedAt?: unknown;
+      step?: unknown;
+    };
+    if (!isSurveyDraftFresh(parsed.savedAt, Date.now())) {
+      clearSurveyDraftState();
       return fallback;
     }
 
-    return { draft, restored: true, step };
+    const basicSelections = coerceBasicSelections(parsed.basicSelections);
+    const draft = coerceStoredOnlineDraft(parsed.draft);
+    const requestedStep = clampSurveyStep(parsed.step);
+    const step = resolveSurveyDraftStep(requestedStep, basicSelections, draft.q16 === "yes");
+
+    if (!hasSurveyDraftContent(draft) && !hasAnyBasicSelection(basicSelections) && step === 0) {
+      clearSurveyDraftState();
+      return fallback;
+    }
+
+    writeSurveyDraftState({ basicSelections, draft, step }, parsed.savedAt);
+    return { basicSelections, draft, restored: true, step };
   } catch {
     return fallback;
   }
 }
 
-function writeSurveyDraftState(input: { draft: ResponseDraft; step: number }): void {
+function writeSurveyDraftState(
+  input: {
+    basicSelections: SurveyBasicSelections;
+    draft: ResponseDraft;
+    step: number;
+  },
+  savedAt = new Date().toISOString()
+): void {
   try {
     window.localStorage.setItem(
       surveyDraftStorageKey,
-      JSON.stringify({ draft: input.draft, savedAt: new Date().toISOString(), step: input.step })
+      JSON.stringify({
+        basicSelections: input.basicSelections,
+        draft: redactSurveyDraftContacts(input.draft),
+        savedAt,
+        step: input.step
+      })
     );
   } catch {
     // Local draft persistence is a convenience; survey submission must keep working without it.
@@ -3143,9 +3296,7 @@ function hasSurveyDraftContent(draft: ResponseDraft): boolean {
     Boolean(cleanOptional(draft.researchTerritory)) ||
     Boolean(draft.researchPeriodStart) ||
     Boolean(draft.researchPeriodEnd) ||
-    Boolean(cleanOptional(draft.freeText)) ||
-    Boolean(cleanOptional(draft.contactName)) ||
-    Boolean(cleanOptional(draft.contactPhone))
+    Boolean(cleanOptional(draft.freeText))
   );
 }
 
@@ -3158,8 +3309,6 @@ function coerceStoredOnlineDraft(value: unknown): ResponseDraft {
   const draft: ResponseDraft = {
     ...fallback,
     ageGroup: isAgeGroup(value.ageGroup) ? value.ageGroup : fallback.ageGroup,
-    contactName: optionalStoredString(value.contactName),
-    contactPhone: optionalStoredString(value.contactPhone),
     freeText: optionalStoredString(value.freeText),
     gender: isGender(value.gender) ? value.gender : fallback.gender,
     q11WarDetails: optionalStoredString(value.q11WarDetails) ?? fallback.q11WarDetails,
@@ -3176,10 +3325,8 @@ function coerceStoredOnlineDraft(value: unknown): ResponseDraft {
     draft[question.id] = isAnswer(storedAnswer) ? storedAnswer : fallback[question.id];
   }
 
-  if (draft.q16 !== "yes") {
-    draft.contactName = undefined;
-    draft.contactPhone = undefined;
-  }
+  draft.contactName = undefined;
+  draft.contactPhone = undefined;
 
   return draft;
 }

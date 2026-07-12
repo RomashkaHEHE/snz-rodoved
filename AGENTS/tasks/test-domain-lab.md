@@ -31,6 +31,9 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - The visible test site opens as a product UI with working task screens.
 - Current flows use the isolated test backend:
   - public online survey has a five-step flow: basic/search fields, experience, interests, help, full-answer review;
+  - the first online step starts with no selected demographics and blocks later steps until gender, age group, and residence have each been chosen deliberately;
+  - online draft persistence expires after 24 hours and redacts name/phone; restored q16 help requests reopen the help step with empty contact fields;
+  - resetting a non-empty online survey requires confirmation, and missing restored contacts return focus to the name input instead of leaving the visitor on review;
   - online survey search fields include a mobile-oriented research-period control with quick presets, two range sliders, exact year inputs, and the same `researchPeriodStart`/`researchPeriodEnd` data contract;
   - public online survey submits to the server after the review step, shows a completion screen, and stores a browser-local draft until successful submit;
   - public navigation shows only the online survey and workspace login until the operator signs in;
@@ -164,5 +167,11 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - a page reload restored the date and count from tab-scoped storage;
   - `Завершить` reset the series to the local current date and count `0`;
   - desktop `1280x720` and iPhone 12 mini `375x812` had no horizontal overflow; the date, counter, navigation, and sticky save action remained usable.
+- Local browser smoke for deliberate public answers and draft privacy confirmed:
+  - a fresh survey showed zero selected demographics; trying `Далее` marked all three groups, stayed on `О себе`, and focused the first missing choice;
+  - selecting `М`, `18-40 лет`, and `другое` cleared validation and allowed later steps;
+  - a q16 help draft showed contacts on review in memory, but reload reopened `Помощь` with both contact inputs empty while retaining the demographic choices;
+  - trying to submit that restored review returned to `Помощь` and focused the name input without issuing a create request;
+  - iPhone 12 mini `375x812` had no horizontal overflow and each demographic group retained a stable full-width layout.
 
 Note: the browser tool timed out while opening the temporary local server during the filter iteration, so the newest filter work was verified by TypeScript/lint/tests/build and HTTP/asset smoke. Re-run browser checks for filter clicks when the browser automation session is stable.

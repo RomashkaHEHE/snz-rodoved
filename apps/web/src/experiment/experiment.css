@@ -560,6 +560,21 @@ textarea {
   gap: 0.4rem;
 }
 
+.segmented[data-basic-field] {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0.65rem;
+}
+
+.segmented.is-invalid {
+  background: #fff5f4;
+  border-color: #c97884;
+}
+
+.segmented.is-invalid legend {
+  color: var(--accent);
+}
+
 .segmented > div {
   display: flex;
   flex-wrap: wrap;

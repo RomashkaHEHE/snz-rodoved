@@ -23,6 +23,9 @@ The test domain has its own interface and UX decisions.
 Current flows use the isolated test backend and test SQLite/PDF storage:
 
 - public online survey with browser-local draft restore, a mobile-oriented research-period control with presets/range sliders/exact years, a full-answer review step before submit, and a completion screen after successful submit;
+- online demographic controls start without a selected value and require an explicit gender, age-group, and residence choice before later steps can open; paper entry keeps its operator-oriented defaults;
+- online drafts expire after 24 hours and never store `contactName` or `contactPhone`; a restored help request returns to the help step so contacts can be entered again;
+- clearing a non-empty online survey requires confirmation;
 - public navigation shows only the online survey and a workspace login until the operator signs in;
 - password-gated operator entry, data, and PDF archive;
 - operator entry keeps one continuous paper-form flow, but adds section navigation, answer counts, a next-`Нет ответа` jump button, temporary question highlighting, and visual groups for phone work;
