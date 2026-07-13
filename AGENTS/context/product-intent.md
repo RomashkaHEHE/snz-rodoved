@@ -12,6 +12,8 @@ The public online survey and the private workspace are separate product zones. T
 
 The online survey should preserve the paper questionnaire's sequence through Q16. Digital-only follow-up fields are not an independent opening section: name, phone, research territory, period, and free text belong to a request for help and appear only when Q16 is answered `yes`. If that answer changes, hidden dependent values must be cleared rather than retained invisibly.
 
+Public questions Q4-Q16 should be presented one at a time on every device. A deliberate `yes` or `no` advances immediately unless Q11 or Q16 has just opened dependent fields; leaving an answer blank remains an explicit `Пропустить` action. This keeps the respondent focused without removing the ability to go back. The final check starts as four compact factual summaries and reveals full answers only when the respondent opens a section.
+
 Desktop and phone layouts may use different controls for the same state. For example, desktop data modes use tabs while phone layouts use one select. This is intentional when it keeps every option reachable without creating a wall of buttons.
 
 Paper entry follows the same device-specific rule. Desktop keeps the whole questionnaire visible for overview and keyboard work; phone layouts guide the operator through demographics and one question at a time. A mobile answer may advance immediately when no dependent field is required, while Q11 and Q16 remain in place for their conditional details.

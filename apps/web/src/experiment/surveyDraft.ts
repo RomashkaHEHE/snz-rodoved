@@ -7,6 +7,14 @@ export interface SurveyBasicSelections {
 }
 
 export const surveyDraftLifetimeMs = 24 * 60 * 60 * 1000;
+// Demographics use step 0, paper questions Q4-Q16 use steps 1-13, and review uses 14.
+export const surveyFlowVersion = 2;
+export const surveyHelpStep = 13;
+export const surveyReviewStep = 14;
+export const surveyStepCount = 15;
+
+// V1 grouped experience, interests, and help into steps 1, 2, and 3.
+const legacySurveyStepMap = [0, 1, 4, surveyHelpStep, surveyReviewStep] as const;
 
 export function createEmptyBasicSelections(): SurveyBasicSelections {
   return { ageGroup: false, gender: false, residence: false };
@@ -49,7 +57,34 @@ export function resolveSurveyDraftStep(
     return 0;
   }
 
-  return requiresContact && requestedStep > 3 ? 3 : requestedStep;
+  return requiresContact && requestedStep > surveyHelpStep ? surveyHelpStep : requestedStep;
+}
+
+export function coerceSurveyDraftStep(value: unknown, flowVersion: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    return 0;
+  }
+
+  if (flowVersion === surveyFlowVersion) {
+    return Math.min(surveyStepCount - 1, Math.max(0, value));
+  }
+
+  if (flowVersion === undefined && value >= 0 && value < legacySurveyStepMap.length) {
+    return legacySurveyStepMap[value];
+  }
+
+  return 0;
+}
+
+export function shouldAutoAdvanceSurveyQuestion(
+  questionId: string,
+  answer: "yes" | "no" | "unknown"
+): boolean {
+  if (answer === "unknown") {
+    return false;
+  }
+
+  return !(answer === "yes" && (questionId === "q11" || questionId === "q16"));
 }
 
 export function redactSurveyDraftContacts<

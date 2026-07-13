@@ -30,7 +30,9 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - Experimental UI lives under `apps/web/src/experiment`.
 - The visible test site opens as a product UI with working task screens.
 - Current flows use the isolated test backend:
-  - public online survey has a narrow five-step flow: demographics, experience, interests, help, and full-answer review. Only the current title and progress are shown instead of a clickable map of every step;
+  - public online survey starts with demographics, then shows one Q4-Q16 question at a time in the paper questionnaire's order. Deliberate `yes`/`no` answers advance automatically, Q11/Q16 wait when follow-up fields open, and an unanswered question moves on only through `Пропустить`;
+  - the final online check is four compact collapsed summaries for demographics, experience, interests, and help. Each summary exposes full answers and the relevant edit action only when opened;
+  - versioned browser draft navigation preserves current question positions and migrates legacy five-step drafts to the matching focused-flow section;
   - the first online step starts with no selected demographics and blocks later steps until gender, age group, and residence have each been chosen deliberately;
   - online draft persistence expires after 24 hours and redacts name/phone; restored q16 help requests reopen the help step with empty contact fields;
   - resetting a non-empty online survey requires confirmation, and missing restored contacts return focus to the name input instead of leaving the visitor on review;
@@ -233,5 +235,12 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - a Q16 `yes` draft restored the final step but cleared a test name and phone, with an explicit message asking the operator to enter them again;
   - successful creation increased the server-confirmed series count, cleared the recovery draft, and a later reload started at demographics without a restore notice;
   - at `1280x720`, the continuous 13-question form remained active with no horizontal overflow, and browser console warnings/errors were empty.
+- Local browser smoke for the focused online survey confirmed:
+  - at `375x812`, the first screen fits without horizontal overflow; Q4 renders exactly one question and two answer buttons, while the blank state exposes `Пропустить` instead of a preselected third answer;
+  - Q4 `Да` advanced to Q5, `Назад` retained the answer, Q11 `Да` stayed in place for the full war selector, and the selected war survived draft reload;
+  - Q16 `Да` opened contacts and search context, blocked forward navigation with empty required contacts, and focused the name field; changing the same answer to `Нет` auto-advanced and removed every dependent value;
+  - the collapsed final check reduced the mobile document from about 2616px of fully expanded answers to one 812px viewport with four factual summaries; opening `Интересы` exposed all nine answer rows and its edit action;
+  - at `1280x720`, the survey remains a centered 680px reading column with one question, two answer buttons, no horizontal overflow, and no browser console warnings or errors;
+  - submitting the local questionnaire reached the `Анкета отправлена` completion screen.
 
 Note: the browser tool timed out while opening the temporary local server during the filter iteration, so the newest filter work was verified by TypeScript/lint/tests/build and HTTP/asset smoke. Re-run browser checks for filter clicks when the browser automation session is stable.

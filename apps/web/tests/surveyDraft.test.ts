@@ -3,13 +3,18 @@ import {
   areBasicSelectionsComplete,
   clearSurveyHelpDetails,
   coerceBasicSelections,
+  coerceSurveyDraftStep,
   createEmptyBasicSelections,
   hasAnyBasicSelection,
   isSurveyDraftFresh,
   markBasicSelection,
   redactSurveyDraftContacts,
   resolveSurveyDraftStep,
-  surveyDraftLifetimeMs
+  shouldAutoAdvanceSurveyQuestion,
+  surveyDraftLifetimeMs,
+  surveyFlowVersion,
+  surveyHelpStep,
+  surveyReviewStep
 } from "../src/experiment/surveyDraft";
 
 describe("online survey draft safety", () => {
@@ -70,9 +75,31 @@ describe("online survey draft safety", () => {
   it("returns restored help requests to the contact step", () => {
     const complete = { ageGroup: true, gender: true, residence: true };
 
-    expect(resolveSurveyDraftStep(4, complete, true)).toBe(3);
-    expect(resolveSurveyDraftStep(4, complete, false)).toBe(4);
-    expect(resolveSurveyDraftStep(3, createEmptyBasicSelections(), false)).toBe(0);
+    expect(resolveSurveyDraftStep(surveyReviewStep, complete, true)).toBe(surveyHelpStep);
+    expect(resolveSurveyDraftStep(surveyReviewStep, complete, false)).toBe(surveyReviewStep);
+    expect(resolveSurveyDraftStep(8, createEmptyBasicSelections(), false)).toBe(0);
+  });
+
+  it("migrates five-step drafts and preserves current-flow positions", () => {
+    expect([0, 1, 2, 3, 4].map((step) => coerceSurveyDraftStep(step, undefined))).toEqual([
+      0,
+      1,
+      4,
+      surveyHelpStep,
+      surveyReviewStep
+    ]);
+    expect(coerceSurveyDraftStep(8, surveyFlowVersion)).toBe(8);
+    expect(coerceSurveyDraftStep(99, surveyFlowVersion)).toBe(surveyReviewStep);
+    expect(coerceSurveyDraftStep(2, 99)).toBe(0);
+  });
+
+  it("auto-advances deliberate answers unless follow-up fields are opening", () => {
+    expect(shouldAutoAdvanceSurveyQuestion("q4", "yes")).toBe(true);
+    expect(shouldAutoAdvanceSurveyQuestion("q10", "no")).toBe(true);
+    expect(shouldAutoAdvanceSurveyQuestion("q11", "yes")).toBe(false);
+    expect(shouldAutoAdvanceSurveyQuestion("q16", "yes")).toBe(false);
+    expect(shouldAutoAdvanceSurveyQuestion("q16", "no")).toBe(true);
+    expect(shouldAutoAdvanceSurveyQuestion("q8", "unknown")).toBe(false);
   });
 
   it("accepts only drafts saved within the configured lifetime", () => {

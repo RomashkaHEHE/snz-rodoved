@@ -22,7 +22,8 @@ The test domain has its own interface and UX decisions.
 
 Current flows use the isolated test backend and test SQLite/PDF storage:
 
-- public online survey with browser-local draft restore, a narrow single-task layout that follows paper questions 1-16, a Q16-dependent contact/search continuation, a full-answer review step before submit, and a completion screen after successful submit;
+- public online survey with browser-local draft restore, demographics followed by one Q4-Q16 question per screen in paper order, a Q16-dependent contact/search continuation, a compact expandable review before submit, and a completion screen after successful submit;
+- deliberate `yes`/`no` answers advance immediately unless Q11 or Q16 opens follow-up fields; unanswered questions move forward through an explicit `Пропустить` action. Legacy five-step drafts migrate to the corresponding question in the current versioned flow;
 - Q16 `yes` reveals required name/phone and optional territory/period/free-text fields; changing Q16 to another answer clears those dependent values;
 - the Q11 war selector is shown only for a `yes` answer and resets to `—` otherwise;
 - online demographic controls start without a selected value and require an explicit gender, age-group, and residence choice before later steps can open; paper entry keeps its operator-oriented defaults;

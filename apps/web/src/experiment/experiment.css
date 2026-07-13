@@ -198,6 +198,10 @@ a {
   margin: 0;
 }
 
+.survey-heading h1:focus {
+  outline: 0;
+}
+
 .survey-panel,
 .survey-success {
   background: var(--panel);
@@ -238,6 +242,7 @@ a {
   background: var(--accent);
   display: block;
   height: 100%;
+  transition: width 180ms ease;
 }
 
 .section-title-row {
@@ -275,21 +280,54 @@ a {
 
 .review-block {
   border-bottom: 1px solid var(--line-soft);
+  padding: 0;
+}
+
+.review-block-summary {
+  align-items: center;
+  cursor: pointer;
   display: grid;
   gap: 0.75rem;
-  padding: 0 0 1.25rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  list-style: none;
+  min-height: 4rem;
+  padding: 0.85rem 0.15rem;
 }
 
-.review-block > div:first-child {
-  align-items: center;
-  display: flex;
-  gap: 1rem;
-  justify-content: space-between;
+.review-block-summary::-webkit-details-marker {
+  display: none;
 }
 
-.review-block > div:first-child span {
+.review-block-summary span {
   color: var(--accent);
   font-weight: 900;
+}
+
+.review-block-summary small {
+  color: var(--muted);
+  font-weight: 750;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.review-block-summary svg {
+  color: var(--muted);
+  transition: transform 150ms ease;
+}
+
+.review-block[open] .review-block-summary svg {
+  transform: rotate(180deg);
+}
+
+.review-block-content {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0 0.15rem 1.25rem;
+}
+
+.review-edit-row {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .review-list {
@@ -727,6 +765,45 @@ textarea {
 .question-card p {
   font-weight: 750;
   margin: 0.2rem 0 0;
+}
+
+.survey-question-stage {
+  display: grid;
+  min-height: 15rem;
+}
+
+.survey-question-stage .question-card,
+.survey-question-stage .question-card:first-child {
+  align-content: start;
+  border: 0;
+  grid-template-columns: 1fr;
+  padding: 0;
+}
+
+.survey-question-stage .question-card > div:first-child {
+  gap: 1rem;
+}
+
+.survey-question-stage .question-card > div:first-child span {
+  background: var(--accent-soft);
+  border: 0;
+  border-radius: 3px;
+  min-height: 2.25rem;
+  min-width: 2.25rem;
+}
+
+.survey-question-stage .question-card p {
+  font-size: 1.18rem;
+  line-height: 1.45;
+  margin-top: 0.1rem;
+}
+
+.survey-question-stage .segmented.compact > div {
+  justify-content: flex-start;
+}
+
+.survey-question-stage .segmented.compact button {
+  min-width: 7.5rem;
 }
 
 .war-select,
@@ -2394,9 +2471,21 @@ button:disabled {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .segmented.compact.option-count-2 > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .segmented.compact button {
     padding-left: 0.4rem;
     padding-right: 0.4rem;
+  }
+
+  .survey-question-stage {
+    min-height: 12rem;
+  }
+
+  .survey-question-stage .segmented.compact button {
+    min-width: 0;
   }
 
   .entry-task {

@@ -19,7 +19,15 @@ import {
   Upload,
   X
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type ReactNode
+} from "react";
 import {
   exportLabResponsesCsv,
   createLabFakeResponse,
@@ -59,12 +67,18 @@ import {
   areBasicSelectionsComplete,
   clearSurveyHelpDetails,
   coerceBasicSelections,
+  coerceSurveyDraftStep,
   createEmptyBasicSelections,
   hasAnyBasicSelection,
   isSurveyDraftFresh,
   markBasicSelection,
   redactSurveyDraftContacts,
   resolveSurveyDraftStep,
+  shouldAutoAdvanceSurveyQuestion,
+  surveyFlowVersion,
+  surveyHelpStep,
+  surveyReviewStep,
+  surveyStepCount,
   type SurveyBasicField,
   type SurveyBasicSelections
 } from "./surveyDraft";
@@ -293,7 +307,6 @@ const routeIcons: Record<RouteId, typeof Database> = {
   pdf: FileText
 };
 const workspaceRoutes: RouteId[] = ["entry", "data", "pdf"];
-const surveyStepCount = 5;
 const surveyDraftStorageKey = "rodoved-test-online-draft-v1";
 const entryBatchStorageKey = "rodoved-test-entry-batch-v1";
 const entryDraftStorageKey = "rodoved-test-paper-draft-v1";
@@ -555,61 +568,13 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
   const [status, setStatus] = useState(restoredDraft.restored ? "Черновик восстановлен." : "");
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const surveyHeadingRef = useRef<HTMLHeadingElement>(null);
   const basicsComplete = areBasicSelectionsComplete(basicSelections);
-
-  const sections = [
-    {
-      title: "О себе",
-      render: (
-        <>
-          <BasicFields
-            draft={draft}
-            selectedBasics={basicSelections}
-            showDate={false}
-            showMissing={basicValidationAttempted}
-            onChange={setDraft}
-            onSelection={handleBasicSelection}
-          />
-        </>
-      )
-    },
-    {
-      title: "Опыт",
-      render: (
-        <QuestionStack
-          draft={draft}
-          questionsToShow={questions.filter((question) => question.group === "experience")}
-          onChange={setDraft}
-        />
-      )
-    },
-    {
-      title: "Интересы",
-      render: (
-        <QuestionStack
-          draft={draft}
-          questionsToShow={questions.filter((question) => question.group === "interest")}
-          onChange={setDraft}
-        />
-      )
-    },
-    {
-      title: "Помощь",
-      render: (
-        <QuestionStack
-          draft={draft}
-          requireContactDetails
-          showOnlineHelpFields
-          questionsToShow={questions.filter((question) => question.group === "help")}
-          onChange={setDraft}
-        />
-      )
-    },
-    {
-      title: "Проверка",
-      render: <SurveyReview draft={draft} onEdit={navigateSurveyStep} />
-    }
-  ];
+  const currentQuestion = getSurveyQuestionForStep(step);
+  const isReviewStep = step === surveyReviewStep;
+  const stepTitle = getSurveyStepTitle(currentQuestion, isReviewStep);
+  const progressLabel = getSurveyProgressLabel(currentQuestion, isReviewStep);
+  const progressPercent = getSurveyProgressPercent(currentQuestion, isReviewStep);
 
   useEffect(() => {
     if (hasSurveyDraftContent(draft) || hasAnyBasicSelection(basicSelections) || step > 0) {
@@ -619,6 +584,10 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
 
     clearSurveyDraftState();
   }, [basicSelections, draft, step]);
+
+  useEffect(() => {
+    surveyHeadingRef.current?.focus({ preventScroll: false });
+  }, [step]);
 
   function handleBasicSelection(field: SurveyBasicField) {
     setBasicSelections((current) => markBasicSelection(current, field));
@@ -641,6 +610,12 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
     });
   }
 
+  function focusContactName() {
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLInputElement>('.contact-grid input[autocomplete="name"]')?.focus();
+    });
+  }
+
   function navigateSurveyStep(nextStep: number) {
     if (nextStep > 0 && !basicsComplete) {
       setBasicValidationAttempted(true);
@@ -650,12 +625,42 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
       return;
     }
 
+    if (
+      nextStep > step &&
+      step === surveyHelpStep &&
+      draft.q16 === "yes" &&
+      (!draft.contactName?.trim() || !draft.contactPhone?.trim())
+    ) {
+      setStatus("Укажите имя и телефон, чтобы можно было связаться по запросу.");
+      focusContactName();
+      return;
+    }
+
     setStatus("");
-    setStep(Math.min(sections.length - 1, Math.max(0, nextStep)));
+    setStep(Math.min(surveyStepCount - 1, Math.max(0, nextStep)));
+  }
+
+  function handleSurveyAnswer(questionId: QuestionId, answer: Answer) {
+    setStatus("");
+    if (
+      currentQuestion?.id !== questionId ||
+      !shouldAutoAdvanceSurveyQuestion(questionId, answer)
+    ) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      setStep(Math.min(surveyStepCount - 1, step + 1));
+    });
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (step !== surveyReviewStep) {
+      navigateSurveyStep(step + 1);
+      return;
+    }
+
     if (!basicsComplete) {
       navigateSurveyStep(1);
       return;
@@ -663,10 +668,8 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
 
     if (draft.q16 === "yes" && (!draft.contactName?.trim() || !draft.contactPhone?.trim())) {
       setStatus("Укажите имя и телефон, чтобы можно было связаться по запросу.");
-      setStep(3);
-      window.requestAnimationFrame(() => {
-        document.querySelector<HTMLInputElement>('.contact-grid input[autocomplete="name"]')?.focus();
-      });
+      setStep(surveyHelpStep);
+      focusContactName();
       return;
     }
 
@@ -711,16 +714,49 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
     );
   }
 
+  function renderCurrentStep() {
+    if (step === 0) {
+      return (
+        <BasicFields
+          draft={draft}
+          selectedBasics={basicSelections}
+          showDate={false}
+          showMissing={basicValidationAttempted}
+          onChange={setDraft}
+          onSelection={handleBasicSelection}
+        />
+      );
+    }
+
+    if (currentQuestion) {
+      return (
+        <div className="survey-question-stage">
+          <QuestionStack
+            draft={draft}
+            requireContactDetails={currentQuestion.id === "q16"}
+            showOnlineHelpFields={currentQuestion.id === "q16"}
+            showUnknownOption={false}
+            questionsToShow={[currentQuestion]}
+            onAnswer={handleSurveyAnswer}
+            onChange={setDraft}
+          />
+        </div>
+      );
+    }
+
+    return <SurveyReview draft={draft} onEdit={navigateSurveyStep} />;
+  }
+
   return (
     <section className="survey-page">
       <header className="survey-heading">
         <div>
           <p className="eyebrow">Онлайн-опрос</p>
-          <h1>{sections[step].title}</h1>
+          <h1 ref={surveyHeadingRef} tabIndex={-1}>{stepTitle}</h1>
         </div>
         <div className="survey-progress-block">
           <div className="survey-progress-meta">
-            <span>Шаг {step + 1} из {sections.length}</span>
+            <span aria-live="polite">{progressLabel}</span>
             {hasSurveyDraftContent(draft) || hasAnyBasicSelection(basicSelections) ? (
               <button className="link-button" type="button" onClick={confirmSurveyReset}>
                 Очистить ответы
@@ -728,13 +764,13 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
             ) : null}
           </div>
           <div className="survey-progress" aria-hidden>
-            <i style={{ width: `${((step + 1) / sections.length) * 100}%` }} />
+            <i style={{ width: `${progressPercent}%` }} />
           </div>
         </div>
       </header>
 
       <form className="survey-panel" onSubmit={handleSubmit}>
-        {sections[step].render}
+        {renderCurrentStep()}
 
         <footer className="survey-footer">
           {status ? <p className="form-status">{status}</p> : null}
@@ -744,13 +780,13 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
                 Назад
               </button>
             ) : null}
-            {step < sections.length - 1 ? (
+            {!isReviewStep ? (
               <button
                 className="primary-button"
                 type="button"
                 onClick={() => navigateSurveyStep(step + 1)}
               >
-                Далее
+                {getSurveyForwardLabel(currentQuestion, draft)}
               </button>
             ) : (
               <button className="primary-button" disabled={saving} type="submit">
@@ -765,12 +801,83 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
   );
 }
 
+function getSurveyQuestionForStep(step: number): (typeof questions)[number] | null {
+  return step >= 1 && step <= questions.length ? questions[step - 1] : null;
+}
+
+function getSurveyQuestionStep(questionId: QuestionId): number {
+  const index = questions.findIndex((question) => question.id === questionId);
+  return index < 0 ? 0 : index + 1;
+}
+
+function getSurveyStepTitle(
+  question: (typeof questions)[number] | null,
+  isReviewStep: boolean
+): string {
+  if (isReviewStep) {
+    return "Проверка";
+  }
+  if (!question) {
+    return "О себе";
+  }
+  if (question.group === "experience") {
+    return "О семье";
+  }
+  if (question.group === "interest") {
+    return "Что вас интересует";
+  }
+  return "Помощь";
+}
+
+function getSurveyProgressLabel(
+  question: (typeof questions)[number] | null,
+  isReviewStep: boolean
+): string {
+  if (isReviewStep) {
+    return "Проверка ответов";
+  }
+
+  return question ? `Вопрос ${question.number} из 16` : "Вопросы 1-3 из 16";
+}
+
+function getSurveyProgressPercent(
+  question: (typeof questions)[number] | null,
+  isReviewStep: boolean
+): number {
+  if (isReviewStep) {
+    return 100;
+  }
+
+  return ((question?.number ?? 3) / 16) * 100;
+}
+
+function getSurveyForwardLabel(
+  question: (typeof questions)[number] | null,
+  draft: ResponseDraft
+): string {
+  if (!question) {
+    return "Далее";
+  }
+  if (draft[question.id] === "unknown") {
+    return "Пропустить";
+  }
+  if (question.id === "q16") {
+    return "Проверить ответы";
+  }
+  return "Далее";
+}
+
 function SurveyReview({ draft, onEdit }: { draft: ResponseDraft; onEdit: (step: number) => void }) {
+  const experienceQuestions = questions.filter((question) => question.group === "experience");
+  const interestQuestions = questions.filter((question) => question.group === "interest");
+
   return (
     <div className="survey-review">
-      <div className="review-block">
-        <div>
-          <span>О себе</span>
+      <ReviewDisclosure
+        summary={`${genderLabels[draft.gender]} · ${ageLabels[draft.ageGroup]} · ${residenceLabels[draft.residence]}`}
+        title="О себе"
+      >
+        <div className="review-edit-row">
           <button className="link-button" type="button" onClick={() => onEdit(0)}>
             Изменить
           </button>
@@ -789,38 +896,29 @@ function SurveyReview({ draft, onEdit }: { draft: ResponseDraft; onEdit: (step: 
             <dd>{residenceLabels[draft.residence]}</dd>
           </div>
         </dl>
-      </div>
+      </ReviewDisclosure>
 
-      <div className="review-block">
-        <div>
-          <span>Опыт</span>
-          <button className="link-button" type="button" onClick={() => onEdit(1)}>
+      <ReviewDisclosure summary={getQuestionGroupSummary(draft, experienceQuestions)} title="Опыт">
+        <div className="review-edit-row">
+          <button className="link-button" type="button" onClick={() => onEdit(getSurveyQuestionStep("q4"))}>
             Изменить
           </button>
         </div>
-        <ReviewQuestionList
-          draft={draft}
-          questionsToShow={questions.filter((question) => question.group === "experience")}
-        />
-      </div>
+        <ReviewQuestionList draft={draft} questionsToShow={experienceQuestions} />
+      </ReviewDisclosure>
 
-      <div className="review-block">
-        <div>
-          <span>Интересы</span>
-          <button className="link-button" type="button" onClick={() => onEdit(2)}>
+      <ReviewDisclosure summary={getQuestionGroupSummary(draft, interestQuestions)} title="Интересы">
+        <div className="review-edit-row">
+          <button className="link-button" type="button" onClick={() => onEdit(getSurveyQuestionStep("q7"))}>
             Изменить
           </button>
         </div>
-        <ReviewQuestionList
-          draft={draft}
-          questionsToShow={questions.filter((question) => question.group === "interest")}
-        />
-      </div>
+        <ReviewQuestionList draft={draft} questionsToShow={interestQuestions} />
+      </ReviewDisclosure>
 
-      <div className="review-block">
-        <div>
-          <span>Помощь</span>
-          <button className="link-button" type="button" onClick={() => onEdit(3)}>
+      <ReviewDisclosure summary={getHelpReviewSummary(draft)} title="Помощь">
+        <div className="review-edit-row">
+          <button className="link-button" type="button" onClick={() => onEdit(getSurveyQuestionStep("q16"))}>
             Изменить
           </button>
         </div>
@@ -854,9 +952,47 @@ function SurveyReview({ draft, onEdit }: { draft: ResponseDraft; onEdit: (step: 
             </>
           ) : null}
         </dl>
-      </div>
+      </ReviewDisclosure>
     </div>
   );
+}
+
+function ReviewDisclosure({
+  children,
+  summary,
+  title
+}: {
+  children: ReactNode;
+  summary: string;
+  title: string;
+}) {
+  return (
+    <details className="review-block">
+      <summary className="review-block-summary">
+        <span>{title}</span>
+        <small>{summary}</small>
+        <ChevronDown aria-hidden size={20} />
+      </summary>
+      <div className="review-block-content">{children}</div>
+    </details>
+  );
+}
+
+function getQuestionGroupSummary(draft: ResponseDraft, questionsToShow: typeof questions): string {
+  const counts = { no: 0, unknown: 0, yes: 0 };
+  for (const question of questionsToShow) {
+    counts[draft[question.id]] += 1;
+  }
+
+  return `Да ${counts.yes} · Нет ${counts.no} · Без ответа ${counts.unknown}`;
+}
+
+function getHelpReviewSummary(draft: ResponseDraft): string {
+  if (draft.q16 !== "yes") {
+    return answerLabels[draft.q16];
+  }
+
+  return draft.contactName ? `Да · ${draft.contactName}` : "Да";
 }
 
 function ReviewQuestionList({
@@ -2557,7 +2693,9 @@ function QuestionStack({
   idPrefix,
   requireContactDetails = false,
   showOnlineHelpFields = false,
+  showUnknownOption = true,
   questionsToShow,
+  onAnswer,
   onChange
 }: {
   draft: ResponseDraft;
@@ -2565,7 +2703,9 @@ function QuestionStack({
   idPrefix?: string;
   requireContactDetails?: boolean;
   showOnlineHelpFields?: boolean;
+  showUnknownOption?: boolean;
   questionsToShow: typeof questions;
+  onAnswer?: (questionId: QuestionId, answer: Answer) => void;
   onChange: (draft: ResponseDraft) => void;
 }) {
   return (
@@ -2586,20 +2726,22 @@ function QuestionStack({
             options={[
               { value: "yes", label: "Да" },
               { value: "no", label: "Нет" },
-              { value: "unknown", label: "—" }
+              ...(showUnknownOption ? [{ value: "unknown", label: "—" }] : [])
             ]}
             value={draft[question.id]}
             onChange={(value) => {
+              const answer = value as Answer;
               const nextDraft = {
                 ...draft,
-                [question.id]: value as Answer,
+                [question.id]: answer,
                 ...(question.id === "q11" && value !== "yes" ? { q11WarDetails: "—" } : {})
               };
-              onChange(
+              const resolvedDraft =
                 question.id === "q16" && value !== "yes"
                   ? clearSurveyHelpDetails(nextDraft)
-                  : nextDraft
-              );
+                  : nextDraft;
+              onChange(resolvedDraft);
+              onAnswer?.(question.id, answer);
             }}
           />
           {question.id === "q11" && draft.q11 === "yes" ? (
@@ -2675,7 +2817,12 @@ function SegmentedGroup({
   required?: boolean;
   value?: string;
 }) {
-  const className = ["segmented", compact ? "compact" : "", invalid ? "is-invalid" : ""]
+  const className = [
+    "segmented",
+    `option-count-${options.length}`,
+    compact ? "compact" : "",
+    invalid ? "is-invalid" : ""
+  ]
     .filter(Boolean)
     .join(" ");
 
@@ -3842,6 +3989,7 @@ function readSurveyDraftState(): SurveyDraftState {
     const parsed = JSON.parse(raw) as {
       basicSelections?: unknown;
       draft?: unknown;
+      flowVersion?: unknown;
       savedAt?: unknown;
       step?: unknown;
     };
@@ -3852,7 +4000,7 @@ function readSurveyDraftState(): SurveyDraftState {
 
     const basicSelections = coerceBasicSelections(parsed.basicSelections);
     const draft = coerceStoredOnlineDraft(parsed.draft);
-    const requestedStep = clampSurveyStep(parsed.step);
+    const requestedStep = coerceSurveyDraftStep(parsed.step, parsed.flowVersion);
     const step = resolveSurveyDraftStep(requestedStep, basicSelections, draft.q16 === "yes");
 
     if (!hasSurveyDraftContent(draft) && !hasAnyBasicSelection(basicSelections) && step === 0) {
@@ -3881,6 +4029,7 @@ function writeSurveyDraftState(
       JSON.stringify({
         basicSelections: input.basicSelections,
         draft: redactSurveyDraftContacts(input.draft),
+        flowVersion: surveyFlowVersion,
         savedAt,
         step: input.step
       })
@@ -4608,14 +4757,6 @@ function optionalStoredString(value: unknown): string | undefined {
 function cleanOptional(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed || undefined;
-}
-
-function clampSurveyStep(value: unknown): number {
-  if (typeof value !== "number" || !Number.isInteger(value)) {
-    return 0;
-  }
-
-  return Math.min(surveyStepCount - 1, Math.max(0, value));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
