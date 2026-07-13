@@ -39,7 +39,8 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - public online survey submits to the server after the review step, shows a completion screen, and stores a browser-local draft until successful submit;
   - public survey and workspace are separate shells without links between them. `/` has no workspace entry; `/entry`, `/data`, and `/pdf` have no survey entry;
   - operator entry, data, and PDF archive are behind workspace password login; authenticated workspace navigation contains only `Ввод`, `Данные`, and `PDF`;
-  - operator entry remains one continuous form, with answered/remaining progress, a next-missing-answer action, one section selector, temporary question highlighting, and grouped paper-form sections for phone work;
+  - desktop operator entry remains one continuous form with answered/remaining progress, a next-missing-answer action, one section selector, temporary question highlighting, and grouped paper-form sections;
+  - at widths up to 720px, operator entry becomes a 14-step guided flow: demographics first, then one Q4-Q16 question at a time. Ordinary answers auto-advance, Q11/Q16 positive answers wait for dependent fields, back/next retain state, and the final step can cycle through unanswered questions before saving;
   - paper rows can be entered as a tab-scoped series: the selected survey date and API-confirmed count survive route reloads in the same tab, each successful save clears respondent answers and returns focus to the start, and `Завершить` resets the series;
   - entry submission is locked while the request is in flight so a repeated mobile tap cannot create duplicate rows;
   - data filters include date range, source, gender, age group, residence, help-only, contact-only, contact workflow status, next-contact date, missing next-contact date, and free text search;
@@ -73,7 +74,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
 
 1. Review whether contact workflow needs assignee-like markers or a separate compact call screen.
 2. Review whether saved filter presets should remain local-only or become account-level server data.
-3. Keep reviewing the mobile data workspace on real iPhone/Safari.
+3. Keep reviewing both guided entry and the mobile data workspace on real iPhone/Safari.
 4. Consider a safer operator workflow for merging duplicated paper/online rows.
 5. Consider whether the online survey needs a shorter mode for people who only want help with one narrow topic.
 
@@ -83,6 +84,13 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - `npm run lint`
 - `npm run test`
 - `VITE_APP_ENV=test npm run build`
+- Local browser smoke for device-specific paper entry confirmed:
+  - at iPhone 12 mini `375x812`, entry renders one 14-step flow and no desktop toolbar; the initial document height is about 836px rather than the former 3064px continuous form, with no horizontal overflow;
+  - an ordinary Q4 answer advances to Q5, `Назад` retains the selected answer, and manual `Далее` still allows an intentional `Нет ответа`;
+  - Q11 `Да` stays on the current step and reveals the full war selector; Q16 `Да` stays on the final step and reveals name/phone fields;
+  - saving a mobile questionnaire increments the API-confirmed series counter and returns to demographics for the next row;
+  - at `1280x720`, the mobile flow is absent and the continuous desktop toolbar plus all 13 question rows remain available;
+  - browser console contains no warnings or errors.
 - Local browser smoke for the calmer interface confirmed:
   - public survey at `1280x720` and iPhone 12 mini `375x812` has no horizontal overflow; only the current title and progress are visible, and research fields stay closed until requested;
   - mobile bottom navigation is fixed to the viewport rather than the blurred header containing block;

@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-07-12
+Last updated: 2026-07-13
 
 ## Baseline
 
@@ -54,7 +54,7 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - Test-domain public survey uses a narrow five-step flow with only the current title and progress visible. It follows the paper questionnaire in order: demographics, Q4-Q6, Q7-Q15, and Q16. Name, phone, territory, period, and free text appear only after a `yes` answer to Q16. Full-answer review and completion screens remain.
 - Test-domain online demographics have no visual defaults: gender, age group, and residence must each be selected explicitly before leaving the first step. This rule is client-side and does not change the shared response schema or paper-entry defaults.
 - Test-domain online drafts expire after 24 hours and redact `contactName`/`contactPhone` before localStorage writes. Restoring a q16 help request routes to the help step with empty contact fields; resetting a non-empty survey requires confirmation.
-- Test-domain operator entry keeps one continuous paper-form flow, with answered/remaining progress, a next-missing-answer action, one section selector, temporary question highlighting, and grouped blocks for phone work.
+- Test-domain operator entry is device-specific: desktop keeps the continuous paper-form flow with progress and section jumps, while widths up to 720px use a 14-step guided flow with demographics followed by one paper question at a time. Ordinary answers advance automatically; Q11/Q16 stay open when follow-up fields are needed.
 - Test-domain paper entry has a tab-scoped series state. A successful create retains the selected survey date, clears respondent answers, focuses the first field, and increments a server-confirmed counter. `Завершить` resets the date and counter; in-flight submit is disabled to prevent double-tap duplicates.
 - Test-domain data screen includes URL-backed filters with removable active-filter chips, collapsed-by-default controls, local saved filter presets, server CSV export for the current slice, desktop mode tabs, and one phone mode select for `Обращения`, `Анкеты`, `PDF`, and `Графики`.
 - The test-domain `Обращения` mode is a contact-work queue for q16 help requests. Compact status and next-contact selects replace the former button grids; sorting and persisted status/date/notes behavior is unchanged.
@@ -67,7 +67,9 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 
 ## Active Tasks
 
-No active implementation task after the initial v1 scaffold. See completed task:
+- [test-domain-lab.md](tasks/test-domain-lab.md) remains active while the experimental product is being refined.
+
+Completed baseline tasks:
 
 - [v1-site-implementation.md](tasks/v1-site-implementation.md)
 - [api-and-data-layer.md](tasks/api-and-data-layer.md)

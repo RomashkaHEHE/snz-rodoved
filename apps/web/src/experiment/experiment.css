@@ -2129,53 +2129,188 @@ textarea {
     padding-right: 0.4rem;
   }
 
-  .entry-toolbar {
-    align-items: stretch;
-    display: grid;
-    top: 0.5rem;
+  .entry-task {
+    gap: 0.8rem;
+  }
+
+  .entry-task .task-heading .eyebrow {
+    display: none;
+  }
+
+  .entry-task .task-heading h1 {
+    font-size: 1.75rem;
+  }
+
+  .entry-task .entry-panel {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    gap: 0.75rem;
+    padding: 0;
   }
 
   .entry-batch {
     align-items: end;
-    grid-template-columns: minmax(0, 1fr) auto;
+    border-left-width: 2px;
+    gap: 0.55rem;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    padding: 0.65rem;
   }
 
-  .entry-batch-title,
-  .entry-batch-end,
+  .entry-batch-title {
+    display: none;
+  }
+
+  .entry-batch-date {
+    min-width: 0;
+  }
+
+  .entry-batch-date input {
+    min-height: 44px;
+  }
+
+  .entry-batch-count {
+    min-width: 44px;
+  }
+
+  .entry-batch-count strong {
+    font-size: 1.45rem;
+  }
+
+  .entry-batch-end {
+    grid-column: auto;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+
+  .entry-batch-end span {
+    display: none;
+  }
+
   .entry-batch-status {
     grid-column: 1 / -1;
   }
 
-  .entry-batch-end {
-    width: 100%;
+  .mobile-entry-flow {
+    display: grid;
+    gap: 0.75rem;
   }
 
-  .entry-progress,
-  .entry-jump-row {
-    width: 100%;
-  }
-
-  .entry-progress {
-    max-width: none;
-  }
-
-  .entry-jump-row {
+  .mobile-entry-progress {
     align-items: end;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.5rem 1rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 0.25rem 0.15rem;
   }
 
-  .entry-section-select {
-    align-items: stretch;
+  .mobile-entry-progress > div {
     display: grid;
+    gap: 0.08rem;
   }
 
-  .entry-section-select select {
-    min-width: 0;
+  .mobile-entry-progress span {
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 900;
+    text-transform: uppercase;
   }
 
-  .entry-section {
-    scroll-margin-top: 1rem;
+  .mobile-entry-progress strong {
+    font-size: 1.05rem;
+  }
+
+  .mobile-entry-progress > b {
+    color: var(--accent);
+    font-size: 0.92rem;
+  }
+
+  .mobile-entry-progress > i {
+    background: #e3e7e4;
+    border-radius: 3px;
+    grid-column: 1 / -1;
+    height: 0.4rem;
+    overflow: hidden;
+  }
+
+  .mobile-entry-progress > i span {
+    background: var(--accent);
+    display: block;
+    height: 100%;
+  }
+
+  .mobile-entry-stage {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    display: grid;
+    min-height: 280px;
+    padding: 1rem;
+    scroll-margin-top: 0.75rem;
+  }
+
+  .mobile-entry-stage .basic-grid {
+    align-content: start;
+    gap: 1.1rem;
+  }
+
+  .mobile-entry-stage .question-card,
+  .mobile-entry-stage .question-card:first-child {
+    align-content: start;
+    border: 0;
+    gap: 1.3rem;
+    padding: 0;
+  }
+
+  .mobile-entry-stage .segmented button {
+    min-height: 52px;
+  }
+
+  .mobile-entry-missing {
+    align-items: center;
+    background: var(--accent-soft);
+    border: 1px solid #ead2d9;
+    border-radius: 4px;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+    padding: 0.55rem 0.65rem;
+  }
+
+  .mobile-entry-missing span {
+    color: var(--accent);
+    font-size: 0.86rem;
+    font-weight: 900;
+  }
+
+  .mobile-entry-missing button {
+    min-height: 40px;
+    padding: 0.45rem 0.65rem;
+  }
+
+  .mobile-entry-status {
+    padding: 0 0.15rem;
+  }
+
+  .mobile-entry-actions {
+    background: rgba(246, 247, 245, 0.98);
+    bottom: calc(4.65rem + env(safe-area-inset-bottom));
+    display: grid;
+    gap: 0.55rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0.55rem 0;
+    position: sticky;
+    z-index: 20;
+  }
+
+  .mobile-entry-actions.is-first {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-entry-actions button {
+    min-height: 50px;
+    width: 100%;
   }
 
   .data-mode-tabs {

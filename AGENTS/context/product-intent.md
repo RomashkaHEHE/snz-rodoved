@@ -14,6 +14,8 @@ The online survey should preserve the paper questionnaire's sequence through Q16
 
 Desktop and phone layouts may use different controls for the same state. For example, desktop data modes use tabs while phone layouts use one select. This is intentional when it keeps every option reachable without creating a wall of buttons.
 
+Paper entry follows the same device-specific rule. Desktop keeps the whole questionnaire visible for overview and keyboard work; phone layouts guide the operator through demographics and one question at a time. A mobile answer may advance immediately when no dependent field is required, while Q11 and Q16 remain in place for their conditional details.
+
 The operator also needs a small private catalog of scanned paper questionnaires. This is archival storage for source documents, not a replacement for structured data entry.
 
 Customer suggestions such as map selection and timeline sliders should be treated as product inspiration, not literal technical requirements. Prefer accessible, maintainable controls first; integrate heavy map/timeline services only after there is a concrete workflow and API-key/deployment decision.

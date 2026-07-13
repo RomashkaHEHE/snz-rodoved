@@ -3,6 +3,8 @@ import {
   CalendarDays,
   CheckCircle,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   Database,
   Download,
@@ -41,6 +43,7 @@ import {
   parseEntryBatchState,
   type EntryBatchState
 } from "./entryBatch";
+import { shouldAutoAdvanceEntryQuestion } from "./entryFlow";
 import {
   areBasicSelectionsComplete,
   clearSurveyHelpDetails,
@@ -877,10 +880,21 @@ function EntryPage({
   const [saving, setSaving] = useState(false);
   const [highlightedQuestionId, setHighlightedQuestionId] = useState<QuestionId | null>(null);
   const [unknownJumpIndex, setUnknownJumpIndex] = useState(0);
+  const [mobileEntryStep, setMobileEntryStep] = useState(0);
+  const isMobileEntry = useMediaQuery("(max-width: 720px)");
   const unknownQuestions = questions.filter((question) => draft[question.id] === "unknown");
   const experienceQuestions = questions.filter((question) => question.group === "experience");
   const interestQuestions = questions.filter((question) => question.group === "interest");
   const helpQuestions = questions.filter((question) => question.group === "help");
+  const mobileEntryStepCount = questions.length + 1;
+  const activeMobileQuestion = mobileEntryStep > 0 ? questions[mobileEntryStep - 1] : null;
+  const mobileEntrySectionLabel = activeMobileQuestion
+    ? activeMobileQuestion.group === "experience"
+      ? "Опыт"
+      : activeMobileQuestion.group === "interest"
+        ? "Интересы"
+        : "Помощь"
+    : "Данные анкеты";
 
   useEffect(() => {
     batchStateRef.current = batchState;
@@ -896,6 +910,7 @@ function EntryPage({
     setStatus("");
     setHighlightedQuestionId(null);
     setUnknownJumpIndex(0);
+    setMobileEntryStep(0);
   }, [editingResponse]);
 
   useEffect(() => {
@@ -911,6 +926,33 @@ function EntryPage({
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function moveMobileEntry(nextStep: number) {
+    setMobileEntryStep(Math.min(mobileEntryStepCount - 1, Math.max(0, nextStep)));
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById("mobile-entry-stage")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function handleMobileQuestionChange(nextDraft: ResponseDraft) {
+    setDraft(nextDraft);
+    if (!activeMobileQuestion) {
+      return;
+    }
+
+    const answer = nextDraft[activeMobileQuestion.id];
+    if (
+      shouldAutoAdvanceEntryQuestion(
+        activeMobileQuestion.id,
+        answer,
+        mobileEntryStep >= mobileEntryStepCount - 1
+      )
+    ) {
+      moveMobileEntry(mobileEntryStep + 1);
+    }
+  }
+
   function jumpToNextUnknown() {
     if (unknownQuestions.length === 0) {
       setStatus("Ответов «Нет ответа» сейчас нет.");
@@ -920,15 +962,26 @@ function EntryPage({
     const nextQuestion = unknownQuestions[unknownJumpIndex % unknownQuestions.length];
     setHighlightedQuestionId(nextQuestion.id);
     setUnknownJumpIndex((current) => (current + 1) % unknownQuestions.length);
+    if (isMobileEntry) {
+      moveMobileEntry(questions.findIndex((question) => question.id === nextQuestion.id) + 1);
+      return;
+    }
     document
       .getElementById(`entry-question-${nextQuestion.id}`)
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   function jumpToEntryStart() {
+    setMobileEntryStep(0);
     window.requestAnimationFrame(() => {
       document.getElementById("entry-batch")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      document.querySelector<HTMLButtonElement>("#entry-basic .segmented button")?.focus({ preventScroll: true });
+      document
+        .querySelector<HTMLButtonElement>(
+          isMobileEntry
+            ? "#mobile-entry-stage .segmented button"
+            : "#entry-basic .segmented button"
+        )
+        ?.focus({ preventScroll: true });
     });
   }
 
@@ -960,6 +1013,7 @@ function EntryPage({
     batchStateRef.current = nextBatchState;
     setBatchState(nextBatchState);
     setDraft(createPaperDraftForDate(nextBatchState.surveyDate));
+    setMobileEntryStep(0);
     setStatus("Серия завершена.");
     jumpToEntryStart();
   }
@@ -972,6 +1026,7 @@ function EntryPage({
 
       if (editingResponse) {
         setDraft(createPaperDraftForDate(batchStateRef.current.surveyDate));
+        setMobileEntryStep(0);
         setStatus("Изменения сохранены.");
         return;
       }
@@ -982,6 +1037,7 @@ function EntryPage({
       batchStateRef.current = nextBatchState;
       setBatchState(nextBatchState);
       setDraft(createPaperDraftForDate(nextBatchState.surveyDate));
+      setMobileEntryStep(0);
       setStatus(`Анкета добавлена. В серии: ${nextBatchState.count}.`);
       jumpToEntryStart();
     } catch {
@@ -1028,111 +1084,186 @@ function EntryPage({
               <span>Добавлено</span>
               <strong>{batchState.count}</strong>
             </div>
-            <button className="ghost-button entry-batch-end" type="button" onClick={finishBatch}>
+            <button
+              aria-label="Завершить серию"
+              className="ghost-button entry-batch-end"
+              title="Завершить серию"
+              type="button"
+              onClick={finishBatch}
+            >
               <CheckCircle aria-hidden size={17} />
-              Завершить
+              <span>Завершить</span>
             </button>
             {status ? <p className="form-status entry-batch-status" role="status">{status}</p> : null}
           </section>
         ) : null}
 
-        <div className="entry-toolbar" aria-label="Навигация по анкете">
-          <div className="entry-progress" aria-label={`Заполнено ${questions.length - unknownQuestions.length} из ${questions.length}`}>
-            <div>
-              <strong>Заполнено {questions.length - unknownQuestions.length} из {questions.length}</strong>
-              <span>{unknownQuestions.length > 0 ? `Осталось: ${unknownQuestions.length}` : "Все ответы отмечены"}</span>
-            </div>
-            <i aria-hidden>
-              <b style={{ width: `${((questions.length - unknownQuestions.length) / questions.length) * 100}%` }} />
-            </i>
-          </div>
-          <div className="entry-jump-row">
-            <button
-              className="entry-next-unknown"
-              disabled={unknownQuestions.length === 0}
-              type="button"
-              onClick={jumpToNextUnknown}
+        {isMobileEntry ? (
+          <div className="mobile-entry-flow">
+            <div
+              aria-label={`Шаг ${mobileEntryStep + 1} из ${mobileEntryStepCount}`}
+              className="mobile-entry-progress"
             >
-              Найти пропуск
-            </button>
-            <label className="entry-section-select">
-              <span>Раздел</span>
-              <select
-                defaultValue=""
-                onChange={(event) => {
-                  if (event.currentTarget.value) {
-                    jumpToEntrySection(event.currentTarget.value);
-                    event.currentTarget.value = "";
-                  }
-                }}
-              >
-                <option disabled value="">Перейти к...</option>
-                <option value="entry-basic">1-3 · Данные</option>
-                <option value="entry-experience">4-6 · Опыт</option>
-                <option value="entry-interest">7-15 · Интересы</option>
-                <option value="entry-help">16 · Помощь</option>
-              </select>
-            </label>
-          </div>
-        </div>
+              <div>
+                <span>{activeMobileQuestion ? `Вопрос ${activeMobileQuestion.number}` : "Вопросы 1-3"}</span>
+                <strong>{mobileEntrySectionLabel}</strong>
+              </div>
+              <b>{mobileEntryStep + 1} / {mobileEntryStepCount}</b>
+              <i aria-hidden>
+                <span style={{ width: `${((mobileEntryStep + 1) / mobileEntryStepCount) * 100}%` }} />
+              </i>
+            </div>
 
-        <section className="entry-section" id="entry-basic">
-          <div className="entry-section-title">
-            <span>1-3</span>
-            <h2>Данные анкеты</h2>
-          </div>
-          <BasicFields draft={draft} showDate={Boolean(editingResponse)} onChange={setDraft} />
-        </section>
+            <section className="mobile-entry-stage" id="mobile-entry-stage">
+              {activeMobileQuestion ? (
+                <QuestionStack
+                  draft={draft}
+                  highlightedQuestionId={highlightedQuestionId}
+                  idPrefix="mobile-entry"
+                  questionsToShow={[activeMobileQuestion]}
+                  onChange={handleMobileQuestionChange}
+                />
+              ) : (
+                <BasicFields
+                  draft={draft}
+                  showDate={Boolean(editingResponse)}
+                  onChange={setDraft}
+                />
+              )}
+            </section>
 
-        <section className="entry-section" id="entry-experience">
-          <div className="entry-section-title">
-            <span>4-6</span>
-            <h2>Опыт</h2>
-          </div>
-          <QuestionStack
-            draft={draft}
-            highlightedQuestionId={highlightedQuestionId}
-            idPrefix="entry"
-            questionsToShow={experienceQuestions}
-            onChange={setDraft}
-          />
-        </section>
+            {mobileEntryStep === mobileEntryStepCount - 1 && unknownQuestions.length > 0 ? (
+              <div className="mobile-entry-missing">
+                <span>Нет ответа: {unknownQuestions.length}</span>
+                <button className="ghost-button" type="button" onClick={jumpToNextUnknown}>Проверить</button>
+              </div>
+            ) : null}
 
-        <section className="entry-section" id="entry-interest">
-          <div className="entry-section-title">
-            <span>7-15</span>
-            <h2>Интересы</h2>
-          </div>
-          <QuestionStack
-            draft={draft}
-            highlightedQuestionId={highlightedQuestionId}
-            idPrefix="entry"
-            questionsToShow={interestQuestions}
-            onChange={setDraft}
-          />
-        </section>
+            {editingResponse && status ? (
+              <p className="form-status mobile-entry-status" role="status">{status}</p>
+            ) : null}
 
-        <section className="entry-section" id="entry-help">
-          <div className="entry-section-title">
-            <span>16</span>
-            <h2>Помощь</h2>
+            <div className={mobileEntryStep === 0 ? "mobile-entry-actions is-first" : "mobile-entry-actions"}>
+              {mobileEntryStep > 0 ? (
+                <button className="ghost-button" type="button" onClick={() => moveMobileEntry(mobileEntryStep - 1)}>
+                  <ChevronLeft aria-hidden size={19} />
+                  Назад
+                </button>
+              ) : null}
+              {mobileEntryStep < mobileEntryStepCount - 1 ? (
+                <button className="primary-button" type="button" onClick={() => moveMobileEntry(mobileEntryStep + 1)}>
+                  Далее
+                  <ChevronRight aria-hidden size={19} />
+                </button>
+              ) : (
+                <button className="primary-button" disabled={saving} type="submit">
+                  {editingResponse ? <Save aria-hidden size={18} /> : <Plus aria-hidden size={18} />}
+                  {saving ? "Сохраняем..." : editingResponse ? "Сохранить" : "Добавить анкету"}
+                </button>
+              )}
+            </div>
           </div>
-          <QuestionStack
-            draft={draft}
-            highlightedQuestionId={highlightedQuestionId}
-            idPrefix="entry"
-            questionsToShow={helpQuestions}
-            onChange={setDraft}
-          />
-        </section>
+        ) : (
+          <>
+            <div className="entry-toolbar" aria-label="Навигация по анкете">
+              <div className="entry-progress" aria-label={`Заполнено ${questions.length - unknownQuestions.length} из ${questions.length}`}>
+                <div>
+                  <strong>Заполнено {questions.length - unknownQuestions.length} из {questions.length}</strong>
+                  <span>{unknownQuestions.length > 0 ? `Осталось: ${unknownQuestions.length}` : "Все ответы отмечены"}</span>
+                </div>
+                <i aria-hidden>
+                  <b style={{ width: `${((questions.length - unknownQuestions.length) / questions.length) * 100}%` }} />
+                </i>
+              </div>
+              <div className="entry-jump-row">
+                <button
+                  className="entry-next-unknown"
+                  disabled={unknownQuestions.length === 0}
+                  type="button"
+                  onClick={jumpToNextUnknown}
+                >
+                  Найти пропуск
+                </button>
+                <label className="entry-section-select">
+                  <span>Раздел</span>
+                  <select
+                    defaultValue=""
+                    onChange={(event) => {
+                      if (event.currentTarget.value) {
+                        jumpToEntrySection(event.currentTarget.value);
+                        event.currentTarget.value = "";
+                      }
+                    }}
+                  >
+                    <option disabled value="">Перейти к...</option>
+                    <option value="entry-basic">1-3 · Данные</option>
+                    <option value="entry-experience">4-6 · Опыт</option>
+                    <option value="entry-interest">7-15 · Интересы</option>
+                    <option value="entry-help">16 · Помощь</option>
+                  </select>
+                </label>
+              </div>
+            </div>
 
-        <div className="form-actions sticky-actions">
-          {editingResponse && status ? <p className="form-status" role="status">{status}</p> : null}
-          <button className="primary-button wide-button" disabled={saving} type="submit">
-            {editingResponse ? <Save aria-hidden size={18} /> : <Plus aria-hidden size={18} />}
-            {saving ? "Сохраняем..." : editingResponse ? "Сохранить изменения" : "Добавить и продолжить"}
-          </button>
-        </div>
+            <section className="entry-section" id="entry-basic">
+              <div className="entry-section-title">
+                <span>1-3</span>
+                <h2>Данные анкеты</h2>
+              </div>
+              <BasicFields draft={draft} showDate={Boolean(editingResponse)} onChange={setDraft} />
+            </section>
+
+            <section className="entry-section" id="entry-experience">
+              <div className="entry-section-title">
+                <span>4-6</span>
+                <h2>Опыт</h2>
+              </div>
+              <QuestionStack
+                draft={draft}
+                highlightedQuestionId={highlightedQuestionId}
+                idPrefix="entry"
+                questionsToShow={experienceQuestions}
+                onChange={setDraft}
+              />
+            </section>
+
+            <section className="entry-section" id="entry-interest">
+              <div className="entry-section-title">
+                <span>7-15</span>
+                <h2>Интересы</h2>
+              </div>
+              <QuestionStack
+                draft={draft}
+                highlightedQuestionId={highlightedQuestionId}
+                idPrefix="entry"
+                questionsToShow={interestQuestions}
+                onChange={setDraft}
+              />
+            </section>
+
+            <section className="entry-section" id="entry-help">
+              <div className="entry-section-title">
+                <span>16</span>
+                <h2>Помощь</h2>
+              </div>
+              <QuestionStack
+                draft={draft}
+                highlightedQuestionId={highlightedQuestionId}
+                idPrefix="entry"
+                questionsToShow={helpQuestions}
+                onChange={setDraft}
+              />
+            </section>
+
+            <div className="form-actions sticky-actions">
+              {editingResponse && status ? <p className="form-status" role="status">{status}</p> : null}
+              <button className="primary-button wide-button" disabled={saving} type="submit">
+                {editingResponse ? <Save aria-hidden size={18} /> : <Plus aria-hidden size={18} />}
+                {saving ? "Сохраняем..." : editingResponse ? "Сохранить изменения" : "Добавить и продолжить"}
+              </button>
+            </div>
+          </>
+        )}
       </form>
     </section>
   );
@@ -3850,6 +3981,25 @@ function routeFromPath(pathname: string): RouteId {
 
 function routeToPath(route: RouteId): string {
   return route === "survey" ? "/" : `/${route}`;
+}
+
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const update = () => setMatches(media.matches);
+    update();
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", update);
+      return () => media.removeEventListener("change", update);
+    }
+
+    media.addListener(update);
+    return () => media.removeListener(update);
+  }, [query]);
+
+  return matches;
 }
 
 function todayString(): string {
