@@ -1305,6 +1305,8 @@ function DataPage({
   const [presetName, setPresetName] = useState("");
   const [dataMode, setDataMode] = useState<DataMode>("contacts");
   const [hideContacts, setHideContacts] = useState(() => readContactPrivacyMode());
+  const isMobileData = useMediaQuery("(max-width: 720px)");
+  const mobileDetailRef = useRef<HTMLDivElement>(null);
   const filteredResponses = useMemo(
     () => responses.filter((response) => matchesFilters(response, filters)),
     [responses, filters]
@@ -1401,6 +1403,36 @@ function DataPage({
   useEffect(() => {
     writeDataFilterPanelOpen(filtersOpen);
   }, [filtersOpen]);
+
+  useEffect(() => {
+    if (!isMobileData || !selectedResponse) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedId(null);
+        setDetailMode("view");
+        setDetailDraft(null);
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    mobileDetailRef.current?.focus();
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMobileData, selectedResponse]);
+
+  function closeResponse() {
+    setSelectedId(null);
+    setDetailMode("view");
+    setDetailDraft(null);
+  }
 
   function openResponse(response: SurveyResponse) {
     setSelectedId(response.id);
@@ -1609,6 +1641,7 @@ function DataPage({
       busy={busyAction === "row-save"}
       draft={detailDraft}
       hideContacts={hideContacts}
+      mobile={isMobileData}
       mode={detailMode}
       response={selectedResponse}
       onCancel={() => {
@@ -1618,16 +1651,13 @@ function DataPage({
         setDetailMode("view");
       }}
       onChange={setDetailDraft}
-      onClose={() => {
-        setSelectedId(null);
-        setDetailMode("view");
-        setDetailDraft(null);
-      }}
+      onClose={closeResponse}
       onDelete={handleDeleteResponse}
       onEdit={editResponseInline}
       onOpenEntry={onEdit}
       onSaveContact={handleSaveContactWorkflow}
       onSave={handleSaveSelected}
+      onToggleContacts={() => setHideContacts((current) => !current)}
     />
   );
 
@@ -1919,7 +1949,7 @@ function DataPage({
               onOpen={openResponse}
             />
           </div>
-          {responseInspector}
+          {!isMobileData ? responseInspector : null}
         </section>
       ) : null}
 
@@ -1936,7 +1966,7 @@ function DataPage({
               selectedId={selectedId}
               onOpen={openResponse}
             />
-            {responseInspector}
+            {!isMobileData ? responseInspector : null}
           </div>
         </section>
       ) : null}
@@ -2012,6 +2042,19 @@ function DataPage({
             />
           </details>
         </>
+      ) : null}
+
+      {isMobileData && selectedResponse ? (
+        <div
+          aria-label={`Анкета за ${selectedResponse.surveyDate}`}
+          aria-modal="true"
+          className="mobile-data-detail-layer"
+          ref={mobileDetailRef}
+          role="dialog"
+          tabIndex={-1}
+        >
+          {responseInspector}
+        </div>
       ) : null}
     </section>
   );
@@ -2786,6 +2829,7 @@ function ResponseInspector({
   busy,
   draft,
   hideContacts,
+  mobile,
   mode,
   onCancel,
   onChange,
@@ -2795,11 +2839,13 @@ function ResponseInspector({
   onOpenEntry,
   onSaveContact,
   onSave,
+  onToggleContacts,
   response
 }: {
   busy: boolean;
   draft: ResponseDraft | null;
   hideContacts: boolean;
+  mobile: boolean;
   mode: "view" | "edit";
   onCancel: () => void;
   onChange: (draft: ResponseDraft) => void;
@@ -2812,6 +2858,7 @@ function ResponseInspector({
     input: { contactNextDate?: string; contactNote?: string; contactStatus: ContactStatus }
   ) => Promise<void>;
   onSave: () => Promise<void>;
+  onToggleContacts: () => void;
   response: SurveyResponse | null;
 }) {
   if (!response) {
@@ -2879,31 +2926,67 @@ function ResponseInspector({
         <Detail label="Возраст" value={ageLabels[response.ageGroup]} />
         <Detail label="Проживание" value={residenceLabels[response.residence]} />
         <Detail label="Помощь" value={answerLabels[response.q16]} />
-        <Detail label="Имя" masked={hideContacts && Boolean(response.contactName)} value={response.contactName} />
-        <Detail label="Телефон" masked={hideContacts && Boolean(response.contactPhone)} value={response.contactPhone} phone />
-        <Detail label="Статус" value={contactStatusLabels[response.contactStatus]} />
-        <Detail label="Следующий контакт" value={response.contactNextDate} />
-        <Detail label="Территория" value={response.researchTerritory} />
-        <Detail label="Период" value={formatResearchPeriod(response)} />
-        <Detail label="Война" value={response.q11WarDetails} />
-        <Detail label="Комментарий" value={response.freeText} wide />
-        <Detail label="Заметка по обращению" value={response.contactNote} wide />
       </div>
 
       {response.q16 === "yes" ? (
-        <ContactWorkflowPanel response={response} onSave={onSaveContact} />
+        <>
+          <section className="inspector-section contact-summary-section">
+            <div className="section-title-row">
+              <h3>Запрос на помощь</h3>
+              {response.contactName || response.contactPhone ? (
+                <button
+                  aria-label={hideContacts ? "Показать контакты" : "Скрыть контакты"}
+                  aria-pressed={!hideContacts}
+                  className="ghost-button compact-button mobile-contact-privacy-button"
+                  type="button"
+                  onClick={onToggleContacts}
+                >
+                  <LockKeyhole aria-hidden size={16} />
+                  {hideContacts ? "Показать" : "Скрыть"}
+                </button>
+              ) : null}
+            </div>
+            <div className="detail-grid">
+              <Detail label="Имя" masked={hideContacts && Boolean(response.contactName)} value={response.contactName} />
+              <Detail
+                label="Телефон"
+                masked={hideContacts && Boolean(response.contactPhone)}
+                phone
+                value={response.contactPhone}
+              />
+              {response.researchTerritory ? <Detail label="Территория" value={response.researchTerritory} /> : null}
+              {response.researchPeriodStart || response.researchPeriodEnd ? (
+                <Detail label="Период" value={formatResearchPeriod(response)} />
+              ) : null}
+              {response.freeText ? <Detail label="Комментарий" value={response.freeText} wide /> : null}
+            </div>
+          </section>
+          <ContactWorkflowPanel mobile={mobile} response={response} onSave={onSaveContact} />
+        </>
       ) : null}
 
-      <ResponseAnswerReview response={response} />
+      {mobile ? (
+        <details className="mobile-answer-review">
+          <summary>
+            <span>Ответы на вопросы 4-16</span>
+            <ChevronDown aria-hidden size={18} />
+          </summary>
+          <ResponseAnswerReview hideHeading response={response} />
+        </details>
+      ) : (
+        <ResponseAnswerReview response={response} />
+      )}
 
-      <div className="form-actions">
+      <div className="form-actions inspector-actions">
         <button className="primary-button" type="button" onClick={() => onEdit(response)}>
           <PenLine aria-hidden size={17} />
           Изменить здесь
         </button>
-        <button className="ghost-button" type="button" onClick={() => onOpenEntry(response.id)}>
-          Открыть во вводе
-        </button>
+        {!mobile ? (
+          <button className="ghost-button" type="button" onClick={() => onOpenEntry(response.id)}>
+            Открыть во вводе
+          </button>
+        ) : null}
         <button className="ghost-button" type="button" onClick={() => onDelete(response)}>
           <Trash2 aria-hidden size={17} />
           Удалить
@@ -2913,13 +2996,15 @@ function ResponseInspector({
   );
 }
 
-function ResponseAnswerReview({ response }: { response: SurveyResponse }) {
+function ResponseAnswerReview({ hideHeading = false, response }: { hideHeading?: boolean; response: SurveyResponse }) {
   return (
     <section className="answer-review-grid" aria-label="Ответы анкеты">
-      <div className="section-title-row">
-        <h3>Ответы</h3>
-        <span>Q4-Q16</span>
-      </div>
+      {!hideHeading ? (
+        <div className="section-title-row">
+          <h3>Ответы</h3>
+          <span>Q4-Q16</span>
+        </div>
+      ) : null}
       <div className="answer-review-list">
         {questions.map((question) => {
           const answer = response[question.id];
@@ -2943,9 +3028,11 @@ function ResponseAnswerReview({ response }: { response: SurveyResponse }) {
 }
 
 function ContactWorkflowPanel({
+  mobile,
   onSave,
   response
 }: {
+  mobile: boolean;
   onSave: (
     response: SurveyResponse,
     input: { contactNextDate?: string; contactNote?: string; contactStatus: ContactStatus }
@@ -2989,15 +3076,28 @@ function ContactWorkflowPanel({
         <h3>Обращение</h3>
         <span>{contactStatusLabels[contactStatus]}</span>
       </div>
-      <SegmentedGroup
-        label="Статус"
-        options={(Object.keys(contactStatusLabels) as ContactStatus[]).map((value) => ({
-          value,
-          label: contactStatusLabels[value]
-        }))}
-        value={contactStatus}
-        onChange={(value) => setContactStatus(value as ContactStatus)}
-      />
+      {mobile ? (
+        <label>
+          Статус
+          <select value={contactStatus} onChange={(event) => setContactStatus(event.target.value as ContactStatus)}>
+            {(Object.keys(contactStatusLabels) as ContactStatus[]).map((value) => (
+              <option key={value} value={value}>
+                {contactStatusLabels[value]}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <SegmentedGroup
+          label="Статус"
+          options={(Object.keys(contactStatusLabels) as ContactStatus[]).map((value) => ({
+            value,
+            label: contactStatusLabels[value]
+          }))}
+          value={contactStatus}
+          onChange={(value) => setContactStatus(value as ContactStatus)}
+        />
+      )}
       <label>
         Следующий контакт
         <input

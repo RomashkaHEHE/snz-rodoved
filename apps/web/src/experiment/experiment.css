@@ -1698,6 +1698,10 @@ textarea {
   top: 5rem;
 }
 
+.mobile-data-detail-layer {
+  display: none;
+}
+
 .empty-inspector {
   align-content: center;
   color: var(--muted);
@@ -1743,6 +1747,20 @@ textarea {
   display: grid;
   gap: 0.65rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.inspector-section {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.inspector-section .section-title-row h3 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.mobile-contact-privacy-button {
+  display: none;
 }
 
 .detail-item {
@@ -2096,6 +2114,82 @@ textarea {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .mobile-data-detail-layer {
+    -webkit-overflow-scrolling: touch;
+    background: var(--page);
+    display: block;
+    inset: 0;
+    outline: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem calc(1rem + env(safe-area-inset-bottom));
+    position: fixed;
+    z-index: 50;
+  }
+
+  .mobile-data-detail-layer .row-inspector {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    max-height: none;
+    min-height: 100%;
+    overflow: visible;
+    padding: 0;
+    position: static;
+  }
+
+  .mobile-data-detail-layer .inspector-heading {
+    background: var(--page);
+    padding: 0.35rem 0 0.8rem;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .mobile-contact-privacy-button {
+    display: inline-flex;
+  }
+
+  .mobile-answer-review {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+
+  .mobile-answer-review > summary {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    font-weight: 900;
+    justify-content: space-between;
+    list-style: none;
+    min-height: 48px;
+    padding: 0.7rem 0.8rem;
+  }
+
+  .mobile-answer-review > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobile-answer-review > summary svg {
+    color: var(--accent);
+    transition: transform 160ms ease;
+  }
+
+  .mobile-answer-review[open] > summary svg {
+    transform: rotate(180deg);
+  }
+
+  .mobile-answer-review .answer-review-grid {
+    border-top: 1px solid var(--line-soft);
+    padding: 0.75rem;
+  }
+
+  .mobile-data-detail-layer .inspector-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
   .lab-topbar nav button {
     border: 0;
     border-top: 2px solid transparent;
@@ -2350,11 +2444,18 @@ textarea {
   }
 
   .contact-grid,
-  .detail-grid,
   .period-pair,
   .pdf-row,
   .review-list {
     grid-template-columns: 1fr;
+  }
+
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detail-item.wide-detail {
+    grid-column: 1 / -1;
   }
 
   .answer-review-row,

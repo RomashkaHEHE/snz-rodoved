@@ -39,6 +39,7 @@ Current flows use the isolated test backend and test SQLite/PDF storage:
 - data workspace with one shared filter slice and task modes for contacts, questionnaire rows, PDF files, and charts; desktop uses low-chrome tabs, while phone layouts use one mode select;
 - PDF data mode compares paper questionnaire dates in the current slice with matching PDF files and shows missing scans or scans without entered paper rows;
 - data summary, demographic/source bars, q16 help/contact queue with compact status/plan selects, persisted status and operator notes, row list, row inspector with full Q4-Q16 answer review, inline editing/deletion, demo-row generation, fake-only deletion, server CSV export for the current filter slice;
+- on phone widths, an opened data row becomes a full-viewport detail screen with the background list locked, masked contacts, a collapsed Q4-Q16 review, a compact status select, and inline editing; desktop keeps the side-by-side list and sticky inspector;
 - CSV remains a visible data-page action; contact visibility and demo-data actions live in the secondary action menu. Rows expose only `Открыть`; editing and deletion stay in the selected-row inspector;
 - local contact privacy mode on `/data` hides names and phone numbers in lists and inspectors by default until the operator explicitly shows them;
 - collapsible yes/no/unknown question breakdown with group focus;
