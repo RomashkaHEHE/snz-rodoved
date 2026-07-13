@@ -8,6 +8,8 @@ When the online respondent answers `yes` to q16 ("need help"), the form asks for
 
 The test-domain browser draft may persist non-contact answers for at most 24 hours. It must remove `contactName` and `contactPhone` before every localStorage write and must not restore contact values left by an older client version. If q16 is `yes`, a restored draft returns to the help step and asks for the contacts again.
 
+The test-domain paper-entry draft is tab-scoped and may persist for at most 24 hours. It stores only the survey date, demographics, Q4-Q16 answers, Q11 war detail, and the current mobile step. It must never store contact fields, search context, free text, or internal contact-workflow fields. A restored Q16 help request keeps the answer but asks the operator to enter name and phone again. Successful row creation and explicit series completion remove the draft immediately.
+
 The test-domain online survey must not reuse paper-entry demographic defaults as implicit public answers. Gender, age group, and residence are stored only after the visitor deliberately selects each control.
 
 Survey answer rules:

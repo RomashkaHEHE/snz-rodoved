@@ -42,6 +42,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - desktop operator entry remains one continuous form with answered/remaining progress, a next-missing-answer action, one section selector, temporary question highlighting, and grouped paper-form sections;
   - at widths up to 720px, operator entry becomes a 14-step guided flow: demographics first, then one Q4-Q16 question at a time. Ordinary answers auto-advance, Q11/Q16 positive answers wait for dependent fields, back/next retain state, and the final step can cycle through unanswered questions before saving;
   - paper rows can be entered as a tab-scoped series: the selected survey date and API-confirmed count survive route reloads in the same tab, each successful save clears respondent answers and returns focus to the start, and `Завершить` resets the series;
+  - unfinished paper entry has a separate 24-hour tab-scoped recovery draft. It restores the date, demographics, Q4-Q16, Q11 war detail, and mobile step after reload, while excluding name, phone, search context, free text, and internal workflow fields;
   - entry submission is locked while the request is in flight so a repeated mobile tap cannot create duplicate rows;
   - data filters include date range, source, gender, age group, residence, help-only, contact-only, contact workflow status, next-contact date, missing next-contact date, and free text search;
   - active data filters are shown as removable chips so the operator can clear one constraint without resetting the whole slice;
@@ -227,5 +228,10 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - API-seeded files render newest survey date first, and the derived-name notice blocks a duplicate date while keeping the existing PDF downloadable;
   - opening deletion replaces the row actions with `Отмена` and `Удалить PDF`; cancel keeps the file and confirmation deletes only the temporary test PDF;
   - the confirmation fits between `27px` and `348px` at a `375px` viewport, desktop retains a three-column file row, and browser console warnings/errors are empty.
+- Local browser smoke for paper-entry recovery confirmed:
+  - at `375x812`, answering Q4 advanced to Q5; reload restored Q5 and kept the Q4 `yes` answer without horizontal overflow;
+  - a Q16 `yes` draft restored the final step but cleared a test name and phone, with an explicit message asking the operator to enter them again;
+  - successful creation increased the server-confirmed series count, cleared the recovery draft, and a later reload started at demographics without a restore notice;
+  - at `1280x720`, the continuous 13-question form remained active with no horizontal overflow, and browser console warnings/errors were empty.
 
 Note: the browser tool timed out while opening the temporary local server during the filter iteration, so the newest filter work was verified by TypeScript/lint/tests/build and HTTP/asset smoke. Re-run browser checks for filter clicks when the browser automation session is stable.

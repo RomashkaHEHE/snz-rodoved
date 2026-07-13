@@ -16,6 +16,8 @@ Desktop and phone layouts may use different controls for the same state. For exa
 
 Paper entry follows the same device-specific rule. Desktop keeps the whole questionnaire visible for overview and keyboard work; phone layouts guide the operator through demographics and one question at a time. A mobile answer may advance immediately when no dependent field is required, while Q11 and Q16 remain in place for their conditional details.
 
+An interrupted paper-entry session should recover without making contact data linger in browser storage. Restore questionnaire answers and the operator's current step after a reload or mobile tab eviction, but deliberately require name and phone to be re-entered. This trades a small amount of repeated work for a clearer privacy boundary.
+
 Data-row selection follows that rule too. A desktop has room for a list and sticky inspector side by side; a phone must treat the selected questionnaire as a separate focused screen. Returning from that screen must preserve the list and its scroll position. Optional detail such as the complete Q4-Q16 audit stays collapsed until the operator asks for it, while contact privacy remains explicit.
 
 Editing a selected row must preserve the same hierarchy. Phone editing exposes demographics or one question at a time and allows a direct jump to any question; saving must remain available without forcing the operator through every step. Search details belong under Q16 instead of appearing as an unrelated block. Contact fields are required for a public online help request, but a paper form may legitimately request help without a readable contact.

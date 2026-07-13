@@ -44,6 +44,11 @@ import {
   parseEntryBatchState,
   type EntryBatchState
 } from "./entryBatch";
+import {
+  createPaperEntryDraftState,
+  parsePaperEntryDraftState,
+  type PaperEntryDraftState
+} from "./entryDraft";
 import { shouldAutoAdvanceEntryQuestion } from "./entryFlow";
 import {
   hasMissingRequiredResponseContacts,
@@ -291,6 +296,7 @@ const workspaceRoutes: RouteId[] = ["entry", "data", "pdf"];
 const surveyStepCount = 5;
 const surveyDraftStorageKey = "rodoved-test-online-draft-v1";
 const entryBatchStorageKey = "rodoved-test-entry-batch-v1";
+const entryDraftStorageKey = "rodoved-test-paper-draft-v1";
 const dataFilterPresetsStorageKey = "rodoved-test-data-filter-presets-v1";
 const dataFilterPanelStorageKey = "rodoved-test-data-filter-panel-open-v2";
 const contactPrivacyStorageKey = "rodoved-test-hide-contacts-v1";
@@ -907,16 +913,23 @@ function EntryPage({
   onCancelEdit: () => void;
   onSave: (draft: ResponseDraft, id?: string) => Promise<void>;
 }) {
-  const [batchState, setBatchState] = useState<EntryBatchState>(() => readEntryBatchState());
+  const [initialEntryState] = useState(() => readInitialPaperEntryState());
+  const initialStoredDraft = editingResponse ? null : initialEntryState.storedDraft;
+  const [batchState, setBatchState] = useState<EntryBatchState>(initialEntryState.batchState);
   const batchStateRef = useRef(batchState);
   const [draft, setDraft] = useState<ResponseDraft>(() =>
-    editingResponse ? responseToDraft(editingResponse) : createPaperDraftForDate(batchState.surveyDate)
+    editingResponse
+      ? responseToDraft(editingResponse)
+      : initialStoredDraft?.draft ?? createPaperDraftForDate(initialEntryState.batchState.surveyDate)
   );
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(() =>
+    initialStoredDraft ? getPaperDraftRestoredStatus(initialStoredDraft) : ""
+  );
   const [saving, setSaving] = useState(false);
   const [highlightedQuestionId, setHighlightedQuestionId] = useState<QuestionId | null>(null);
   const [unknownJumpIndex, setUnknownJumpIndex] = useState(0);
-  const [mobileEntryStep, setMobileEntryStep] = useState(0);
+  const [mobileEntryStep, setMobileEntryStep] = useState(initialStoredDraft?.mobileEntryStep ?? 0);
+  const initialEditingEffectRef = useRef(true);
   const isMobileEntry = useMediaQuery("(max-width: 720px)");
   const unknownQuestions = questions.filter((question) => draft[question.id] === "unknown");
   const experienceQuestions = questions.filter((question) => question.group === "experience");
@@ -942,16 +955,35 @@ function EntryPage({
   }, [batchState]);
 
   useEffect(() => {
+    if (initialEditingEffectRef.current) {
+      initialEditingEffectRef.current = false;
+      return;
+    }
+
+    const storedDraft = editingResponse ? null : readPaperEntryDraftState();
     setDraft(
       editingResponse
         ? responseToDraft(editingResponse)
-        : createPaperDraftForDate(batchStateRef.current.surveyDate)
+        : storedDraft?.draft ?? createPaperDraftForDate(batchStateRef.current.surveyDate)
     );
-    setStatus("");
+    setStatus(storedDraft ? getPaperDraftRestoredStatus(storedDraft) : "");
     setHighlightedQuestionId(null);
     setUnknownJumpIndex(0);
-    setMobileEntryStep(0);
+    setMobileEntryStep(storedDraft?.mobileEntryStep ?? 0);
   }, [editingResponse]);
+
+  useEffect(() => {
+    if (editingResponse) {
+      return;
+    }
+
+    if (isPaperDraftTouched(draft)) {
+      writePaperEntryDraftState(draft, mobileEntryStep);
+      return;
+    }
+
+    clearPaperEntryDraftState();
+  }, [draft, editingResponse, mobileEntryStep]);
 
   useEffect(() => {
     if (!highlightedQuestionId) {
@@ -1050,6 +1082,7 @@ function EntryPage({
     }
 
     const nextBatchState = { count: 0, surveyDate: todayString() };
+    clearPaperEntryDraftState();
     batchStateRef.current = nextBatchState;
     setBatchState(nextBatchState);
     setDraft(createPaperDraftForDate(nextBatchState.surveyDate));
@@ -1071,6 +1104,7 @@ function EntryPage({
         return;
       }
 
+      clearPaperEntryDraftState();
       const nextBatchState = advanceEntryBatch(
         changeEntryBatchDate(batchStateRef.current, draft.surveyDate)
       );
@@ -3728,6 +3762,59 @@ function readEntryBatchState(): EntryBatchState {
   } catch {
     return { count: 0, surveyDate: fallbackSurveyDate };
   }
+}
+
+function readInitialPaperEntryState(): {
+  batchState: EntryBatchState;
+  storedDraft: PaperEntryDraftState | null;
+} {
+  const batchState = readEntryBatchState();
+  const storedDraft = readPaperEntryDraftState();
+
+  return {
+    batchState: storedDraft
+      ? changeEntryBatchDate(batchState, storedDraft.draft.surveyDate)
+      : batchState,
+    storedDraft
+  };
+}
+
+function readPaperEntryDraftState(): PaperEntryDraftState | null {
+  try {
+    const raw = window.sessionStorage.getItem(entryDraftStorageKey);
+    return parsePaperEntryDraftState(raw ? JSON.parse(raw) : null);
+  } catch {
+    return null;
+  }
+}
+
+function writePaperEntryDraftState(draft: ResponseDraft, mobileEntryStep: number): void {
+  if (draft.source !== "paper") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(
+      entryDraftStorageKey,
+      JSON.stringify(createPaperEntryDraftState({ ...draft, source: "paper" }, mobileEntryStep))
+    );
+  } catch {
+    // Draft recovery is optional; data entry must still work if browser storage is unavailable.
+  }
+}
+
+function clearPaperEntryDraftState(): void {
+  try {
+    window.sessionStorage.removeItem(entryDraftStorageKey);
+  } catch {
+    // Ignore unavailable browser storage.
+  }
+}
+
+function getPaperDraftRestoredStatus(state: PaperEntryDraftState): string {
+  return state.draft.q16 === "yes"
+    ? "Черновик восстановлен. Имя и телефон нужно ввести снова."
+    : "Черновик восстановлен.";
 }
 
 function writeEntryBatchState(state: EntryBatchState): void {
