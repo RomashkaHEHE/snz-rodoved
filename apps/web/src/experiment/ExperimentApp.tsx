@@ -1602,6 +1602,7 @@ function DataPage({
   const [hideContacts, setHideContacts] = useState(() => readContactPrivacyMode());
   const isMobileData = useMediaQuery("(max-width: 720px)");
   const mobileDetailRef = useRef<HTMLDivElement>(null);
+  const mobileDetailTriggerRef = useRef<HTMLElement | null>(null);
   const filteredResponses = useMemo(
     () => responses.filter((response) => matchesFilters(response, filters)),
     [responses, filters]
@@ -1658,6 +1659,7 @@ function DataPage({
   const visibleResponses = filteredResponses.slice(0, effectiveRowCount);
   const summary = buildSummary(filteredResponses);
   const selectedResponse = filteredResponses.find((response) => response.id === selectedId) ?? null;
+  const selectedResponseId = selectedResponse?.id ?? null;
   const selectedDraftDirty = Boolean(
     selectedResponse && detailDraft && !areResponseDraftsEqual(detailDraft, responseToDraft(selectedResponse))
   );
@@ -1715,26 +1717,70 @@ function DataPage({
   }, [filtersOpen]);
 
   useEffect(() => {
-    if (!isMobileData || !selectedResponse) {
+    if (!isMobileData || !selectedResponseId) {
       return;
     }
 
     const previousOverflow = document.body.style.overflow;
+    const trigger = mobileDetailTriggerRef.current;
 
     document.body.style.overflow = "hidden";
-    mobileDetailRef.current?.focus();
+    window.requestAnimationFrame(() => {
+      mobileDetailRef.current
+        ?.querySelector<HTMLButtonElement>(".inspector-close-button")
+        ?.focus({ preventScroll: true });
+    });
 
     return () => {
       document.body.style.overflow = previousOverflow;
+      window.requestAnimationFrame(() => {
+        if (trigger?.isConnected) {
+          trigger.focus({ preventScroll: true });
+        }
+      });
+      mobileDetailTriggerRef.current = null;
     };
-  }, [isMobileData, selectedResponse]);
+  }, [isMobileData, selectedResponseId]);
 
   useEffect(() => {
-    if (!isMobileData || !selectedResponse) {
+    if (!isMobileData || !selectedResponseId) {
       return;
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Tab") {
+        const container = mobileDetailRef.current;
+        if (!container) {
+          return;
+        }
+
+        const focusable = Array.from(
+          container.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((element) => element.getClientRects().length > 0);
+        const first = focusable[0];
+        const last = focusable.at(-1);
+
+        if (!first || !last) {
+          event.preventDefault();
+          container.focus();
+          return;
+        }
+
+        if (!container.contains(document.activeElement)) {
+          event.preventDefault();
+          first.focus();
+        } else if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+        return;
+      }
+
       if (event.key !== "Escape") {
         return;
       }
@@ -1748,7 +1794,7 @@ function DataPage({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [detailMode, isMobileData, selectedDraftDirty, selectedResponse]);
+  }, [detailMode, isMobileData, selectedDraftDirty, selectedResponseId]);
 
   function closeResponse() {
     if (detailMode === "edit" && !confirmDiscardResponseChanges(selectedDraftDirty)) {
@@ -1760,7 +1806,10 @@ function DataPage({
     setDetailDraft(null);
   }
 
-  function openResponse(response: SurveyResponse) {
+  function openResponse(response: SurveyResponse, trigger: HTMLButtonElement) {
+    if (isMobileData) {
+      mobileDetailTriggerRef.current = trigger;
+    }
     setDataStatus("");
     setSelectedId(response.id);
     setDetailMode("view");
@@ -3171,7 +3220,7 @@ function HelpQueue({
   selectedId
 }: {
   hideContacts: boolean;
-  onOpen: (response: SurveyResponse) => void;
+  onOpen: (response: SurveyResponse, trigger: HTMLButtonElement) => void;
   responses: SurveyResponse[];
   selectedId: string | null;
 }) {
@@ -3213,7 +3262,7 @@ function HelpQueue({
             ) : (
               <span>Нет телефона</span>
             )}
-            <button type="button" onClick={() => onOpen(response)}>
+            <button type="button" onClick={(event) => onOpen(response, event.currentTarget)}>
               <ClipboardList aria-hidden size={17} />
               Открыть
             </button>
@@ -3295,7 +3344,7 @@ function ResponseRows({
   responses
 }: {
   hideContacts: boolean;
-  onOpen: (response: SurveyResponse) => void;
+  onOpen: (response: SurveyResponse, trigger: HTMLButtonElement) => void;
   selectedId: string | null;
   responses: SurveyResponse[];
 }) {
@@ -3333,7 +3382,7 @@ function ResponseRows({
             {response.researchTerritory ? <span>{response.researchTerritory}</span> : null}
           </div>
           <div className="row-actions">
-            <button type="button" onClick={() => onOpen(response)}>
+            <button type="button" onClick={(event) => onOpen(response, event.currentTarget)}>
               <ClipboardList aria-hidden size={17} />
               Открыть
             </button>
@@ -3546,16 +3595,7 @@ function ResponseInspector({
   if (mode === "edit" && draft) {
     return (
       <aside className="row-inspector">
-        <div className="inspector-heading">
-          <div>
-            <span className={`source-pill source-${response.source}`}>{sourceLabels[response.source]}</span>
-            {response.isFake ? <span className="demo-badge">демо</span> : null}
-            <h3>{response.surveyDate}</h3>
-          </div>
-          <button className="ghost-button compact-button" type="button" onClick={onClose}>
-            Закрыть
-          </button>
-        </div>
+        <ResponseInspectorHeading mobile={mobile} response={response} onClose={onClose} />
         {mobile ? (
           <MobileResponseEditor
             busy={busy}
@@ -3601,16 +3641,7 @@ function ResponseInspector({
 
   return (
     <aside className="row-inspector">
-      <div className="inspector-heading">
-        <div>
-          <span className={`source-pill source-${response.source}`}>{sourceLabels[response.source]}</span>
-          {response.isFake ? <span className="demo-badge">демо</span> : null}
-          <h3>{response.surveyDate}</h3>
-        </div>
-        <button className="ghost-button compact-button" type="button" onClick={onClose}>
-          Закрыть
-        </button>
-      </div>
+      <ResponseInspectorHeading mobile={mobile} response={response} onClose={onClose} />
 
       <div className="detail-grid">
         <Detail label="Пол" value={genderLabels[response.gender]} />
@@ -3689,6 +3720,37 @@ function ResponseInspector({
         </button>
       </div>
     </aside>
+  );
+}
+
+function ResponseInspectorHeading({
+  mobile,
+  onClose,
+  response
+}: {
+  mobile: boolean;
+  onClose: () => void;
+  response: SurveyResponse;
+}) {
+  return (
+    <div className="inspector-heading">
+      <div className="inspector-title">
+        <div className="inspector-badges">
+          <span className={`source-pill source-${response.source}`}>{sourceLabels[response.source]}</span>
+          {response.isFake ? <span className="demo-badge">демо</span> : null}
+        </div>
+        <h3>{response.surveyDate}</h3>
+      </div>
+      <button
+        aria-label="Закрыть анкету"
+        className="ghost-button compact-button inspector-close-button"
+        title={mobile ? "Закрыть анкету" : undefined}
+        type="button"
+        onClick={onClose}
+      >
+        {mobile ? <X aria-hidden size={22} /> : "Закрыть"}
+      </button>
+    </div>
   );
 }
 

@@ -1879,6 +1879,20 @@ button:disabled {
   margin: 0.45rem 0 0;
 }
 
+.inspector-title {
+  min-width: 0;
+}
+
+.inspector-badges {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.inspector-close-button {
+  flex: 0 0 auto;
+}
+
 .compact-button {
   min-height: 36px;
   padding: 0.45rem 0.65rem;
@@ -2447,19 +2461,19 @@ button:disabled {
 
   .mobile-data-detail-layer {
     -webkit-overflow-scrolling: touch;
-    background: var(--page);
+    background: var(--bg);
     display: block;
     inset: 0;
     outline: none;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem calc(1rem + env(safe-area-inset-bottom));
+    padding: 0 0.75rem calc(1rem + env(safe-area-inset-bottom));
     position: fixed;
     z-index: 50;
   }
 
   .mobile-data-detail-layer .row-inspector {
-    background: transparent;
+    background: var(--bg);
     border: 0;
     border-radius: 0;
     max-height: none;
@@ -2470,11 +2484,27 @@ button:disabled {
   }
 
   .mobile-data-detail-layer .inspector-heading {
-    background: var(--page);
-    padding: 0.35rem 0 0.8rem;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    margin: 0 -0.75rem;
+    padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem 0.75rem;
     position: sticky;
     top: 0;
-    z-index: 2;
+    z-index: 4;
+  }
+
+  .mobile-data-detail-layer .inspector-heading h3 {
+    font-size: 1.35rem;
+    margin-top: 0.35rem;
+  }
+
+  .mobile-data-detail-layer .inspector-close-button {
+    align-items: center;
+    display: inline-flex;
+    height: 44px;
+    justify-content: center;
+    min-width: 44px;
+    padding: 0;
   }
 
   .mobile-contact-privacy-button {
@@ -2551,7 +2581,7 @@ button:disabled {
   }
 
   .mobile-row-editor-actions {
-    background: var(--page);
+    background: var(--bg);
     border-top: 1px solid var(--line-soft);
     bottom: 0;
     display: grid;

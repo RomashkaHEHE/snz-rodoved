@@ -55,7 +55,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - the data screen has task modes for `Обращения`, `Анкеты`, `PDF`, and `Графики`; desktop uses low-chrome tabs and phone layouts use one select. The selected mode is stored in the `view` URL parameter and survives reload/back-forward together with the filter slice;
   - contact and questionnaire lists mount 20 rows at first and continue in explicit 20-row batches. The full filtered array remains authoritative for counts, analytics, PDF coverage, CSV, and contact planning;
   - the data row inspector shows consent as `Да`/`Нет`/`Не зафиксировано` and full Q4-Q16 answers with `Да`/`Нет`/`Нет ответа` chips, not only the positive answers;
-  - on widths up to 720px, opening a contact or questionnaire row uses a full-viewport modal detail screen, locks the background list, keeps contacts masked until explicitly shown, collapses Q4-Q16 by default, and performs inline editing in that same screen; desktop retains the side inspector;
+  - on widths up to 720px, opening a contact or questionnaire row uses an opaque full-viewport modal detail screen with a sticky header, locks the background list, traps/restores keyboard focus, keeps contacts masked until explicitly shown, collapses Q4-Q16 by default, and performs inline editing in that same screen; desktop retains the side inspector;
   - mobile contact workflow uses one status select instead of four status buttons, while desktop retains the faster segmented control;
   - mobile selected-row editing uses the same one-question focus as paper entry, plus one native jump select and save from any step; desktop retains the complete inline form;
   - online search/contact fields are grouped under Q16 in every editor. Online help requests require name/phone, while paper rows allow absent contacts; changed editors confirm before closing without save;
@@ -91,6 +91,10 @@ The test domain must have its own interface, its own UX decisions, and may use n
 
 ## Last Verification
 
+- Mobile row-detail layering iteration:
+  - iPhone 12 mini `375x812` showed an opaque `rgb(243, 244, 242)` dialog over the full viewport, a white sticky header, locked body scroll, and no horizontal overflow;
+  - initial focus landed on the close action; `Shift+Tab` wrapped to the final action, `Tab` wrapped back, and close/Escape restored focus to the originating `Открыть` button;
+  - mobile inline editing retained the same opaque surface and bottom action background; desktop `1280x720` retained the sticky side inspector and text close action.
 - Consent/contact-quality iteration:
   - shared, database, API, and web targeted suites passed: 56 tests total;
   - public mobile/browser smoke confirmed the original 1-16 order, Q16-only help fields, invalid-phone focus, required processing consent, optional invitation consent, successful submit, and persisted inspector values;
