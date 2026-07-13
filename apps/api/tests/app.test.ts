@@ -316,6 +316,16 @@ describe("api app", () => {
       sizeBytes: 15
     });
 
+    const duplicateMayPdf = createMultipartPdfBody("20260517_анкеты.pdf");
+    const duplicateMay = await app.inject({
+      method: "POST",
+      url: "/api/pdf-files",
+      headers: { cookie, ...duplicateMayPdf.headers },
+      payload: duplicateMayPdf.payload
+    });
+    expect(duplicateMay.statusCode).toBe(409);
+    expect(duplicateMay.json().error).toBe("duplicate_pdf_file");
+
     const aprilPdf = createMultipartPdfBody("20260427_анкеты.pdf");
     await app.inject({
       method: "POST",

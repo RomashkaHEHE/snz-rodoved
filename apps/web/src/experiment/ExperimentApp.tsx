@@ -16,7 +16,8 @@ import {
   Plus,
   Save,
   Trash2,
-  Upload
+  Upload,
+  X
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
@@ -62,6 +63,7 @@ import {
   type SurveyBasicField,
   type SurveyBasicSelections
 } from "./surveyDraft";
+import { buildPdfArchiveName, getPdfSelectionIssue } from "./pdfArchive";
 import type { SurveyFilters } from "@snz-rodoved/shared";
 import "./experiment.css";
 
@@ -2135,37 +2137,63 @@ function PdfPage({
   onDelete: (id: string) => Promise<void>;
 }) {
   const [surveyDate, setSurveyDate] = useState(todayString());
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [status, setStatus] = useState("");
-  const displayName = `${surveyDate.replaceAll("-", "")}_анкеты.pdf`;
-  const existingFile = files.find((file) => file.displayName === displayName);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const displayName = buildPdfArchiveName(surveyDate);
+  const existingFile = files.find((file) => file.surveyDate === surveyDate);
 
-  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
+  function clearSelectedFile() {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) {
       return;
     }
 
-    if (file.type !== "application/pdf") {
-      setStatus("Выберите PDF-файл.");
+    const issue = getPdfSelectionIssue(file);
+    if (issue) {
+      setStatus(
+        issue === "too_large"
+          ? "PDF должен быть не больше 100 МБ."
+          : issue === "empty"
+            ? "Выбранный PDF пустой."
+            : "Выберите PDF-файл."
+      );
+      clearSelectedFile();
       return;
     }
 
-    if (existingFile) {
-      setStatus(`${displayName} уже есть в архиве. Сначала удалите старый файл или выберите другую дату.`);
-      event.target.value = "";
+    setSelectedFile(file);
+    setStatus("");
+  }
+
+  async function handleUpload() {
+    if (!surveyDate || !selectedFile || existingFile || uploading) {
       return;
     }
 
+    setUploading(true);
     try {
-      await onAdd(displayName, file);
+      await onAdd(displayName, selectedFile);
       setStatus(`${displayName} добавлен.`);
-      event.target.value = "";
+      clearSelectedFile();
     } catch (error) {
       if (error instanceof Error && error.message.includes("409")) {
-        setStatus(`${displayName} уже есть в архиве. Сначала удалите старый файл или выберите другую дату.`);
+        setStatus(`${displayName} уже есть в архиве.`);
+      } else if (error instanceof Error && error.message.includes("413")) {
+        setStatus("PDF должен быть не больше 100 МБ.");
       } else {
         setStatus("Не удалось сохранить PDF.");
       }
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -2179,23 +2207,81 @@ function PdfPage({
       </div>
 
       <section className="task-panel upload-panel">
-        <div className="compact-grid">
+        <div className="section-title-row">
+          <h2>Добавить скан</h2>
+        </div>
+
+        <div className="pdf-upload-grid">
           <label>
             Дата опроса
-            <input type="date" value={surveyDate} onChange={(event) => setSurveyDate(event.target.value)} />
+            <input
+              required
+              type="date"
+              value={surveyDate}
+              onChange={(event) => {
+                setSurveyDate(event.target.value);
+                setStatus("");
+              }}
+            />
           </label>
-          <div className="file-name-preview">
-            Название
-            <strong>{displayName}</strong>
-            {existingFile ? <span>Файл за эту дату уже загружен.</span> : null}
+          <div className="pdf-archive-name">
+            <span>Название в архиве</span>
+            <strong>{surveyDate ? displayName : "Выберите дату"}</strong>
           </div>
-          <label className="file-drop">
-            <Upload aria-hidden size={22} />
-            Загрузить PDF
-            <input accept="application/pdf" type="file" onChange={handleFile} />
-          </label>
         </div>
-        {status ? <p className="form-status">{status}</p> : null}
+
+        {existingFile ? (
+          <div className="pdf-existing-notice" role="status">
+            <FileText aria-hidden size={22} />
+            <div>
+              <strong>PDF за эту дату уже есть</strong>
+              <span>{existingFile.displayName} · {formatFileSize(existingFile.sizeBytes)}</span>
+            </div>
+            <a href={getLabPdfDownloadUrl(existingFile.id)}>
+              <Download aria-hidden size={17} />
+              Скачать
+            </a>
+          </div>
+        ) : null}
+
+        <div className="pdf-file-picker">
+          <label className="file-drop">
+            <Upload aria-hidden size={20} />
+            {selectedFile ? "Выбрать другой PDF" : "Выбрать PDF"}
+            <input
+              accept="application/pdf,.pdf"
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFile}
+            />
+          </label>
+
+          {selectedFile ? (
+            <div className="pdf-selected-file">
+              <FileText aria-hidden size={24} />
+              <div>
+                <strong>{selectedFile.name}</strong>
+                <span>{formatFileSize(selectedFile.size)}</span>
+              </div>
+              <button aria-label="Убрать выбранный файл" type="button" onClick={clearSelectedFile}>
+                <X aria-hidden size={18} />
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="pdf-upload-actions">
+          <button
+            className="primary-button"
+            disabled={!surveyDate || !selectedFile || Boolean(existingFile) || uploading}
+            type="button"
+            onClick={handleUpload}
+          >
+            <Upload aria-hidden size={18} />
+            {uploading ? "Добавление..." : "Добавить в архив"}
+          </button>
+        </div>
+        {status ? <p aria-live="polite" className="form-status">{status}</p> : null}
       </section>
 
       <section className="task-panel">
@@ -3501,34 +3587,94 @@ function PdfMiniList({ files }: { files: PdfRecord[] }) {
   );
 }
 
-function PdfRows({ files, onDelete }: { files: PdfRecord[]; onDelete: (id: string) => void }) {
+function PdfRows({ files, onDelete }: { files: PdfRecord[]; onDelete: (id: string) => Promise<void> }) {
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteErrorId, setDeleteErrorId] = useState<string | null>(null);
+
   if (files.length === 0) {
     return <p className="empty-state">Файлы ещё не добавлены.</p>;
   }
 
+  async function confirmDelete(file: PdfRecord) {
+    setDeletingId(file.id);
+    setDeleteErrorId(null);
+    try {
+      await onDelete(file.id);
+      setPendingDeleteId(null);
+    } catch {
+      setDeleteErrorId(file.id);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div className="row-list">
-      {files.map((file) => (
-        <article className="pdf-row" key={file.id}>
-          <FileText aria-hidden size={24} />
-          <div>
-            <strong>{file.displayName}</strong>
-            <p>
-              {file.surveyDate} · {formatFileSize(file.sizeBytes)}
-            </p>
-          </div>
-          <div className="row-actions">
-            <a href={getLabPdfDownloadUrl(file.id)}>
-              <Download aria-hidden size={17} />
-              Скачать
-            </a>
-            <button type="button" onClick={() => onDelete(file.id)}>
-              <Trash2 aria-hidden size={17} />
-              Удалить
-            </button>
-          </div>
-        </article>
-      ))}
+      {files.map((file) => {
+        const confirmingDelete = pendingDeleteId === file.id;
+
+        return (
+          <article className={confirmingDelete ? "pdf-row is-confirming-delete" : "pdf-row"} key={file.id}>
+            <FileText aria-hidden size={24} />
+            <div>
+              <strong>{file.displayName}</strong>
+              <p>
+                {file.surveyDate} · {formatFileSize(file.sizeBytes)}
+              </p>
+            </div>
+            {!confirmingDelete ? (
+              <div className="row-actions">
+                <a href={getLabPdfDownloadUrl(file.id)}>
+                  <Download aria-hidden size={17} />
+                  Скачать
+                </a>
+                <button
+                  aria-label={`Удалить ${file.displayName}`}
+                  type="button"
+                  onClick={() => {
+                    setDeleteErrorId(null);
+                    setPendingDeleteId(file.id);
+                  }}
+                >
+                  <Trash2 aria-hidden size={17} />
+                  Удалить
+                </button>
+              </div>
+            ) : null}
+
+            {confirmingDelete ? (
+              <div className="pdf-delete-confirm" role="alert">
+                <div>
+                  <strong>Удалить PDF без возможности восстановления?</strong>
+                  <span>Строки анкет в базе останутся.</span>
+                  {deleteErrorId === file.id ? (
+                    <span className="error-status">Не удалось удалить файл.</span>
+                  ) : null}
+                </div>
+                <div className="row-actions">
+                  <button
+                    disabled={deletingId === file.id}
+                    type="button"
+                    onClick={() => setPendingDeleteId(null)}
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    className="danger-button"
+                    disabled={deletingId === file.id}
+                    type="button"
+                    onClick={() => void confirmDelete(file)}
+                  >
+                    <Trash2 aria-hidden size={17} />
+                    {deletingId === file.id ? "Удаление..." : "Удалить PDF"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </article>
+        );
+      })}
     </div>
   );
 }

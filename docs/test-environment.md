@@ -44,7 +44,8 @@ Current flows use the isolated test backend and test SQLite/PDF storage:
 - CSV remains a visible data-page action; contact visibility and demo-data actions live in the secondary action menu. Rows expose only `Открыть`; editing and deletion stay in the selected-row inspector;
 - local contact privacy mode on `/data` hides names and phone numbers in lists and inspectors by default until the operator explicitly shows them;
 - collapsible yes/no/unknown question breakdown with group focus;
-- PDF upload/list/download/deletion with duplicate-name warning.
+- staged PDF upload: choosing a file does not send it immediately; the operator reviews the file, size, date, and derived archive name before confirming;
+- PDF list/download and two-step deletion; a duplicate survey date is blocked and the existing file remains downloadable.
 
 ## Targets
 

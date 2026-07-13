@@ -33,3 +33,6 @@ Privacy rules:
 - PDF downloads go through authenticated API routes.
 - The PDF archive is independent from `responses`; deleting a PDF must not delete entered questionnaire rows.
 - File date is derived from the operator-provided name `YYYYMMDD_анкеты.pdf`, because one file represents one survey day.
+- On the test domain, the UI derives that name from the chosen survey date and keeps a selected file only in memory until the operator explicitly confirms upload.
+- A second file for the same survey date is blocked; existing scans are never replaced silently.
+- The archive UI requires a second explicit confirmation before deletion and names the consequence before calling the delete API.

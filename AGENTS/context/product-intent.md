@@ -22,4 +22,6 @@ Editing a selected row must preserve the same hierarchy. Phone editing exposes d
 
 The operator also needs a small private catalog of scanned paper questionnaires. This is archival storage for source documents, not a replacement for structured data entry.
 
+PDF selection must be a reversible local step, especially on a phone. Opening the iOS file picker must not upload immediately: the operator first reviews the source file, size, survey date, and derived archive name, then confirms the upload. A duplicate survey date is blocked rather than silently replacing the existing scan. Deletion is a separate two-step action and must state that structured questionnaire rows are unaffected.
+
 Customer suggestions such as map selection and timeline sliders should be treated as product inspiration, not literal technical requirements. Prefer accessible, maintainable controls first; integrate heavy map/timeline services only after there is a concrete workflow and API-key/deployment decision.

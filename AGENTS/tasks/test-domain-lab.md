@@ -62,7 +62,9 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - `/data` has a browser-local contact privacy mode, enabled by default, that masks contact names and phone numbers in lists and read-only inspectors until the operator explicitly shows them;
   - collapsible question breakdown shows yes/no/unknown counts and can focus on all questions, experience, interests, or help;
   - PDF upload/list/download/deletion use server PDF storage;
-  - PDF upload warns before sending when a file with the derived `YYYYMMDD_анкеты.pdf` name already exists.
+  - PDF selection is staged locally and needs an explicit `Добавить в архив` action; the review shows the source name, size, survey date, and derived `YYYYMMDD_анкеты.pdf` name;
+  - a duplicate survey date blocks upload and exposes the existing download instead of replacing a scan silently;
+  - PDF deletion uses an inline second confirmation and states that structured questionnaire rows remain.
 
 ## Product Direction
 
@@ -220,5 +222,10 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - a q16 help draft showed contacts on review in memory, but reload reopened `Помощь` with both contact inputs empty while retaining the demographic choices;
   - trying to submit that restored review returned to `Помощь` and focused the name input without issuing a create request;
   - iPhone 12 mini `375x812` had no horizontal overflow and each demographic group retained a stable full-width layout.
+- Local browser/API smoke for the safer PDF archive confirmed:
+  - an empty archive at `375x812` shows one date, one file picker, and one disabled upload action with no horizontal overflow;
+  - API-seeded files render newest survey date first, and the derived-name notice blocks a duplicate date while keeping the existing PDF downloadable;
+  - opening deletion replaces the row actions with `Отмена` and `Удалить PDF`; cancel keeps the file and confirmation deletes only the temporary test PDF;
+  - the confirmation fits between `27px` and `348px` at a `375px` viewport, desktop retains a three-column file row, and browser console warnings/errors are empty.
 
 Note: the browser tool timed out while opening the temporary local server during the filter iteration, so the newest filter work was verified by TypeScript/lint/tests/build and HTTP/asset smoke. Re-run browser checks for filter clicks when the browser automation session is stable.
