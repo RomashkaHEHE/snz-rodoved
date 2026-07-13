@@ -45,6 +45,11 @@ import {
 } from "./entryBatch";
 import { shouldAutoAdvanceEntryQuestion } from "./entryFlow";
 import {
+  hasMissingRequiredResponseContacts,
+  requiresResponseContacts,
+  shouldShowResponseSearchFields
+} from "./responseEditor";
+import {
   areBasicSelectionsComplete,
   clearSurveyHelpDetails,
   coerceBasicSelections,
@@ -115,6 +120,34 @@ type ResponseDraft = Omit<
   SurveyResponse,
   "contactNote" | "contactStatus" | "createdAt" | "id" | "isFake" | "updatedAt"
 >;
+
+const responseDraftKeys: Array<keyof ResponseDraft> = [
+  "source",
+  "surveyDate",
+  "gender",
+  "ageGroup",
+  "residence",
+  "q4",
+  "q5",
+  "q6",
+  "q7",
+  "q8",
+  "q9",
+  "q10",
+  "q11",
+  "q11WarDetails",
+  "q12",
+  "q13",
+  "q14",
+  "q15",
+  "q16",
+  "researchTerritory",
+  "researchPeriodStart",
+  "researchPeriodEnd",
+  "freeText",
+  "contactName",
+  "contactPhone"
+];
 
 interface PdfRecord {
   id: string;
@@ -557,6 +590,7 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
       render: (
         <QuestionStack
           draft={draft}
+          requireContactDetails
           showOnlineHelpFields
           questionsToShow={questions.filter((question) => question.group === "help")}
           onChange={setDraft}
@@ -895,6 +929,10 @@ function EntryPage({
         ? "Интересы"
         : "Помощь"
     : "Данные анкеты";
+  const showEditingSearchFields = Boolean(
+    editingResponse && shouldShowResponseSearchFields(editingResponse.source, draft)
+  );
+  const requireEditingContacts = editingResponse ? requiresResponseContacts(editingResponse.source) : false;
 
   useEffect(() => {
     batchStateRef.current = batchState;
@@ -1120,6 +1158,8 @@ function EntryPage({
                   draft={draft}
                   highlightedQuestionId={highlightedQuestionId}
                   idPrefix="mobile-entry"
+                  requireContactDetails={requireEditingContacts}
+                  showOnlineHelpFields={showEditingSearchFields}
                   questionsToShow={[activeMobileQuestion]}
                   onChange={handleMobileQuestionChange}
                 />
@@ -1250,6 +1290,8 @@ function EntryPage({
                 draft={draft}
                 highlightedQuestionId={highlightedQuestionId}
                 idPrefix="entry"
+                requireContactDetails={requireEditingContacts}
+                showOnlineHelpFields={showEditingSearchFields}
                 questionsToShow={helpQuestions}
                 onChange={setDraft}
               />
@@ -1357,6 +1399,9 @@ function DataPage({
   const sortedHelpRequests = useMemo(() => [...helpRequests].sort(compareContactQueue), [helpRequests]);
   const summary = buildSummary(filteredResponses);
   const selectedResponse = filteredResponses.find((response) => response.id === selectedId) ?? null;
+  const selectedDraftDirty = Boolean(
+    selectedResponse && detailDraft && !areResponseDraftsEqual(detailDraft, responseToDraft(selectedResponse))
+  );
   const filtersActive = hasActiveFilters(filters);
   const activeFilterChips = useMemo(() => buildFilterChips(filters), [filters]);
   const dataModeItems: Array<{ count: number; icon: typeof Database; id: DataMode; label: string }> = [
@@ -1410,37 +1455,55 @@ function DataPage({
     }
 
     const previousOverflow = document.body.style.overflow;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSelectedId(null);
-        setDetailMode("view");
-        setDetailDraft(null);
-      }
-    };
 
     document.body.style.overflow = "hidden";
     mobileDetailRef.current?.focus();
-    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isMobileData, selectedResponse]);
 
+  useEffect(() => {
+    if (!isMobileData || !selectedResponse) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      if (detailMode === "edit" && !confirmDiscardResponseChanges(selectedDraftDirty)) {
+        return;
+      }
+      setSelectedId(null);
+      setDetailMode("view");
+      setDetailDraft(null);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [detailMode, isMobileData, selectedDraftDirty, selectedResponse]);
+
   function closeResponse() {
+    if (detailMode === "edit" && !confirmDiscardResponseChanges(selectedDraftDirty)) {
+      return;
+    }
+    setDataStatus("");
     setSelectedId(null);
     setDetailMode("view");
     setDetailDraft(null);
   }
 
   function openResponse(response: SurveyResponse) {
+    setDataStatus("");
     setSelectedId(response.id);
     setDetailMode("view");
     setDetailDraft(responseToDraft(response));
   }
 
   function editResponseInline(response: SurveyResponse) {
+    setDataStatus("");
     setSelectedId(response.id);
     setDetailMode("edit");
     setDetailDraft(responseToDraft(response));
@@ -1644,10 +1707,12 @@ function DataPage({
       mobile={isMobileData}
       mode={detailMode}
       response={selectedResponse}
+      status={dataStatus}
       onCancel={() => {
         if (selectedResponse) {
           setDetailDraft(responseToDraft(selectedResponse));
         }
+        setDataStatus("");
         setDetailMode("view");
       }}
       onChange={setDetailDraft}
@@ -2370,6 +2435,7 @@ function QuestionStack({
   draft,
   highlightedQuestionId,
   idPrefix,
+  requireContactDetails = false,
   showOnlineHelpFields = false,
   questionsToShow,
   onChange
@@ -2377,6 +2443,7 @@ function QuestionStack({
   draft: ResponseDraft;
   highlightedQuestionId?: QuestionId | null;
   idPrefix?: string;
+  requireContactDetails?: boolean;
   showOnlineHelpFields?: boolean;
   questionsToShow: typeof questions;
   onChange: (draft: ResponseDraft) => void;
@@ -2436,7 +2503,7 @@ function QuestionStack({
                 Имя
                 <input
                   autoComplete="name"
-                  required
+                  required={requireContactDetails}
                   value={draft.contactName ?? ""}
                   onChange={(event) => onChange({ ...draft, contactName: event.target.value || undefined })}
                 />
@@ -2446,7 +2513,7 @@ function QuestionStack({
                 <input
                   autoComplete="tel"
                   inputMode="tel"
-                  required
+                  required={requireContactDetails}
                   type="tel"
                   value={draft.contactPhone ?? ""}
                   onChange={(event) => onChange({ ...draft, contactPhone: event.target.value || undefined })}
@@ -2825,6 +2892,149 @@ function ResponseRows({
   );
 }
 
+function MobileResponseEditor({
+  busy,
+  draft,
+  onCancel,
+  onChange,
+  onSave,
+  response,
+  status
+}: {
+  busy: boolean;
+  draft: ResponseDraft;
+  onCancel: () => void;
+  onChange: (draft: ResponseDraft) => void;
+  onSave: () => Promise<void>;
+  response: SurveyResponse;
+  status: string;
+}) {
+  const [step, setStep] = useState(0);
+  const [validationStatus, setValidationStatus] = useState("");
+  const stepCount = questions.length + 1;
+  const activeQuestion = step > 0 ? questions[step - 1] : null;
+  const sectionLabel = activeQuestion
+    ? activeQuestion.group === "experience"
+      ? "Опыт"
+      : activeQuestion.group === "interest"
+        ? "Интересы"
+        : "Помощь"
+    : "Данные анкеты";
+  const requireContactDetails = requiresResponseContacts(response.source);
+  const showOnlineHelpFields = shouldShowResponseSearchFields(response.source, draft);
+
+  function moveToStep(nextStep: number) {
+    setStep(Math.min(stepCount - 1, Math.max(0, nextStep)));
+    setValidationStatus("");
+    window.requestAnimationFrame(() => {
+      document.getElementById("mobile-row-editor-stage")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function handleChange(nextDraft: ResponseDraft) {
+    setValidationStatus("");
+    onChange(nextDraft);
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+
+    if (hasMissingRequiredResponseContacts(response.source, draft)) {
+      setStep(stepCount - 1);
+      setValidationStatus("Укажите имя и номер телефона.");
+      window.requestAnimationFrame(() => {
+        const selector = !draft.contactName?.trim()
+          ? '#mobile-row-editor-stage input[autocomplete="name"]'
+          : '#mobile-row-editor-stage input[autocomplete="tel"]';
+        document.querySelector<HTMLInputElement>(selector)?.focus();
+      });
+      return;
+    }
+
+    setValidationStatus("");
+    await onSave();
+  }
+
+  return (
+    <form className="mobile-row-editor" onSubmit={(event) => void handleSubmit(event)}>
+      <div aria-label={`Шаг ${step + 1} из ${stepCount}`} className="mobile-entry-progress">
+        <div>
+          <span>{activeQuestion ? `Вопрос ${activeQuestion.number}` : "Вопросы 1-3"}</span>
+          <strong>{sectionLabel}</strong>
+        </div>
+        <b>{step + 1} / {stepCount}</b>
+        <i aria-hidden>
+          <span style={{ width: `${((step + 1) / stepCount) * 100}%` }} />
+        </i>
+      </div>
+
+      <label className="mobile-row-editor-jump">
+        <span>Перейти к</span>
+        <select aria-label="Перейти к вопросу" value={step} onChange={(event) => moveToStep(Number(event.target.value))}>
+          <option value={0}>1-3. Данные анкеты</option>
+          {questions.map((question, index) => (
+            <option key={question.id} value={index + 1}>
+              {question.number}. {question.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <section className="mobile-entry-stage" id="mobile-row-editor-stage">
+        {activeQuestion ? (
+          <QuestionStack
+            draft={draft}
+            idPrefix="mobile-row-editor"
+            requireContactDetails={requireContactDetails}
+            showOnlineHelpFields={showOnlineHelpFields}
+            questionsToShow={[activeQuestion]}
+            onChange={handleChange}
+          />
+        ) : (
+          <BasicFields draft={draft} showDate onChange={handleChange} />
+        )}
+      </section>
+
+      {validationStatus || status ? (
+        <p className="form-status mobile-row-editor-status" role="status">
+          {validationStatus || status}
+        </p>
+      ) : null}
+
+      <button className="link-button mobile-row-editor-cancel" disabled={busy} type="button" onClick={onCancel}>
+        Отменить изменения
+      </button>
+
+      <div className="mobile-row-editor-actions">
+        <button
+          aria-label="Предыдущий шаг"
+          className="ghost-button"
+          disabled={busy || step === 0}
+          title="Предыдущий шаг"
+          type="button"
+          onClick={() => moveToStep(step - 1)}
+        >
+          <ChevronLeft aria-hidden size={21} />
+        </button>
+        <button className="primary-button" disabled={busy} type="submit">
+          <Save aria-hidden size={18} />
+          {busy ? "Сохраняем..." : "Сохранить"}
+        </button>
+        <button
+          aria-label="Следующий шаг"
+          className="ghost-button"
+          disabled={busy || step === stepCount - 1}
+          title="Следующий шаг"
+          type="button"
+          onClick={() => moveToStep(step + 1)}
+        >
+          <ChevronRight aria-hidden size={21} />
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function ResponseInspector({
   busy,
   draft,
@@ -2840,7 +3050,8 @@ function ResponseInspector({
   onSaveContact,
   onSave,
   onToggleContacts,
-  response
+  response,
+  status
 }: {
   busy: boolean;
   draft: ResponseDraft | null;
@@ -2860,6 +3071,7 @@ function ResponseInspector({
   onSave: () => Promise<void>;
   onToggleContacts: () => void;
   response: SurveyResponse | null;
+  status: string;
 }) {
   if (!response) {
     return (
@@ -2884,26 +3096,44 @@ function ResponseInspector({
             Закрыть
           </button>
         </div>
-        <form
-          className="inline-editor"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void onSave();
-          }}
-        >
-          <BasicFields draft={draft} showDate onChange={onChange} />
-          <SearchFields draft={draft} onChange={onChange} />
-          <QuestionStack draft={draft} questionsToShow={questions} onChange={onChange} />
-          <div className="form-actions">
-            <button className="primary-button" disabled={busy} type="submit">
-              <Save aria-hidden size={18} />
-              {busy ? "Сохранение..." : "Сохранить"}
-            </button>
-            <button className="ghost-button" disabled={busy} type="button" onClick={onCancel}>
-              Отмена
-            </button>
-          </div>
-        </form>
+        {mobile ? (
+          <MobileResponseEditor
+            busy={busy}
+            draft={draft}
+            response={response}
+            status={status}
+            onCancel={onCancel}
+            onChange={onChange}
+            onSave={onSave}
+          />
+        ) : (
+          <form
+            className="inline-editor"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void onSave();
+            }}
+          >
+            <BasicFields draft={draft} showDate onChange={onChange} />
+            <QuestionStack
+              draft={draft}
+              requireContactDetails={requiresResponseContacts(response.source)}
+              showOnlineHelpFields={shouldShowResponseSearchFields(response.source, draft)}
+              questionsToShow={questions}
+              onChange={onChange}
+            />
+            {status ? <p className="form-status" role="status">{status}</p> : null}
+            <div className="form-actions">
+              <button className="primary-button" disabled={busy} type="submit">
+                <Save aria-hidden size={18} />
+                {busy ? "Сохранение..." : "Сохранить"}
+              </button>
+              <button className="ghost-button" disabled={busy} type="button" onClick={onCancel}>
+                Отмена
+              </button>
+            </div>
+          </form>
+        )}
       </aside>
     );
   }
@@ -4239,6 +4469,14 @@ function formatResearchPeriod(response: Pick<SurveyResponse, "researchPeriodEnd"
   }
 
   return String(response.researchPeriodStart ?? response.researchPeriodEnd ?? "");
+}
+
+function areResponseDraftsEqual(left: ResponseDraft, right: ResponseDraft): boolean {
+  return responseDraftKeys.every((key) => left[key] === right[key]);
+}
+
+function confirmDiscardResponseChanges(hasChanges: boolean): boolean {
+  return !hasChanges || window.confirm("Закрыть анкету без сохранения изменений?");
 }
 
 function formatDraftResearchPeriod(draft: Pick<ResponseDraft, "researchPeriodEnd" | "researchPeriodStart">) {

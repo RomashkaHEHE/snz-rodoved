@@ -18,6 +18,8 @@ Paper entry follows the same device-specific rule. Desktop keeps the whole quest
 
 Data-row selection follows that rule too. A desktop has room for a list and sticky inspector side by side; a phone must treat the selected questionnaire as a separate focused screen. Returning from that screen must preserve the list and its scroll position. Optional detail such as the complete Q4-Q16 audit stays collapsed until the operator asks for it, while contact privacy remains explicit.
 
+Editing a selected row must preserve the same hierarchy. Phone editing exposes demographics or one question at a time and allows a direct jump to any question; saving must remain available without forcing the operator through every step. Search details belong under Q16 instead of appearing as an unrelated block. Contact fields are required for a public online help request, but a paper form may legitimately request help without a readable contact.
+
 The operator also needs a small private catalog of scanned paper questionnaires. This is archival storage for source documents, not a replacement for structured data entry.
 
 Customer suggestions such as map selection and timeline sliders should be treated as product inspiration, not literal technical requirements. Prefer accessible, maintainable controls first; integrate heavy map/timeline services only after there is a concrete workflow and API-key/deployment decision.

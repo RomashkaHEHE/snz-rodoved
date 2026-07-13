@@ -2190,6 +2190,55 @@ textarea {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
+  .mobile-row-editor {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .mobile-row-editor-jump {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .mobile-row-editor-jump > span {
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 900;
+  }
+
+  .mobile-row-editor-jump select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .mobile-row-editor-status {
+    margin: 0;
+  }
+
+  .mobile-row-editor-cancel {
+    justify-self: center;
+  }
+
+  .mobile-row-editor-actions {
+    background: var(--page);
+    border-top: 1px solid var(--line-soft);
+    bottom: 0;
+    display: grid;
+    gap: 0.55rem;
+    grid-template-columns: 52px minmax(0, 1fr) 52px;
+    margin: 0 -0.75rem -0.25rem;
+    padding: 0.65rem 0.75rem calc(0.65rem + env(safe-area-inset-bottom));
+    position: sticky;
+    z-index: 3;
+  }
+
+  .mobile-row-editor-actions button {
+    min-height: 50px;
+    padding-left: 0.55rem;
+    padding-right: 0.55rem;
+    width: 100%;
+  }
+
   .lab-topbar nav button {
     border: 0;
     border-top: 2px solid transparent;
