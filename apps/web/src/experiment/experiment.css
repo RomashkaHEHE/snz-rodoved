@@ -1703,6 +1703,23 @@ button:disabled {
   gap: 0.65rem;
 }
 
+.row-list-column {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.list-continuation {
+  align-items: center;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  display: flex;
+  font-size: 0.88rem;
+  font-weight: 800;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+}
+
 .row-workbench {
   align-items: start;
   display: grid;
@@ -2318,6 +2335,74 @@ button:disabled {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .data-task {
+    gap: 0.85rem;
+  }
+
+  .data-task .task-heading {
+    align-items: center;
+    display: flex;
+  }
+
+  .data-task .task-heading .eyebrow {
+    display: none;
+  }
+
+  .data-task .task-heading h1 {
+    font-size: 1.75rem;
+  }
+
+  .data-task .header-action-row {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    width: auto;
+  }
+
+  .data-task .header-action-row > button,
+  .data-task .action-menu,
+  .data-task .action-menu summary {
+    min-width: 44px;
+    width: 44px;
+  }
+
+  .data-task .header-action-row > button,
+  .data-task .action-menu summary {
+    padding: 0;
+  }
+
+  .data-task .data-action-label,
+  .data-mode-select > span {
+    display: none;
+  }
+
+  .data-task .action-menu-popover {
+    left: auto;
+    min-width: 0;
+    right: 0;
+    width: min(17.5rem, calc(100vw - 1.5rem));
+  }
+
+  .data-task .filter-panel.is-collapsed {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 0.25rem 0 0.45rem;
+  }
+
+  .contact-mode-panel .help-queue-panel,
+  .rows-mode-panel {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .contact-mode-panel .help-queue-panel > .section-title-row,
+  .rows-mode-panel > .section-title-row {
+    display: none;
+  }
+
   .mobile-data-detail-layer {
     -webkit-overflow-scrolling: touch;
     background: var(--page);
@@ -2678,7 +2763,7 @@ button:disabled {
 
   .data-mode-select {
     display: grid;
-    gap: 0.35rem;
+    gap: 0;
     position: sticky;
     top: 0.5rem;
     z-index: 11;
@@ -2689,6 +2774,7 @@ button:disabled {
     border-color: var(--accent);
     color: var(--accent);
     font-weight: 900;
+    min-height: 48px;
   }
 
   .contact-filter-row {
@@ -2798,6 +2884,30 @@ button:disabled {
     left: 0;
     min-width: 0;
     right: 0;
+  }
+
+  .data-task .header-action-row,
+  .data-task .header-action-row button,
+  .data-task .action-menu,
+  .data-task .action-menu summary {
+    width: auto;
+  }
+
+  .data-task .header-action-row {
+    display: flex;
+    grid-template-columns: none;
+  }
+
+  .data-task .header-action-row > button,
+  .data-task .action-menu summary {
+    min-width: 44px;
+    width: 44px;
+  }
+
+  .data-task .action-menu-popover {
+    left: auto;
+    right: 0;
+    width: min(17.5rem, calc(100vw - 1.5rem));
   }
 
   .survey-footer-actions {

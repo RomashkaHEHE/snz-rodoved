@@ -64,6 +64,13 @@ import {
   shouldShowResponseSearchFields
 } from "./responseEditor";
 import {
+  advanceVisibleCount,
+  dataPageSize,
+  readDataMode,
+  setDataModeSearchParam,
+  type DataMode
+} from "./dataWorkspace";
+import {
   areBasicSelectionsComplete,
   clearSurveyHelpDetails,
   coerceBasicSelections,
@@ -95,7 +102,6 @@ type ResponseSource = "online" | "paper";
 type ContactStatus = "new" | "in_progress" | "done" | "no_contact";
 type QuestionGroup = "experience" | "interest" | "help";
 type QuestionGroupFilter = "all" | QuestionGroup;
-type DataMode = "contacts" | "rows" | "pdf" | "charts";
 type ContactQueueStatus = ContactStatus | "all";
 type ContactPlanFilter = "all" | "due" | "today" | "future" | "missing";
 type QuestionId =
@@ -1517,7 +1523,9 @@ function DataPage({
   const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => readDataFilterPresets());
   const [filtersOpen, setFiltersOpen] = useState(() => readDataFilterPanelOpen());
   const [presetName, setPresetName] = useState("");
-  const [dataMode, setDataMode] = useState<DataMode>("contacts");
+  const [dataMode, setDataMode] = useState<DataMode>(() => readDataMode(window.location.search));
+  const [visibleHelpCount, setVisibleHelpCount] = useState(dataPageSize);
+  const [visibleRowCount, setVisibleRowCount] = useState(dataPageSize);
   const [hideContacts, setHideContacts] = useState(() => readContactPrivacyMode());
   const isMobileData = useMediaQuery("(max-width: 720px)");
   const mobileDetailRef = useRef<HTMLDivElement>(null);
@@ -1569,6 +1577,12 @@ function DataPage({
   const contactPlanCounts = useMemo(() => buildContactPlanCounts(contactPlanBase), [contactPlanBase]);
   const activeContactPlan = getContactPlanFilter(filters);
   const sortedHelpRequests = useMemo(() => [...helpRequests].sort(compareContactQueue), [helpRequests]);
+  const selectedHelpIndex = sortedHelpRequests.findIndex((response) => response.id === selectedId);
+  const selectedRowIndex = filteredResponses.findIndex((response) => response.id === selectedId);
+  const effectiveHelpCount = Math.max(visibleHelpCount, selectedHelpIndex + 1);
+  const effectiveRowCount = Math.max(visibleRowCount, selectedRowIndex + 1);
+  const visibleHelpRequests = sortedHelpRequests.slice(0, effectiveHelpCount);
+  const visibleResponses = filteredResponses.slice(0, effectiveRowCount);
   const summary = buildSummary(filteredResponses);
   const selectedResponse = filteredResponses.find((response) => response.id === selectedId) ?? null;
   const selectedDraftDirty = Boolean(
@@ -1586,6 +1600,7 @@ function DataPage({
   useEffect(() => {
     function handlePopState() {
       setFilters(filtersFromSearch(window.location.search));
+      setDataMode(readDataMode(window.location.search));
     }
 
     window.addEventListener("popstate", handlePopState);
@@ -1593,10 +1608,15 @@ function DataPage({
   }, []);
 
   useEffect(() => {
-    const nextSearch = filtersToSearch(filters);
+    const nextSearch = filtersToSearch(filters, dataMode);
     if (window.location.pathname === "/data" && window.location.search !== nextSearch) {
       window.history.replaceState(null, "", `${routeToPath("data")}${nextSearch}`);
     }
+  }, [dataMode, filters]);
+
+  useEffect(() => {
+    setVisibleHelpCount(dataPageSize);
+    setVisibleRowCount(dataPageSize);
   }, [filters]);
 
   useEffect(() => {
@@ -1907,18 +1927,20 @@ function DataPage({
         </div>
         <div className="header-action-row">
           <button
+            aria-label={busyAction === "csv" ? "Формируется CSV" : "Скачать CSV по текущему срезу"}
             className="primary-button"
             disabled={busyAction !== null}
+            title="Скачать CSV по текущему срезу"
             type="button"
             onClick={handleExportCsv}
           >
             <Download aria-hidden size={18} />
-            {busyAction === "csv" ? "CSV..." : "CSV"}
+            <span className="data-action-label">{busyAction === "csv" ? "CSV..." : "CSV"}</span>
           </button>
           <details className="action-menu">
-            <summary className="ghost-button">
+            <summary aria-label="Другие действия" className="ghost-button" title="Другие действия">
               <Ellipsis aria-hidden size={19} />
-              Ещё
+              <span className="data-action-label">Ещё</span>
             </summary>
             <div className="action-menu-popover">
               <button
@@ -1961,6 +1983,41 @@ function DataPage({
         </div>
       </div>
       {dataStatus ? <p className="form-status">{dataStatus}</p> : null}
+
+      <label className="data-mode-select">
+        <span>Раздел данных</span>
+        <select
+          aria-label="Раздел данных"
+          value={dataMode}
+          onChange={(event) => changeDataMode(event.target.value as DataMode)}
+        >
+          {dataModeItems.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.label} · {item.count}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <div className="data-mode-tabs" aria-label="Раздел данных">
+        {dataModeItems.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <button
+              aria-pressed={dataMode === item.id}
+              className={dataMode === item.id ? "is-active" : ""}
+              key={item.id}
+              type="button"
+              onClick={() => changeDataMode(item.id)}
+            >
+              <Icon aria-hidden size={18} />
+              <span>{item.label}</span>
+              <b>{item.count}</b>
+            </button>
+          );
+        })}
+      </div>
 
       <section className={filtersOpen ? "task-panel filter-panel" : "task-panel filter-panel is-collapsed"}>
         <div className="filter-title-row">
@@ -2129,37 +2186,6 @@ function DataPage({
         ) : null}
       </section>
 
-      <label className="data-mode-select">
-        Раздел данных
-        <select value={dataMode} onChange={(event) => changeDataMode(event.target.value as DataMode)}>
-          {dataModeItems.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.label} · {item.count}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div className="data-mode-tabs" aria-label="Рабочий режим">
-        {dataModeItems.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <button
-              aria-pressed={dataMode === item.id}
-              className={dataMode === item.id ? "is-active" : ""}
-              key={item.id}
-              type="button"
-              onClick={() => changeDataMode(item.id)}
-            >
-              <Icon aria-hidden size={18} />
-              <span>{item.label}</span>
-              <b>{item.count}</b>
-            </button>
-          );
-        })}
-      </div>
-
       {dataMode === "contacts" ? (
         <section className="data-mode-panel contact-mode-panel">
           <div className="task-panel help-queue-panel">
@@ -2181,9 +2207,16 @@ function DataPage({
             </div>
             <HelpQueue
               hideContacts={hideContacts}
-              responses={sortedHelpRequests}
+              responses={visibleHelpRequests}
               selectedId={selectedId}
               onOpen={openResponse}
+            />
+            <ListContinuation
+              shown={visibleHelpRequests.length}
+              total={sortedHelpRequests.length}
+              onMore={() =>
+                setVisibleHelpCount((current) => advanceVisibleCount(current, sortedHelpRequests.length))
+              }
             />
           </div>
           {!isMobileData ? responseInspector : null}
@@ -2191,18 +2224,27 @@ function DataPage({
       ) : null}
 
       {dataMode === "rows" ? (
-        <section className="task-panel">
+        <section className="task-panel rows-mode-panel">
           <div className="section-title-row">
             <h2>Анкеты</h2>
             <span>{filteredResponses.length}</span>
           </div>
           <div className="row-workbench">
-            <ResponseRows
-              hideContacts={hideContacts}
-              responses={filteredResponses}
-              selectedId={selectedId}
-              onOpen={openResponse}
-            />
+            <div className="row-list-column">
+              <ResponseRows
+                hideContacts={hideContacts}
+                responses={visibleResponses}
+                selectedId={selectedId}
+                onOpen={openResponse}
+              />
+              <ListContinuation
+                shown={visibleResponses.length}
+                total={filteredResponses.length}
+                onMore={() =>
+                  setVisibleRowCount((current) => advanceVisibleCount(current, filteredResponses.length))
+                }
+              />
+            </div>
             {!isMobileData ? responseInspector : null}
           </div>
         </section>
@@ -2975,6 +3017,29 @@ function QuestionBreakdown({
           </article>
         );
       })}
+    </div>
+  );
+}
+
+function ListContinuation({
+  onMore,
+  shown,
+  total
+}: {
+  onMore: () => void;
+  shown: number;
+  total: number;
+}) {
+  if (shown >= total) {
+    return null;
+  }
+
+  return (
+    <div className="list-continuation">
+      <span>Показано {shown} из {total}</span>
+      <button className="ghost-button compact-button" type="button" onClick={onMore}>
+        Показать ещё
+      </button>
     </div>
   );
 }
@@ -4280,7 +4345,7 @@ function filtersFromSearch(search: string): Filters {
   };
 }
 
-function filtersToSearch(filters: Filters): string {
+function filtersToSearch(filters: Filters, dataMode: DataMode): string {
   const params = new URLSearchParams();
 
   setSearchParam(params, "dateFrom", filters.dateFrom);
@@ -4298,6 +4363,7 @@ function filtersToSearch(filters: Filters): string {
   setSearchBoolean(params, "helpOnly", filters.helpOnly);
   setSearchBoolean(params, "contactOnly", filters.contactOnly);
   setSearchParam(params, "query", filters.query.trim());
+  setDataModeSearchParam(params, dataMode);
 
   const query = params.toString();
   return query ? `?${query}` : "";

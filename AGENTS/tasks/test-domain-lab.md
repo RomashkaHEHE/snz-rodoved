@@ -51,7 +51,8 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - data filter controls start collapsed and the open/collapsed state is stored locally in the browser;
   - data filters are mirrored into `/data` URL query, so current slices survive reload/back-forward and can be copied as links;
   - data filters can be saved as local browser presets for repeated reviews;
-  - the data screen has task modes for `Обращения`, `Анкеты`, `PDF`, and `Графики`; desktop uses low-chrome tabs and phone layouts use one select, while preserving the same filter slice;
+  - the data screen has task modes for `Обращения`, `Анкеты`, `PDF`, and `Графики`; desktop uses low-chrome tabs and phone layouts use one select. The selected mode is stored in the `view` URL parameter and survives reload/back-forward together with the filter slice;
+  - contact and questionnaire lists mount 20 rows at first and continue in explicit 20-row batches. The full filtered array remains authoritative for counts, analytics, PDF coverage, CSV, and contact planning;
   - the data row inspector shows full Q4-Q16 answers with `Да`/`Нет`/`Нет ответа` chips, not only the positive answers;
   - on widths up to 720px, opening a contact or questionnaire row uses a full-viewport modal detail screen, locks the background list, keeps contacts masked until explicitly shown, collapses Q4-Q16 by default, and performs inline editing in that same screen; desktop retains the side inspector;
   - mobile contact workflow uses one status select instead of four status buttons, while desktop retains the faster segmented control;
@@ -242,5 +243,9 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - the collapsed final check reduced the mobile document from about 2616px of fully expanded answers to one 812px viewport with four factual summaries; opening `Интересы` exposed all nine answer rows and its edit action;
   - at `1280x720`, the survey remains a centered 680px reading column with one question, two answer buttons, no horizontal overflow, and no browser console warnings or errors;
   - submitting the local questionnaire reached the `Анкета отправлена` completion screen.
-
-Note: the browser tool timed out while opening the temporary local server during the filter iteration, so the newest filter work was verified by TypeScript/lint/tests/build and HTTP/asset smoke. Re-run browser checks for filter clicks when the browser automation session is stable.
+- Local browser smoke for progressive data lists and calmer mobile data controls confirmed:
+  - an isolated database with 75 demo rows rendered 20 questionnaire rows first, then 40 and 45 after successive continuation actions; the action disappeared when every matching row was mounted;
+  - `?view=rows` appeared after selecting `Анкеты` and restored that mode after reload while resetting the mounted batch to 20;
+  - a queue with 25 help requests also mounted 20 cards first, while its counts and plan selectors continued to show all 25;
+  - at iPhone 12 mini `375x812`, CSV and secondary actions are stable icon buttons, the selected mode precedes the collapsed filter summary, duplicate panel headings are hidden, and the action popover stays inside the viewport;
+  - at `1280x720`, desktop tabs, filters, list/inspector columns, and 20-row continuation remain intact; neither viewport had horizontal overflow and browser console logs were empty.
