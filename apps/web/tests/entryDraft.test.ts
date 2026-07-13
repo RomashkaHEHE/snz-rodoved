@@ -8,6 +8,8 @@ import {
 
 const draft: PaperEntryDraft = {
   ageGroup: "over_40",
+  consentToDataProcessing: true,
+  consentToEvents: false,
   gender: "female",
   q4: "yes",
   q5: "no",
@@ -29,7 +31,7 @@ const draft: PaperEntryDraft = {
 };
 
 describe("paper entry draft safety", () => {
-  it("stores only paper answers and omits extra contact/search fields", () => {
+  it("stores paper answers and consent choices while omitting contact/search fields", () => {
     const unsafeDraft = {
       ...draft,
       contactName: "Алёна",

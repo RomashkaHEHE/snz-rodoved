@@ -23,6 +23,8 @@ export interface PaperEntryDraft {
   q14: PaperEntryAnswer;
   q15: PaperEntryAnswer;
   q16: PaperEntryAnswer;
+  consentToDataProcessing?: boolean;
+  consentToEvents?: boolean;
 }
 
 export interface PaperEntryDraftState {
@@ -93,6 +95,8 @@ export function parsePaperEntryDraftState(
 function pickSafePaperDraft(draft: PaperEntryDraft): PaperEntryDraft {
   return {
     ageGroup: draft.ageGroup,
+    consentToDataProcessing: readOptionalBoolean(draft.consentToDataProcessing),
+    consentToEvents: readOptionalBoolean(draft.consentToEvents),
     gender: draft.gender,
     q4: draft.q4,
     q5: draft.q5,
@@ -116,6 +120,10 @@ function pickSafePaperDraft(draft: PaperEntryDraft): PaperEntryDraft {
 
 function cleanWarDetails(value: unknown): string | undefined {
   return typeof value === "string" && value.length <= 200 ? value : undefined;
+}
+
+function readOptionalBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
 }
 
 function normalizeMobileStep(value: unknown): number {

@@ -40,6 +40,8 @@ export const responses = sqliteTable(
     contactStatus: text("contact_status").$type<ContactStatus>().notNull().default("new"),
     contactNote: text("contact_note"),
     contactNextDate: text("contact_next_date"),
+    consentToDataProcessing: integer("consent_to_data_processing", { mode: "boolean" }),
+    consentToEvents: integer("consent_to_events", { mode: "boolean" }),
     isFake: text("is_fake").$type<"true" | "false">().notNull().default("false"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull()

@@ -30,6 +30,14 @@ const columns: CsvColumn[] = [
   { header: "Свободный текст", value: (response) => response.freeText ?? "" },
   { header: "Имя", value: (response) => response.contactName ?? "" },
   { header: "Номер телефона", value: (response) => response.contactPhone ?? "" },
+  {
+    header: "Согласие на обработку данных",
+    value: (response) => formatConsent(response.consentToDataProcessing)
+  },
+  {
+    header: "Согласие на приглашения",
+    value: (response) => formatConsent(response.consentToEvents)
+  },
   { header: "Статус обращения", value: (response) => contactStatusLabels[response.contactStatus] },
   { header: "Следующий контакт", value: (response) => response.contactNextDate ?? "" },
   { header: "Заметка по обращению", value: (response) => response.contactNote ?? "" },
@@ -61,6 +69,10 @@ function formatResearchPeriod(response: SurveyResponse): string {
   }
 
   return String(response.researchPeriodStart ?? response.researchPeriodEnd ?? "");
+}
+
+function formatConsent(value: boolean | undefined): string {
+  return value === undefined ? "Не зафиксировано" : value ? "Да" : "Нет";
 }
 
 export function buildResponsesCsv(responses: SurveyResponse[]): string {

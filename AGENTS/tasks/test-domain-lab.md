@@ -31,6 +31,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - The visible test site opens as a product UI with working task screens.
 - Current flows use the isolated test backend:
   - public online survey starts with demographics, then shows one Q4-Q16 question at a time in the paper questionnaire's order. Deliberate `yes`/`no` answers advance automatically, Q11/Q16 wait when follow-up fields open, and an unanswered question moves on only through `Пропустить`;
+  - the public review records required processing-answer consent and optional invitation consent. Contact phone input accepts common punctuation but requires 10-15 digits before the review can open;
   - the final online check is four compact collapsed summaries for demographics, experience, interests, and help. Each summary exposes full answers and the relevant edit action only when opened;
   - versioned browser draft navigation preserves current question positions and migrates legacy five-step drafts to the matching focused-flow section;
   - the first online step starts with no selected demographics and blocks later steps until gender, age group, and residence have each been chosen deliberately;
@@ -44,7 +45,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - desktop operator entry remains one continuous form with answered/remaining progress, a next-missing-answer action, one section selector, temporary question highlighting, and grouped paper-form sections;
   - at widths up to 720px, operator entry becomes a 14-step guided flow: demographics first, then one Q4-Q16 question at a time. Ordinary answers auto-advance, Q11/Q16 positive answers wait for dependent fields, back/next retain state, and the final step can cycle through unanswered questions before saving;
   - paper rows can be entered as a tab-scoped series: the selected survey date and API-confirmed count survive route reloads in the same tab, each successful save clears respondent answers and returns focus to the start, and `Завершить` resets the series;
-  - unfinished paper entry has a separate 24-hour tab-scoped recovery draft. It restores the date, demographics, Q4-Q16, Q11 war detail, and mobile step after reload, while excluding name, phone, search context, free text, and internal workflow fields;
+  - unfinished paper entry has a separate 24-hour tab-scoped recovery draft. It restores the date, demographics, Q4-Q16, Q11 war detail, consent marks, and mobile step after reload, while excluding name, phone, search context, free text, and internal workflow fields;
   - entry submission is locked while the request is in flight so a repeated mobile tap cannot create duplicate rows;
   - data filters include date range, source, gender, age group, residence, help-only, contact-only, contact workflow status, next-contact date, missing next-contact date, and free text search;
   - active data filters are shown as removable chips so the operator can clear one constraint without resetting the whole slice;
@@ -53,7 +54,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - data filters can be saved as local browser presets for repeated reviews;
   - the data screen has task modes for `Обращения`, `Анкеты`, `PDF`, and `Графики`; desktop uses low-chrome tabs and phone layouts use one select. The selected mode is stored in the `view` URL parameter and survives reload/back-forward together with the filter slice;
   - contact and questionnaire lists mount 20 rows at first and continue in explicit 20-row batches. The full filtered array remains authoritative for counts, analytics, PDF coverage, CSV, and contact planning;
-  - the data row inspector shows full Q4-Q16 answers with `Да`/`Нет`/`Нет ответа` chips, not only the positive answers;
+  - the data row inspector shows consent as `Да`/`Нет`/`Не зафиксировано` and full Q4-Q16 answers with `Да`/`Нет`/`Нет ответа` chips, not only the positive answers;
   - on widths up to 720px, opening a contact or questionnaire row uses a full-viewport modal detail screen, locks the background list, keeps contacts masked until explicitly shown, collapses Q4-Q16 by default, and performs inline editing in that same screen; desktop retains the side inspector;
   - mobile contact workflow uses one status select instead of four status buttons, while desktop retains the faster segmented control;
   - mobile selected-row editing uses the same one-question focus as paper entry, plus one native jump select and save from any step; desktop retains the complete inline form;
@@ -90,6 +91,11 @@ The test domain must have its own interface, its own UX decisions, and may use n
 
 ## Last Verification
 
+- Consent/contact-quality iteration:
+  - shared, database, API, and web targeted suites passed: 56 tests total;
+  - public mobile/browser smoke confirmed the original 1-16 order, Q16-only help fields, invalid-phone focus, required processing consent, optional invitation consent, successful submit, and persisted inspector values;
+  - paper entry shows tri-state consent controls on Q16 in both continuous desktop and 14-step phone layouts;
+  - iPhone 12 mini `375x812` and desktop `1280x720` checks had no horizontal overflow.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run test`

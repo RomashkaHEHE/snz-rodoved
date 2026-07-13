@@ -75,7 +75,9 @@ describe("SurveyRepository", () => {
         researchPeriodEnd: 1945,
         freeText: "Дополнительный комментарий",
         contactName: "Алёна",
-        contactPhone: "+7 900 000-00-00"
+        contactPhone: "+7 900 000-00-00",
+        consentToDataProcessing: true,
+        consentToEvents: true
       },
       { source: "online" }
     );
@@ -89,8 +91,11 @@ describe("SurveyRepository", () => {
     expect(onlineRows[0]?.researchPeriodStart).toBe(1850);
     expect(onlineRows[0]?.contactName).toBe("Алёна");
     expect(onlineRows[0]?.contactPhone).toBe("+7 900 000-00-00");
+    expect(onlineRows[0]?.consentToDataProcessing).toBe(true);
+    expect(onlineRows[0]?.consentToEvents).toBe(true);
     expect(paperRows).toHaveLength(1);
     expect(paperRows[0]?.source).toBe("paper");
+    expect(paperRows[0]?.consentToDataProcessing).toBeUndefined();
   });
 
   it("updates and deletes responses", () => {
@@ -112,7 +117,9 @@ describe("SurveyRepository", () => {
     const created = repository.create({
       ...baseInput,
       contactName: "Алёна",
-      contactPhone: "+7 900 000-00-00"
+      contactPhone: "+7 900 000-00-00",
+      consentToDataProcessing: true,
+      consentToEvents: true
     });
 
     const withWorkflow = repository.update(created.id, {
@@ -132,6 +139,8 @@ describe("SurveyRepository", () => {
     expect(withoutHelp?.contactNextDate).toBeUndefined();
     expect(withoutHelp?.contactName).toBeUndefined();
     expect(withoutHelp?.contactPhone).toBeUndefined();
+    expect(withoutHelp?.consentToDataProcessing).toBe(true);
+    expect(withoutHelp?.consentToEvents).toBeUndefined();
   });
 
   it("filters by contact workflow and free text search", () => {

@@ -68,6 +68,8 @@ export class SurveyRepository {
       contactStatus: "new",
       contactNote: null,
       contactNextDate: null,
+      consentToDataProcessing: parsed.consentToDataProcessing ?? null,
+      consentToEvents: parsed.q16 === "yes" ? (parsed.consentToEvents ?? null) : null,
       isFake: options.isFake ? "true" : "false",
       createdAt: now,
       updatedAt: now
@@ -137,12 +139,21 @@ export class SurveyRepository {
       updateData.contactNextDate = parsed.contactNextDate ?? null;
     }
 
+    if ("consentToDataProcessing" in parsed) {
+      updateData.consentToDataProcessing = parsed.consentToDataProcessing ?? null;
+    }
+
+    if ("consentToEvents" in parsed) {
+      updateData.consentToEvents = parsed.consentToEvents ?? null;
+    }
+
     if (parsed.q16 && parsed.q16 !== "yes") {
       updateData.contactName = null;
       updateData.contactPhone = null;
       updateData.contactStatus = "new";
       updateData.contactNote = null;
       updateData.contactNextDate = null;
+      updateData.consentToEvents = null;
     }
 
     const updated = this.db
@@ -331,7 +342,9 @@ function toSurveyResponse(row: ResponseRow): SurveyResponse {
     contactPhone: row.contactPhone ?? undefined,
     contactStatus: row.contactStatus ?? "new",
     contactNote: row.contactNote ?? undefined,
-    contactNextDate: row.contactNextDate ?? undefined
+    contactNextDate: row.contactNextDate ?? undefined,
+    consentToDataProcessing: row.consentToDataProcessing ?? undefined,
+    consentToEvents: row.consentToEvents ?? undefined
   };
 }
 

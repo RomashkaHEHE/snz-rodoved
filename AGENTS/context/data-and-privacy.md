@@ -1,14 +1,18 @@
 # Data And Privacy
 
-V1 structured paper entry does not collect respondent names, phone numbers, addresses, or free personal notes.
+Structured rows may contain a respondent name and phone only in the Q16 help branch. Public online help requests require both fields; paper entry permits them to be absent when the handwritten form has no contact.
 
 The public online survey has a free-text field because the customer needs search context. UI copy should avoid asking for contacts in that field; treat it as search notes, not a personal-data collection channel.
 
 When the online respondent answers `yes` to q16 ("need help"), the form asks for name and phone. These are personal contact fields and must remain available only to the workspace/admin flow, CSV export, and protected API responses.
 
+The public form accepts familiar phone punctuation but requires 10-15 digits. This is a data-quality rule, not phone ownership verification.
+
+Consent fields are nullable booleans. `undefined`/database `NULL` means that no mark was recorded and must be displayed/exported as `Не зафиксировано`, never silently converted to `Нет`. Public online submission requires `consentToDataProcessing=true`; invitation consent is optional and is cleared with the Q16 help branch. These controls record the respondent's choice but do not by themselves claim legal compliance; final legal text and policy links require customer/legal review.
+
 The test-domain browser draft may persist non-contact answers for at most 24 hours. It must remove `contactName` and `contactPhone` before every localStorage write and must not restore contact values left by an older client version. If q16 is `yes`, a restored draft returns to the help step and asks for the contacts again.
 
-The test-domain paper-entry draft is tab-scoped and may persist for at most 24 hours. It stores only the survey date, demographics, Q4-Q16 answers, Q11 war detail, and the current mobile step. It must never store contact fields, search context, free text, or internal contact-workflow fields. A restored Q16 help request keeps the answer but asks the operator to enter name and phone again. Successful row creation and explicit series completion remove the draft immediately.
+The test-domain paper-entry draft is tab-scoped and may persist for at most 24 hours. It stores only the survey date, demographics, Q4-Q16 answers, Q11 war detail, consent marks, and the current mobile step. It must never store contact fields, search context, free text, or internal contact-workflow fields. A restored Q16 help request keeps the answer but asks the operator to enter name and phone again. Successful row creation and explicit series completion remove the draft immediately.
 
 The test-domain online survey must not reuse paper-entry demographic defaults as implicit public answers. Gender, age group, and residence are stored only after the visitor deliberately selects each control.
 

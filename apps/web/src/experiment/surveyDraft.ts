@@ -1,4 +1,7 @@
+import { isValidContactPhone } from "@snz-rodoved/shared";
+
 export type SurveyBasicField = "ageGroup" | "gender" | "residence";
+export type SurveyContactValidationIssue = "name" | "phone_missing" | "phone_invalid" | null;
 
 export interface SurveyBasicSelections {
   ageGroup: boolean;
@@ -87,6 +90,26 @@ export function shouldAutoAdvanceSurveyQuestion(
   return !(answer === "yes" && (questionId === "q11" || questionId === "q16"));
 }
 
+export function getSurveyContactValidationIssue(draft: {
+  contactName?: string;
+  contactPhone?: string;
+  q16: "yes" | "no" | "unknown";
+}): SurveyContactValidationIssue {
+  if (draft.q16 !== "yes") {
+    return null;
+  }
+
+  if (!draft.contactName?.trim()) {
+    return "name";
+  }
+
+  if (!draft.contactPhone?.trim()) {
+    return "phone_missing";
+  }
+
+  return isValidContactPhone(draft.contactPhone) ? null : "phone_invalid";
+}
+
 export function redactSurveyDraftContacts<
   T extends { contactName?: string; contactPhone?: string }
 >(draft: T): T {
@@ -98,6 +121,7 @@ export function clearSurveyHelpDetails<
     contactName?: string;
     contactNextDate?: string;
     contactPhone?: string;
+    consentToEvents?: boolean;
     freeText?: string;
     researchPeriodEnd?: number;
     researchPeriodStart?: number;
@@ -109,6 +133,7 @@ export function clearSurveyHelpDetails<
     contactName: undefined,
     contactNextDate: undefined,
     contactPhone: undefined,
+    consentToEvents: undefined,
     freeText: undefined,
     researchPeriodEnd: undefined,
     researchPeriodStart: undefined,

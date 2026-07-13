@@ -5,6 +5,7 @@ import {
   coerceBasicSelections,
   coerceSurveyDraftStep,
   createEmptyBasicSelections,
+  getSurveyContactValidationIssue,
   hasAnyBasicSelection,
   isSurveyDraftFresh,
   markBasicSelection,
@@ -52,6 +53,7 @@ describe("online survey draft safety", () => {
       contactName: "Алёна",
       contactNextDate: "2026-07-20",
       contactPhone: "+7 900 000-00-00",
+      consentToEvents: true,
       freeText: "Нужны метрические книги",
       q16: "no",
       researchPeriodEnd: 1917,
@@ -63,6 +65,7 @@ describe("online survey draft safety", () => {
       contactName: undefined,
       contactNextDate: undefined,
       contactPhone: undefined,
+      consentToEvents: undefined,
       freeText: undefined,
       q16: "no",
       researchPeriodEnd: undefined,
@@ -70,6 +73,22 @@ describe("online survey draft safety", () => {
       researchTerritory: undefined
     });
     expect(draft.researchTerritory).toBe("Челябинская область");
+  });
+
+  it("distinguishes missing and invalid help contacts", () => {
+    expect(getSurveyContactValidationIssue({ q16: "no" })).toBeNull();
+    expect(getSurveyContactValidationIssue({ q16: "yes" })).toBe("name");
+    expect(getSurveyContactValidationIssue({ contactName: "Анна", q16: "yes" })).toBe("phone_missing");
+    expect(
+      getSurveyContactValidationIssue({ contactName: "Анна", contactPhone: "123", q16: "yes" })
+    ).toBe("phone_invalid");
+    expect(
+      getSurveyContactValidationIssue({
+        contactName: "Анна",
+        contactPhone: "+7 900 000-00-00",
+        q16: "yes"
+      })
+    ).toBeNull();
   });
 
   it("returns restored help requests to the contact step", () => {

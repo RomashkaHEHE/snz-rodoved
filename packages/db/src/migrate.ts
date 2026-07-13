@@ -79,6 +79,13 @@ ALTER TABLE responses ADD COLUMN contact_next_date TEXT;
 CREATE INDEX IF NOT EXISTS responses_contact_next_date_idx ON responses (contact_next_date);
 `;
 
+export const responseConsentsMigrationSql = `
+ALTER TABLE responses ADD COLUMN consent_to_data_processing INTEGER
+  CHECK (consent_to_data_processing IN (0, 1));
+ALTER TABLE responses ADD COLUMN consent_to_events INTEGER
+  CHECK (consent_to_events IN (0, 1));
+`;
+
 const migrations = [
   {
     id: "0001_initial",
@@ -107,6 +114,10 @@ const migrations = [
   {
     id: "0007_contact_next_date",
     sql: contactNextDateMigrationSql
+  },
+  {
+    id: "0008_response_consents",
+    sql: responseConsentsMigrationSql
   }
 ] as const;
 

@@ -55,6 +55,8 @@ describe("survey response schema", () => {
       freeText: "Ищу сведения по фамилии Ивановы",
       contactName: "Алёна",
       contactPhone: "+7 900 000-00-00",
+      consentToDataProcessing: true,
+      consentToEvents: true,
       q4: "unknown",
       q5: "yes",
       q6: "no",
@@ -76,6 +78,8 @@ describe("survey response schema", () => {
     expect(parsed.researchPeriodStart).toBe(1850);
     expect(parsed.contactName).toBe("Алёна");
     expect(parsed.contactPhone).toBe("+7 900 000-00-00");
+    expect(parsed.consentToDataProcessing).toBe(true);
+    expect(parsed.consentToEvents).toBe(true);
   });
 
   it("rejects a reversed online research period", () => {
@@ -85,6 +89,7 @@ describe("survey response schema", () => {
         gender: "female",
         ageGroup: "over_40",
         residence: "other",
+        consentToDataProcessing: true,
         researchPeriodStart: 1945,
         researchPeriodEnd: 1850,
         q4: "unknown",
@@ -111,6 +116,58 @@ describe("survey response schema", () => {
         gender: "female",
         ageGroup: "over_40",
         residence: "other",
+        consentToDataProcessing: true,
+        q4: "unknown",
+        q5: "unknown",
+        q6: "unknown",
+        q7: "unknown",
+        q8: "unknown",
+        q9: "unknown",
+        q10: "unknown",
+        q11: "unknown",
+        q12: "unknown",
+        q13: "unknown",
+        q14: "unknown",
+        q15: "unknown",
+        q16: "yes"
+      })
+    ).toThrow();
+  });
+
+  it("requires explicit data-processing consent for an online response", () => {
+    const input = {
+      surveyDate: "2026-07-08",
+      gender: "female",
+      ageGroup: "over_40",
+      residence: "other",
+      q4: "unknown",
+      q5: "unknown",
+      q6: "unknown",
+      q7: "unknown",
+      q8: "unknown",
+      q9: "unknown",
+      q10: "unknown",
+      q11: "unknown",
+      q12: "unknown",
+      q13: "unknown",
+      q14: "unknown",
+      q15: "unknown",
+      q16: "no"
+    } as const;
+
+    expect(() => onlineSurveyResponseInputSchema.parse(input)).toThrow();
+    expect(onlineSurveyResponseInputSchema.parse({ ...input, consentToDataProcessing: true }))
+      .toMatchObject({ consentToDataProcessing: true });
+  });
+
+  it("rejects contact phone values that cannot be called", () => {
+    expect(() =>
+      surveyResponseInputSchema.parse({
+        surveyDate: "2026-07-08",
+        gender: "female",
+        ageGroup: "over_40",
+        residence: "other",
+        contactPhone: "12345",
         q4: "unknown",
         q5: "unknown",
         q6: "unknown",

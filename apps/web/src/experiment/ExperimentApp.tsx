@@ -76,6 +76,7 @@ import {
   coerceBasicSelections,
   coerceSurveyDraftStep,
   createEmptyBasicSelections,
+  getSurveyContactValidationIssue,
   hasAnyBasicSelection,
   isSurveyDraftFresh,
   markBasicSelection,
@@ -87,7 +88,8 @@ import {
   surveyReviewStep,
   surveyStepCount,
   type SurveyBasicField,
-  type SurveyBasicSelections
+  type SurveyBasicSelections,
+  type SurveyContactValidationIssue
 } from "./surveyDraft";
 import { buildPdfArchiveName, getPdfSelectionIssue } from "./pdfArchive";
 import type { SurveyFilters } from "@snz-rodoved/shared";
@@ -135,6 +137,8 @@ interface SurveyResponse extends AnswerFields {
   freeText?: string;
   contactName?: string;
   contactPhone?: string;
+  consentToDataProcessing?: boolean;
+  consentToEvents?: boolean;
   contactStatus: ContactStatus;
   contactNote?: string;
   contactNextDate?: string;
@@ -173,7 +177,9 @@ const responseDraftKeys: Array<keyof ResponseDraft> = [
   "researchPeriodEnd",
   "freeText",
   "contactName",
-  "contactPhone"
+  "contactPhone",
+  "consentToDataProcessing",
+  "consentToEvents"
 ];
 
 interface PdfRecord {
@@ -616,10 +622,30 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
     });
   }
 
-  function focusContactName() {
+  function focusContactIssue(issue: SurveyContactValidationIssue) {
     window.requestAnimationFrame(() => {
-      document.querySelector<HTMLInputElement>('.contact-grid input[autocomplete="name"]')?.focus();
+      const autocomplete = issue === "name" ? "name" : "tel";
+      document
+        .querySelector<HTMLInputElement>(`.contact-grid input[autocomplete="${autocomplete}"]`)
+        ?.focus({ preventScroll: false });
     });
+  }
+
+  function validateHelpContacts(): boolean {
+    const issue = getSurveyContactValidationIssue(draft);
+    if (!issue) {
+      return true;
+    }
+
+    setStatus(
+      issue === "name"
+        ? "Укажите имя."
+        : issue === "phone_missing"
+          ? "Укажите номер телефона."
+          : "Проверьте номер телефона: нужно от 10 до 15 цифр."
+    );
+    focusContactIssue(issue);
+    return false;
   }
 
   function navigateSurveyStep(nextStep: number) {
@@ -631,14 +657,7 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
       return;
     }
 
-    if (
-      nextStep > step &&
-      step === surveyHelpStep &&
-      draft.q16 === "yes" &&
-      (!draft.contactName?.trim() || !draft.contactPhone?.trim())
-    ) {
-      setStatus("Укажите имя и телефон, чтобы можно было связаться по запросу.");
-      focusContactName();
+    if (nextStep > step && step === surveyHelpStep && !validateHelpContacts()) {
       return;
     }
 
@@ -672,10 +691,18 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
       return;
     }
 
-    if (draft.q16 === "yes" && (!draft.contactName?.trim() || !draft.contactPhone?.trim())) {
-      setStatus("Укажите имя и телефон, чтобы можно было связаться по запросу.");
+    if (!validateHelpContacts()) {
       setStep(surveyHelpStep);
-      focusContactName();
+      return;
+    }
+
+    if (draft.consentToDataProcessing !== true) {
+      setStatus("Подтвердите согласие на обработку ответов.");
+      window.requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLInputElement>('input[name="consentToDataProcessing"]')
+          ?.focus({ preventScroll: false });
+      });
       return;
     }
 
@@ -750,7 +777,16 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void
       );
     }
 
-    return <SurveyReview draft={draft} onEdit={navigateSurveyStep} />;
+    return (
+      <SurveyReview
+        draft={draft}
+        onEdit={navigateSurveyStep}
+        onChange={(nextDraft) => {
+          setStatus("");
+          setDraft(nextDraft);
+        }}
+      />
+    );
   }
 
   return (
@@ -873,7 +909,15 @@ function getSurveyForwardLabel(
   return "Далее";
 }
 
-function SurveyReview({ draft, onEdit }: { draft: ResponseDraft; onEdit: (step: number) => void }) {
+function SurveyReview({
+  draft,
+  onChange,
+  onEdit
+}: {
+  draft: ResponseDraft;
+  onChange: (draft: ResponseDraft) => void;
+  onEdit: (step: number) => void;
+}) {
   const experienceQuestions = questions.filter((question) => question.group === "experience");
   const interestQuestions = questions.filter((question) => question.group === "interest");
 
@@ -959,6 +1003,33 @@ function SurveyReview({ draft, onEdit }: { draft: ResponseDraft; onEdit: (step: 
           ) : null}
         </dl>
       </ReviewDisclosure>
+
+      <section className="survey-consent" aria-labelledby="survey-consent-title">
+        <h2 id="survey-consent-title">Согласие</h2>
+        <label className="consent-check">
+          <input
+            aria-required="true"
+            checked={draft.consentToDataProcessing === true}
+            name="consentToDataProcessing"
+            type="checkbox"
+            onChange={(event) =>
+              onChange({ ...draft, consentToDataProcessing: event.currentTarget.checked })
+            }
+          />
+          <span>Я согласен(-на) на обработку моих ответов.</span>
+        </label>
+        {draft.q16 === "yes" ? (
+          <label className="consent-check">
+            <input
+              checked={draft.consentToEvents === true}
+              name="consentToEvents"
+              type="checkbox"
+              onChange={(event) => onChange({ ...draft, consentToEvents: event.currentTarget.checked })}
+            />
+            <span>Я согласен(-на) получать приглашения на мероприятия проекта.</span>
+          </label>
+        ) : null}
+      </section>
     </div>
   );
 }
@@ -1337,6 +1408,7 @@ function EntryPage({
                   highlightedQuestionId={highlightedQuestionId}
                   idPrefix="mobile-entry"
                   requireContactDetails={requireEditingContacts}
+                  showConsentChoices={draft.source === "paper"}
                   showOnlineHelpFields={showEditingSearchFields}
                   questionsToShow={[activeMobileQuestion]}
                   onChange={handleMobileQuestionChange}
@@ -1469,6 +1541,7 @@ function EntryPage({
                 highlightedQuestionId={highlightedQuestionId}
                 idPrefix="entry"
                 requireContactDetails={requireEditingContacts}
+                showConsentChoices={draft.source === "paper"}
                 showOnlineHelpFields={showEditingSearchFields}
                 questionsToShow={helpQuestions}
                 onChange={setDraft}
@@ -2734,6 +2807,7 @@ function QuestionStack({
   highlightedQuestionId,
   idPrefix,
   requireContactDetails = false,
+  showConsentChoices = false,
   showOnlineHelpFields = false,
   showUnknownOption = true,
   questionsToShow,
@@ -2744,6 +2818,7 @@ function QuestionStack({
   highlightedQuestionId?: QuestionId | null;
   idPrefix?: string;
   requireContactDetails?: boolean;
+  showConsentChoices?: boolean;
   showOnlineHelpFields?: boolean;
   showUnknownOption?: boolean;
   questionsToShow: typeof questions;
@@ -2817,6 +2892,7 @@ function QuestionStack({
                 <input
                   autoComplete="tel"
                   inputMode="tel"
+                  placeholder="+7 900 000-00-00"
                   required={requireContactDetails}
                   type="tel"
                   value={draft.contactPhone ?? ""}
@@ -2834,8 +2910,52 @@ function QuestionStack({
               <SearchFields draft={draft} onChange={onChange} />
             </div>
           ) : null}
+          {question.id === "q16" && showConsentChoices ? (
+            <ConsentChoiceFields draft={draft} onChange={onChange} />
+          ) : null}
         </div>
       ))}
+    </div>
+  );
+}
+
+function ConsentChoiceFields({
+  draft,
+  onChange
+}: {
+  draft: ResponseDraft;
+  onChange: (draft: ResponseDraft) => void;
+}) {
+  const options = [
+    { value: "yes", label: "Да" },
+    { value: "no", label: "Нет" },
+    { value: "unknown", label: "—" }
+  ];
+  const toChoice = (value: boolean | undefined) =>
+    value === true ? "yes" : value === false ? "no" : "unknown";
+  const fromChoice = (value: string) =>
+    value === "yes" ? true : value === "no" ? false : undefined;
+
+  return (
+    <div className="consent-choice-grid">
+      <SegmentedGroup
+        compact
+        label="Согласие на обработку ответов"
+        options={options}
+        value={toChoice(draft.consentToDataProcessing)}
+        onChange={(value) =>
+          onChange({ ...draft, consentToDataProcessing: fromChoice(value) })
+        }
+      />
+      {draft.q16 === "yes" ? (
+        <SegmentedGroup
+          compact
+          label="Согласие на приглашения"
+          options={options}
+          value={toChoice(draft.consentToEvents)}
+          onChange={(value) => onChange({ ...draft, consentToEvents: fromChoice(value) })}
+        />
+      ) : null}
     </div>
   );
 }
@@ -3272,10 +3392,17 @@ function MobileResponseEditor({
     event.preventDefault();
 
     if (hasMissingRequiredResponseContacts(response.source, draft)) {
+      const contactIssue = getSurveyContactValidationIssue(draft);
       setStep(stepCount - 1);
-      setValidationStatus("Укажите имя и номер телефона.");
+      setValidationStatus(
+        contactIssue === "name"
+          ? "Укажите имя."
+          : contactIssue === "phone_invalid"
+            ? "Проверьте номер телефона: нужно от 10 до 15 цифр."
+            : "Укажите номер телефона."
+      );
       window.requestAnimationFrame(() => {
-        const selector = !draft.contactName?.trim()
+        const selector = contactIssue === "name"
           ? '#mobile-row-editor-stage input[autocomplete="name"]'
           : '#mobile-row-editor-stage input[autocomplete="tel"]';
         document.querySelector<HTMLInputElement>(selector)?.focus();
@@ -3318,6 +3445,7 @@ function MobileResponseEditor({
             draft={draft}
             idPrefix="mobile-row-editor"
             requireContactDetails={requireContactDetails}
+            showConsentChoices={response.source === "paper"}
             showOnlineHelpFields={showOnlineHelpFields}
             questionsToShow={[activeQuestion]}
             onChange={handleChange}
@@ -3450,6 +3578,7 @@ function ResponseInspector({
             <QuestionStack
               draft={draft}
               requireContactDetails={requiresResponseContacts(response.source)}
+              showConsentChoices={response.source === "paper"}
               showOnlineHelpFields={shouldShowResponseSearchFields(response.source, draft)}
               questionsToShow={questions}
               onChange={onChange}
@@ -3488,6 +3617,11 @@ function ResponseInspector({
         <Detail label="Возраст" value={ageLabels[response.ageGroup]} />
         <Detail label="Проживание" value={residenceLabels[response.residence]} />
         <Detail label="Помощь" value={answerLabels[response.q16]} />
+        <Detail
+          label="Обработка ответов"
+          value={formatConsent(response.consentToDataProcessing)}
+        />
+        <Detail label="Приглашения" value={formatConsent(response.consentToEvents)} />
       </div>
 
       {response.q16 === "yes" ? (
@@ -3961,7 +4095,9 @@ function isPaperDraftTouched(draft: ResponseDraft): boolean {
     draft.ageGroup !== empty.ageGroup ||
     draft.residence !== empty.residence ||
     questions.some((question) => draft[question.id] !== "unknown") ||
-    Boolean(draft.q11WarDetails && draft.q11WarDetails !== "—")
+    Boolean(draft.q11WarDetails && draft.q11WarDetails !== "—") ||
+    draft.consentToDataProcessing !== undefined ||
+    draft.consentToEvents !== undefined
   );
 }
 
@@ -4226,7 +4362,9 @@ function hasSurveyDraftContent(draft: ResponseDraft): boolean {
     Boolean(cleanOptional(draft.researchTerritory)) ||
     Boolean(draft.researchPeriodStart) ||
     Boolean(draft.researchPeriodEnd) ||
-    Boolean(cleanOptional(draft.freeText))
+    Boolean(cleanOptional(draft.freeText)) ||
+    draft.consentToDataProcessing !== undefined ||
+    draft.consentToEvents !== undefined
   );
 }
 
@@ -4239,6 +4377,8 @@ function coerceStoredOnlineDraft(value: unknown): ResponseDraft {
   const draft: ResponseDraft = {
     ...fallback,
     ageGroup: isAgeGroup(value.ageGroup) ? value.ageGroup : fallback.ageGroup,
+    consentToDataProcessing: optionalStoredBoolean(value.consentToDataProcessing),
+    consentToEvents: optionalStoredBoolean(value.consentToEvents),
     freeText: optionalStoredString(value.freeText),
     gender: isGender(value.gender) ? value.gender : fallback.gender,
     q11WarDetails: optionalStoredString(value.q11WarDetails) ?? fallback.q11WarDetails,
@@ -4267,6 +4407,8 @@ function responseToDraft(response: SurveyResponse): ResponseDraft {
     contactName: response.contactName,
     contactPhone: response.contactPhone,
     contactNextDate: response.contactNextDate,
+    consentToDataProcessing: response.consentToDataProcessing,
+    consentToEvents: response.consentToEvents,
     freeText: response.freeText,
     gender: response.gender,
     q4: response.q4,
@@ -4298,6 +4440,8 @@ function normalizeDraft(draft: ResponseDraft): ResponseDraft {
     contactName: draft.q16 === "yes" ? cleanOptional(draft.contactName) : undefined,
     contactNextDate: draft.q16 === "yes" ? cleanOptional(draft.contactNextDate) : undefined,
     contactPhone: draft.q16 === "yes" ? cleanOptional(draft.contactPhone) : undefined,
+    consentToDataProcessing: draft.consentToDataProcessing,
+    consentToEvents: draft.q16 === "yes" ? draft.consentToEvents : undefined,
     freeText: cleanOptional(draft.freeText),
     q11WarDetails: cleanOptional(draft.q11WarDetails) ?? "—",
     researchTerritory: cleanOptional(draft.researchTerritory)
@@ -4816,6 +4960,10 @@ function optionalStoredNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+function optionalStoredBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
 function optionalStoredString(value: unknown): string | undefined {
   return typeof value === "string" ? cleanOptional(value) : undefined;
 }
@@ -4909,6 +5057,10 @@ function formatResearchPeriod(response: Pick<SurveyResponse, "researchPeriodEnd"
   }
 
   return String(response.researchPeriodStart ?? response.researchPeriodEnd ?? "");
+}
+
+function formatConsent(value: boolean | undefined): string {
+  return value === undefined ? "Не зафиксировано" : value ? "Да" : "Нет";
 }
 
 function areResponseDraftsEqual(left: ResponseDraft, right: ResponseDraft): boolean {

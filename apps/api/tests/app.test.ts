@@ -90,9 +90,20 @@ describe("api app", () => {
       researchPeriodEnd: 1945,
       freeText: "Свободный комментарий",
       contactName: "Алёна",
-      contactPhone: "+7 900 000-00-00"
+      contactPhone: "+7 900 000-00-00",
+      consentToDataProcessing: true,
+      consentToEvents: true
     };
     delete onlinePayload.surveyDate;
+
+    const withoutConsent = { ...onlinePayload };
+    delete withoutConsent.consentToDataProcessing;
+    const rejected = await app.inject({
+      method: "POST",
+      url: "/api/public/survey-responses",
+      payload: withoutConsent
+    });
+    expect(rejected.statusCode).toBe(400);
 
     const created = await app.inject({
       method: "POST",
@@ -106,6 +117,8 @@ describe("api app", () => {
     expect(created.json().response.researchPeriodStart).toBe(1850);
     expect(created.json().response.contactName).toBe("Алёна");
     expect(created.json().response.contactPhone).toBe("+7 900 000-00-00");
+    expect(created.json().response.consentToDataProcessing).toBe(true);
+    expect(created.json().response.consentToEvents).toBe(true);
     expect(created.json().response.isFake).toBe(false);
   });
 
@@ -138,6 +151,8 @@ describe("api app", () => {
         ...input,
         contactName: "Алёна",
         contactPhone: "+7 900 000-00-00",
+        consentToDataProcessing: true,
+        consentToEvents: false,
         freeText: "Ивановы из Челябинской области"
       }
     });
@@ -208,6 +223,8 @@ describe("api app", () => {
     expect(exported.headers["content-type"]).toContain("text/csv");
     expect(exported.body).toContain("Источник");
     expect(exported.body).toContain("Номер телефона");
+    expect(exported.body).toContain("Согласие на обработку данных");
+    expect(exported.body).toContain("Согласие на приглашения");
     expect(exported.body).toContain("Статус обращения");
     expect(exported.body).toContain("Следующий контакт");
     expect(exported.body).toContain("Заметка по обращению");

@@ -1,3 +1,5 @@
+import { isValidContactPhone } from "@snz-rodoved/shared";
+
 export type ResponseEditorSource = "online" | "paper";
 
 interface ContactDraft {
@@ -24,7 +26,7 @@ export function hasMissingRequiredResponseContacts(
   return (
     requiresResponseContacts(source) &&
     draft.q16 === "yes" &&
-    (!draft.contactName?.trim() || !draft.contactPhone?.trim())
+    (!draft.contactName?.trim() || !draft.contactPhone?.trim() || !isValidContactPhone(draft.contactPhone))
   );
 }
 

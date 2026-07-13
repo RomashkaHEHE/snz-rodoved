@@ -22,6 +22,13 @@ describe("response editor policy", () => {
     expect(
       hasMissingRequiredResponseContacts("online", {
         contactName: "Анна",
+        contactPhone: "12345",
+        q16: "yes"
+      })
+    ).toBe(true);
+    expect(
+      hasMissingRequiredResponseContacts("online", {
+        contactName: "Анна",
         contactPhone: "+7 900 000-00-00",
         q16: "yes"
       })
