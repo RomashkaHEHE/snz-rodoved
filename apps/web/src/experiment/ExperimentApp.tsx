@@ -65,9 +65,13 @@ import {
 } from "./responseEditor";
 import {
   advanceVisibleCount,
+  buildSurveyDateSeries,
   dataPageSize,
   readDataMode,
+  selectRecentSurveyDates,
   setDataModeSearchParam,
+  surveyDateDisplayLimit,
+  type SurveyDatePoint,
   type DataMode
 } from "./dataWorkspace";
 import {
@@ -261,6 +265,13 @@ const sourceLabels: Record<ResponseSource, string> = {
   online: "онлайн",
   paper: "бумага"
 };
+
+const surveyDateFormatter = new Intl.DateTimeFormat("ru-RU", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+  year: "numeric"
+});
 
 const contactStatusLabels: Record<ContactStatus, string> = {
   new: "Новое",
@@ -1599,6 +1610,7 @@ function DataPage({
   const [dataMode, setDataMode] = useState<DataMode>(() => readDataMode(window.location.search));
   const [visibleHelpCount, setVisibleHelpCount] = useState(dataPageSize);
   const [visibleRowCount, setVisibleRowCount] = useState(dataPageSize);
+  const [showAllSurveyDates, setShowAllSurveyDates] = useState(false);
   const [hideContacts, setHideContacts] = useState(() => readContactPrivacyMode());
   const isMobileData = useMediaQuery("(max-width: 720px)");
   const mobileDetailRef = useRef<HTMLDivElement>(null);
@@ -1657,6 +1669,13 @@ function DataPage({
   const effectiveRowCount = Math.max(visibleRowCount, selectedRowIndex + 1);
   const visibleHelpRequests = sortedHelpRequests.slice(0, effectiveHelpCount);
   const visibleResponses = filteredResponses.slice(0, effectiveRowCount);
+  const surveyDateSeries = useMemo(
+    () => buildSurveyDateSeries(filteredResponses),
+    [filteredResponses]
+  );
+  const visibleSurveyDates = showAllSurveyDates
+    ? surveyDateSeries
+    : selectRecentSurveyDates(surveyDateSeries);
   const summary = buildSummary(filteredResponses);
   const selectedResponse = filteredResponses.find((response) => response.id === selectedId) ?? null;
   const selectedResponseId = selectedResponse?.id ?? null;
@@ -1692,6 +1711,7 @@ function DataPage({
   useEffect(() => {
     setVisibleHelpCount(dataPageSize);
     setVisibleRowCount(dataPageSize);
+    setShowAllSurveyDates(false);
   }, [filters]);
 
   useEffect(() => {
@@ -1933,6 +1953,13 @@ function DataPage({
 
   function focusPaperDate(date: string) {
     setFilters({ ...filters, dateFrom: date, dateTo: date, source: "paper" });
+  }
+
+  function focusSurveyDate(date: string) {
+    setFilters((current) => ({ ...current, dateFrom: date, dateTo: date }));
+    setFiltersOpen(false);
+    setDataMode("rows");
+    setDataStatus("");
   }
 
   function applyContactQueue(status: ContactQueueStatus) {
@@ -2391,45 +2418,56 @@ function DataPage({
 
       {dataMode === "charts" ? (
         <>
-          <section className="summary-grid" aria-label="Сводка">
-            <Metric icon={Database} label="Анкет" value={filteredResponses.length} />
-            <Metric icon={ClipboardList} label="Онлайн" value={summary.online} />
-            <Metric icon={PenLine} label="Бумага" value={summary.paper} />
-            <Metric icon={Phone} label="Обращения" value={summary.help} />
+          <section className="task-panel survey-date-panel" aria-label="Анкеты по датам и сводка">
+            <div className="section-title-row">
+              <h2>Анкеты по датам</h2>
+              <span>{surveyDateSeries.length}</span>
+            </div>
+            <div className="analytics-metrics">
+              <AnalyticsMetric icon={Database} label="Анкет" value={filteredResponses.length} />
+              <AnalyticsMetric icon={ClipboardList} label="Онлайн" value={summary.online} />
+              <AnalyticsMetric icon={PenLine} label="Бумага" value={summary.paper} />
+              <AnalyticsMetric icon={Phone} label="Обращения" value={summary.help} />
+            </div>
+            <SurveyDateChart data={visibleSurveyDates} onSelect={focusSurveyDate} />
+            {surveyDateSeries.length > surveyDateDisplayLimit ? (
+              <div className="survey-date-footer">
+                <span>
+                  {showAllSurveyDates
+                    ? `Все даты · ${surveyDateSeries.length}`
+                    : `Последние ${visibleSurveyDates.length} из ${surveyDateSeries.length}`}
+                </span>
+                <button
+                  className="link-button"
+                  type="button"
+                  onClick={() => setShowAllSurveyDates((current) => !current)}
+                >
+                  {showAllSurveyDates ? "Показать последние" : "Показать все"}
+                </button>
+              </div>
+            ) : null}
           </section>
-          <section className="data-layout data-charts-grid">
-            <div className="task-panel">
-              <div className="section-title-row">
-                <h2>Возраст</h2>
-                <span>{filteredResponses.length}</span>
-              </div>
-              <BarList data={summary.ageBars} />
-            </div>
 
-            <div className="task-panel">
-              <div className="section-title-row">
-                <h2>Проживание</h2>
-                <span>{filteredResponses.length}</span>
-              </div>
-              <BarList data={summary.residenceBars} />
+          <details className="task-panel insight-panel participant-insight">
+            <summary>
+              <span>Участники</span>
+              <b>пол, возраст, проживание</b>
+            </summary>
+            <div className="demographic-breakdowns">
+              <section>
+                <h3>Возраст</h3>
+                <BarList data={summary.ageBars} />
+              </section>
+              <section>
+                <h3>Проживание</h3>
+                <BarList data={summary.residenceBars} />
+              </section>
+              <section>
+                <h3>Пол</h3>
+                <BarList data={summary.genderBars} />
+              </section>
             </div>
-
-            <div className="task-panel">
-              <div className="section-title-row">
-                <h2>Пол</h2>
-                <span>{filteredResponses.length}</span>
-              </div>
-              <BarList data={summary.genderBars} />
-            </div>
-
-            <div className="task-panel">
-              <div className="section-title-row">
-                <h2>Источник</h2>
-                <span>{filteredResponses.length}</span>
-              </div>
-              <BarList data={summary.sourceBars} />
-            </div>
-          </section>
+          </details>
 
           <details className="task-panel insight-panel">
             <summary>
@@ -3097,7 +3135,7 @@ function MultiSegmentedGroup({
   );
 }
 
-function Metric({
+function AnalyticsMetric({
   icon: Icon,
   label,
   value
@@ -3107,12 +3145,79 @@ function Metric({
   value: number;
 }) {
   return (
-    <article className="metric-card">
+    <div className="analytics-metric">
       <Icon aria-hidden size={22} />
       <span>{label}</span>
       <strong>{value}</strong>
-    </article>
+    </div>
   );
+}
+
+function SurveyDateChart({
+  data,
+  onSelect
+}: {
+  data: SurveyDatePoint[];
+  onSelect: (date: string) => void;
+}) {
+  if (data.length === 0) {
+    return <p className="survey-date-empty">В текущем срезе нет анкет.</p>;
+  }
+
+  const max = Math.max(...data.map((point) => point.total));
+
+  return (
+    <div className="survey-date-visual">
+      <div className="survey-date-legend" aria-label="Источники анкет">
+        <span><i className="legend-paper" />Бумага</span>
+        <span><i className="legend-online" />Онлайн</span>
+      </div>
+      <div className="survey-date-list">
+        {data.map((point) => {
+          const dateLabel = formatSurveyDateLabel(point.date);
+          const sourceLabel = `бумага ${point.paper} · онлайн ${point.online}`;
+
+          return (
+            <button
+              aria-label={`Открыть анкеты за ${dateLabel}: ${sourceLabel}`}
+              className="survey-date-row"
+              key={point.date}
+              type="button"
+              onClick={() => onSelect(point.date)}
+            >
+              <span className="survey-date-label">
+                <strong>{dateLabel}</strong>
+                <small>{sourceLabel}</small>
+              </span>
+              <span className="survey-date-track" aria-hidden>
+                <i
+                  className="survey-date-paper"
+                  style={{ width: `${(point.paper / max) * 100}%` }}
+                />
+                <i
+                  className="survey-date-online"
+                  style={{ width: `${(point.online / max) * 100}%` }}
+                />
+              </span>
+              <b>{point.total}</b>
+              <ChevronRight aria-hidden size={18} />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function formatSurveyDateLabel(value: string): string {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  return surveyDateFormatter
+    .format(new Date(Date.UTC(year, month - 1, day)))
+    .replace(/\s*г\.$/u, "");
 }
 
 function BarList({ data }: { data: Array<{ label: string; value: number }> }) {
@@ -4820,10 +4925,6 @@ function buildSummary(responses: SurveyResponse[]) {
     residenceBars: (Object.keys(residenceLabels) as Residence[]).map((residence) => ({
       label: residenceLabels[residence],
       value: responses.filter((response) => response.residence === residence).length
-    })),
-    sourceBars: (Object.keys(sourceLabels) as ResponseSource[]).map((source) => ({
-      label: sourceLabels[source],
-      value: responses.filter((response) => response.source === source).length
     })),
     questionBars: questions.map((question) => ({
       group: question.group,

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   advanceVisibleCount,
+  buildSurveyDateSeries,
   dataPageSize,
   readDataMode,
+  selectRecentSurveyDates,
   setDataModeSearchParam
 } from "../src/experiment/dataWorkspace";
 
@@ -32,5 +34,35 @@ describe("incremental data lists", () => {
     expect(advanceVisibleCount(dataPageSize, 67)).toBe(40);
     expect(advanceVisibleCount(60, 67)).toBe(67);
     expect(advanceVisibleCount(20, 20)).toBe(20);
+  });
+});
+
+describe("survey date analytics", () => {
+  it("groups paper and online responses by date in chronological order", () => {
+    expect(
+      buildSurveyDateSeries([
+        { source: "online", surveyDate: "2026-07-12" },
+        { source: "paper", surveyDate: "2026-06-03" },
+        { source: "paper", surveyDate: "2026-07-12" },
+        { source: "paper", surveyDate: "2026-07-12" }
+      ])
+    ).toEqual([
+      { date: "2026-06-03", online: 0, paper: 1, total: 1 },
+      { date: "2026-07-12", online: 1, paper: 2, total: 3 }
+    ]);
+  });
+
+  it("keeps the most recent dates without changing their chronological order", () => {
+    const series = buildSurveyDateSeries([
+      { source: "paper", surveyDate: "2026-05-01" },
+      { source: "paper", surveyDate: "2026-06-01" },
+      { source: "online", surveyDate: "2026-07-01" }
+    ]);
+
+    expect(selectRecentSurveyDates(series, 2).map((point) => point.date)).toEqual([
+      "2026-06-01",
+      "2026-07-01"
+    ]);
+    expect(selectRecentSurveyDates(series, 0)).toEqual([]);
   });
 });
