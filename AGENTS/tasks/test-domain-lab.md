@@ -44,7 +44,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - operator entry, data, and PDF archive are behind workspace password login; authenticated workspace navigation contains only `Ввод`, `Данные`, and `PDF`;
   - desktop operator entry remains one continuous form with answered/remaining progress, a next-missing-answer action, one section selector, temporary question highlighting, and grouped paper-form sections;
   - at widths up to 720px, operator entry becomes a 14-step guided flow: demographics first, then one Q4-Q16 question at a time. Ordinary answers auto-advance, Q11/Q16 positive answers wait for dependent fields, back/next retain state, and the final step can cycle through unanswered questions before saving;
-  - paper rows can be entered as a tab-scoped series: the selected survey date and API-confirmed count survive route reloads in the same tab, each successful save clears respondent answers and returns focus to the start, and `Завершить` resets the series;
+  - paper rows can be entered as a tab-scoped series: the selected survey date, API-confirmed count, and last confirmed response ID survive route reloads in the same tab. The authoritative mutation response updates the workspace collection directly, avoiding duplicate retries when a follow-up list request fails. Each successful save clears respondent answers and returns focus to the start; `Проверить последнюю` opens that exact row in the shared editor, while a new date or `Завершить` resets the reference;
   - unfinished paper entry has a separate 24-hour tab-scoped recovery draft. It restores the date, demographics, Q4-Q16, Q11 war detail, consent marks, and mobile step after reload, while excluding name, phone, search context, free text, and internal workflow fields;
   - entry submission is locked while the request is in flight so a repeated mobile tap cannot create duplicate rows;
   - data filters include date range, source, gender, age group, residence, help-only, contact-only, contact workflow status, next-contact date, missing next-contact date, and free text search;
@@ -93,6 +93,12 @@ The test domain must have its own interface, its own UX decisions, and may use n
 
 ## Last Verification
 
+- Last-saved paper response iteration:
+  - state and collection tests cover restoring a valid response ID, rejecting it with an invalid series date, preserving/replacing it after confirmed saves, clearing it for a new date, and inserting/updating authoritative mutation results without duplicate rows;
+  - a local paper create increased the confirmed series count and exposed `Проверить последнюю` only after the API response completed;
+  - tab reload retained the response link, opening it showed `Изменение анкеты` for the exact saved date, and saving the edit returned to the next blank form with the same link;
+  - `Завершить` reset the counter and removed the last-response action without deleting the stored response;
+  - iPhone 12 mini `375x812` kept the receipt, guided first step, next action, and fixed workspace navigation inside the viewport with no horizontal overflow; browser warnings/errors were empty.
 - Date-analytics iteration:
   - unit tests cover chronological paper/online grouping and recent-date selection;
   - an isolated 17-row database with 12 active dates showed the latest eight dates first and revealed all 12 through one action;

@@ -1,5 +1,6 @@
 export interface EntryBatchState {
   count: number;
+  lastResponseId?: string;
   surveyDate: string;
 }
 
@@ -11,23 +12,35 @@ export function parseEntryBatchState(value: unknown, fallbackSurveyDate: string)
   }
 
   const stored = value as Partial<EntryBatchState>;
-  const surveyDate = typeof stored.surveyDate === "string" && isoDatePattern.test(stored.surveyDate)
-    ? stored.surveyDate
-    : fallbackSurveyDate;
-  const count = typeof stored.count === "number" && Number.isInteger(stored.count) && stored.count >= 0
-    ? stored.count
-    : 0;
+  const hasValidSurveyDate =
+    typeof stored.surveyDate === "string" && isoDatePattern.test(stored.surveyDate);
+  const surveyDate = hasValidSurveyDate ? stored.surveyDate! : fallbackSurveyDate;
+  const count =
+    hasValidSurveyDate &&
+    typeof stored.count === "number" &&
+    Number.isInteger(stored.count) &&
+    stored.count >= 0
+      ? stored.count
+      : 0;
+  const lastResponseId =
+    hasValidSurveyDate && typeof stored.lastResponseId === "string" && stored.lastResponseId.trim()
+      ? stored.lastResponseId
+      : undefined;
 
-  return { count, surveyDate };
+  return lastResponseId ? { count, lastResponseId, surveyDate } : { count, surveyDate };
 }
 
 export function changeEntryBatchDate(state: EntryBatchState, surveyDate: string): EntryBatchState {
-  return {
-    count: surveyDate === state.surveyDate ? state.count : 0,
-    surveyDate
-  };
+  return surveyDate === state.surveyDate ? state : { count: 0, surveyDate };
 }
 
-export function advanceEntryBatch(state: EntryBatchState): EntryBatchState {
-  return { ...state, count: state.count + 1 };
+export function advanceEntryBatch(
+  state: EntryBatchState,
+  lastResponseId?: string
+): EntryBatchState {
+  return {
+    ...state,
+    count: state.count + 1,
+    ...(lastResponseId ? { lastResponseId } : {})
+  };
 }

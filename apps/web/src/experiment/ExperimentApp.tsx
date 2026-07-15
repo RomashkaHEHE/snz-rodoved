@@ -63,6 +63,7 @@ import {
   requiresResponseContacts,
   shouldShowResponseSearchFields
 } from "./responseEditor";
+import { upsertResponse } from "./responseCollection";
 import {
   advanceVisibleCount,
   buildSurveyDateSeries,
@@ -393,19 +394,23 @@ export function ExperimentApp() {
     await refreshWorkspaceData();
   }
 
-  async function saveDraft(draft: ResponseDraft, id?: string) {
+  async function saveDraft(draft: ResponseDraft, id?: string): Promise<SurveyResponse> {
+    let savedResponse: SurveyResponse;
+
     if (id) {
-      await updateLabResponse(id, normalizeDraft(draft));
+      savedResponse = await updateLabResponse(id, normalizeDraft(draft)) as SurveyResponse;
     } else if (draft.source === "online") {
-      await createLabOnlineResponse(normalizeDraft(draft));
+      savedResponse = await createLabOnlineResponse(normalizeDraft(draft)) as SurveyResponse;
     } else {
-      await createLabResponse(normalizeDraft(draft));
+      savedResponse = await createLabResponse(normalizeDraft(draft)) as SurveyResponse;
     }
 
     if (session?.authenticated) {
-      await refreshWorkspaceData();
+      // A failed follow-up list request must not turn a confirmed write into a retryable error.
+      setResponses((current) => upsertResponse(current, savedResponse));
     }
     setEditingId(null);
+    return savedResponse;
   }
 
   async function saveContactWorkflow(
@@ -435,6 +440,15 @@ export function ExperimentApp() {
   function editResponse(id: string) {
     setEditingId(id);
     navigate("entry");
+  }
+
+  function reviewResponse(id: string): boolean {
+    if (!responses.some((response) => response.id === id)) {
+      return false;
+    }
+
+    setEditingId(id);
+    return true;
   }
 
   async function addPdf(displayName: string, file: File) {
@@ -511,6 +525,7 @@ export function ExperimentApp() {
         <EntryPage
           editingResponse={editingResponse}
           onCancelEdit={() => setEditingId(null)}
+          onReviewLast={reviewResponse}
           onSave={saveDraft}
         />
       ) : null}
@@ -582,7 +597,7 @@ function WorkspaceGate({
   );
 }
 
-function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<void> }) {
+function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<unknown> }) {
   const [restoredDraft] = useState(() => readSurveyDraftState());
   const [step, setStep] = useState(restoredDraft.step);
   const [draft, setDraft] = useState<ResponseDraft>(restoredDraft.draft);
@@ -1131,11 +1146,13 @@ function SurveySuccess({ onNewSurvey }: { onNewSurvey: () => void }) {
 function EntryPage({
   editingResponse,
   onCancelEdit,
+  onReviewLast,
   onSave
 }: {
   editingResponse: SurveyResponse | null;
   onCancelEdit: () => void;
-  onSave: (draft: ResponseDraft, id?: string) => Promise<void>;
+  onReviewLast: (id: string) => boolean;
+  onSave: (draft: ResponseDraft, id?: string) => Promise<SurveyResponse>;
 }) {
   const [initialEntryState] = useState(() => readInitialPaperEntryState());
   const initialStoredDraft = editingResponse ? null : initialEntryState.storedDraft;
@@ -1315,11 +1332,28 @@ function EntryPage({
     jumpToEntryStart();
   }
 
+  function reviewLastResponse() {
+    const lastResponseId = batchState.lastResponseId;
+    if (!lastResponseId) {
+      return;
+    }
+
+    if (onReviewLast(lastResponseId)) {
+      setStatus("");
+      return;
+    }
+
+    const nextBatchState = { count: batchState.count, surveyDate: batchState.surveyDate };
+    batchStateRef.current = nextBatchState;
+    setBatchState(nextBatchState);
+    setStatus("Последняя анкета больше не найдена.");
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
     try {
-      await onSave(draft, editingResponse?.id);
+      const savedResponse = await onSave(draft, editingResponse?.id);
 
       if (editingResponse) {
         setDraft(createPaperDraftForDate(batchStateRef.current.surveyDate));
@@ -1330,7 +1364,8 @@ function EntryPage({
 
       clearPaperEntryDraftState();
       const nextBatchState = advanceEntryBatch(
-        changeEntryBatchDate(batchStateRef.current, draft.surveyDate)
+        changeEntryBatchDate(batchStateRef.current, draft.surveyDate),
+        savedResponse.id
       );
       batchStateRef.current = nextBatchState;
       setBatchState(nextBatchState);
@@ -1392,7 +1427,23 @@ function EntryPage({
               <CheckCircle aria-hidden size={17} />
               <span>Завершить</span>
             </button>
-            {status ? <p className="form-status entry-batch-status" role="status">{status}</p> : null}
+            {status || batchState.lastResponseId ? (
+              <div className="entry-batch-feedback">
+                <p className="form-status entry-batch-status" role="status">
+                  {status || "Последняя анкета сохранена."}
+                </p>
+                {batchState.lastResponseId ? (
+                  <button
+                    className="ghost-button entry-last-review"
+                    type="button"
+                    onClick={reviewLastResponse}
+                  >
+                    <ClipboardList aria-hidden size={17} />
+                    Проверить последнюю
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </section>
         ) : null}
 
@@ -1595,7 +1646,7 @@ function DataPage({
     id: string,
     input: { contactNextDate?: string; contactNote?: string; contactStatus: ContactStatus }
   ) => Promise<void>;
-  onSave: (draft: ResponseDraft, id?: string) => Promise<void>;
+  onSave: (draft: ResponseDraft, id?: string) => Promise<SurveyResponse>;
 }) {
   const [filters, setFilters] = useState<Filters>(() => filtersFromSearch(window.location.search));
   const [dataStatus, setDataStatus] = useState("");
