@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-07-13
+Last updated: 2026-07-19
 
 ## Baseline
 
@@ -63,7 +63,7 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - Test-domain data screen includes URL-backed filters with removable active-filter chips, collapsed-by-default controls, local saved filter presets, server CSV export for the current slice, desktop mode tabs, and one phone mode select for `Обращения`, `Анкеты`, `PDF`, and `Графики`. The selected mode is URL-backed through `view`, so direct links and browser history preserve the operator's current task.
 - Test-domain `Графики` combines current-slice totals with a date series split into paper and online rows. It starts with the eight most recent active dates, can reveal all dates, and turns a selected date into URL-backed date filters before opening `Анкеты`. Demographic and Q4-Q16 breakdowns are collapsed by default.
 - Test-domain contact and questionnaire lists render in batches of 20 with an explicit continuation action. This only limits mounted list rows; filters, counts, charts, PDF coverage, and CSV still use the complete matching response slice.
-- The test-domain `Обращения` mode is a contact-work queue for q16 help requests. Compact status and next-contact selects replace the former button grids; sorting and persisted status/date/notes behavior is unchanged.
+- The test-domain `Обращения` mode is a contact-work queue for q16 help requests. Compact status and next-contact selects replace the former button grids; sorting and persisted status/date/notes behavior is unchanged. Queue cards keep identity, questionnaire date, status, next-contact urgency, and territory visible while moving long free text to the inspector. On phones, one filter icon beside the mode select opens the full filters and reports the active-filter count.
 - Test-domain data rows show one `Открыть` action. Editing and deletion remain available in the selected-row inspector; privacy and demo-data actions live in a secondary action menu.
 - Test-domain row inspector on `/data` shows the selected row's demographics, recorded consent state, contact/search fields, contact workflow, and a compact full Q4-Q16 answer review. It should not collapse the row down to only `Да` answers because operators need to audit missing and negative answers too.
 - On phone widths, selecting a `/data` row opens an opaque focused full-viewport detail screen instead of appending the inspector below the list. It has an independent sticky header and icon close action, traps keyboard focus, restores focus to the originating row after close, masks contacts by default, keeps Q4-Q16 collapsed until requested, and edits in the same screen. Desktop keeps the sticky two-column inspector.

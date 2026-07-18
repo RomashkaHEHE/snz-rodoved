@@ -5,6 +5,8 @@ export const defaultDataMode: DataMode = "contacts";
 export const dataPageSize = 20;
 export const surveyDateDisplayLimit = 8;
 
+export type ContactDateState = "due" | "future" | "missing" | "today";
+
 export interface SurveyDatePoint {
   date: string;
   online: number;
@@ -33,6 +35,21 @@ export function setDataModeSearchParam(params: URLSearchParams, mode: DataMode):
 
 export function advanceVisibleCount(current: number, total: number, pageSize = dataPageSize): number {
   return Math.min(total, current + pageSize);
+}
+
+export function getContactDateState(
+  contactNextDate: string | undefined,
+  today: string
+): ContactDateState {
+  if (!contactNextDate) {
+    return "missing";
+  }
+
+  if (contactNextDate < today) {
+    return "due";
+  }
+
+  return contactNextDate === today ? "today" : "future";
 }
 
 export function buildSurveyDateSeries(responses: SurveyDateResponse[]): SurveyDatePoint[] {

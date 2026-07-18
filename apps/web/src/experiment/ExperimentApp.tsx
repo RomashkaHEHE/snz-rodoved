@@ -10,6 +10,7 @@ import {
   Download,
   Ellipsis,
   FileText,
+  ListFilter,
   LockKeyhole,
   PenLine,
   Phone,
@@ -68,6 +69,7 @@ import {
   advanceVisibleCount,
   buildSurveyDateSeries,
   dataPageSize,
+  getContactDateState,
   readDataMode,
   selectRecentSurveyDates,
   setDataModeSearchParam,
@@ -2016,8 +2018,7 @@ function DataPage({
   function applyContactQueue(status: ContactQueueStatus) {
     setFilters({
       ...filters,
-      contactStatus: status === "all" ? [] : [status],
-      helpOnly: true
+      contactStatus: status === "all" ? [] : [status]
     });
     setDataMode("contacts");
   }
@@ -2027,8 +2028,7 @@ function DataPage({
       ...filters,
       contactNextFrom: "",
       contactNextMissing: false,
-      contactNextTo: "",
-      helpOnly: true
+      contactNextTo: ""
     };
     const today = todayString();
 
@@ -2184,20 +2184,33 @@ function DataPage({
       </div>
       {dataStatus ? <p className="form-status">{dataStatus}</p> : null}
 
-      <label className="data-mode-select">
-        <span>Раздел данных</span>
-        <select
-          aria-label="Раздел данных"
-          value={dataMode}
-          onChange={(event) => changeDataMode(event.target.value as DataMode)}
+      <div className="data-mobile-bar">
+        <label className="data-mode-select">
+          <span>Раздел данных</span>
+          <select
+            aria-label="Раздел данных"
+            value={dataMode}
+            onChange={(event) => changeDataMode(event.target.value as DataMode)}
+          >
+            {dataModeItems.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label} · {item.count}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          aria-expanded={filtersOpen}
+          aria-label={filtersOpen ? "Свернуть фильтры" : "Открыть фильтры"}
+          className={filtersActive ? "data-mobile-filter is-active" : "data-mobile-filter"}
+          title={filtersOpen ? "Свернуть фильтры" : "Открыть фильтры"}
+          type="button"
+          onClick={() => setFiltersOpen((current) => !current)}
         >
-          {dataModeItems.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.label} · {item.count}
-            </option>
-          ))}
-        </select>
-      </label>
+          <ListFilter aria-hidden size={19} />
+          {activeFilterChips.length > 0 ? <b>{activeFilterChips.length}</b> : null}
+        </button>
+      </div>
 
       <div className="data-mode-tabs" aria-label="Раздел данных">
         {dataModeItems.map((item) => {
@@ -3394,18 +3407,21 @@ function HelpQueue({
           key={response.id}
         >
           <div>
-            <span className={`source-pill source-${response.source}`}>{sourceLabels[response.source]}</span>
-            {response.isFake ? <span className="demo-badge">демо</span> : null}
-            <span className={`workflow-badge workflow-${response.contactStatus}`}>
-              {contactStatusLabels[response.contactStatus]}
-            </span>
+            <div className="help-card-meta">
+              <div className="help-card-badges">
+                <span className={`source-pill source-${response.source}`}>{sourceLabels[response.source]}</span>
+                {response.isFake ? <span className="demo-badge">демо</span> : null}
+                <span className={`workflow-badge workflow-${response.contactStatus}`}>
+                  {contactStatusLabels[response.contactStatus]}
+                </span>
+              </div>
+              {response.contactStatus !== "done" ? <ContactDateBadge value={response.contactNextDate} /> : null}
+            </div>
             <strong>{renderContactName(response.contactName, hideContacts)}</strong>
             <p>
-              {response.surveyDate} · {ageLabels[response.ageGroup]} · {residenceLabels[response.residence]}
+              {formatSurveyDateLabel(response.surveyDate)} · {ageLabels[response.ageGroup]} · {residenceLabels[response.residence]}
             </p>
-            {response.researchTerritory ? <small>{response.researchTerritory}</small> : null}
-            {response.contactNextDate ? <small>Следующий контакт: {response.contactNextDate}</small> : null}
-            {response.freeText ? <small>{response.freeText}</small> : null}
+            {response.researchTerritory ? <small className="help-card-territory">{response.researchTerritory}</small> : null}
           </div>
           <div className="help-actions">
             {response.contactPhone && !hideContacts ? (
@@ -3426,6 +3442,23 @@ function HelpQueue({
         </article>
       ))}
     </div>
+  );
+}
+
+function ContactDateBadge({ value }: { value?: string }) {
+  const state = getContactDateState(value, todayString());
+  const labels = {
+    due: value ? `Просрочено · ${formatSurveyDateLabel(value)}` : "Просрочено",
+    future: value ? formatSurveyDateLabel(value) : "Запланировано",
+    missing: "Без даты",
+    today: "Сегодня"
+  } satisfies Record<ReturnType<typeof getContactDateState>, string>;
+
+  return (
+    <span className={`contact-date-badge contact-date-${state}`}>
+      <CalendarDays aria-hidden size={15} />
+      {labels[state]}
+    </span>
   );
 }
 

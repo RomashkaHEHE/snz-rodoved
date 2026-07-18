@@ -3,6 +3,7 @@ import {
   advanceVisibleCount,
   buildSurveyDateSeries,
   dataPageSize,
+  getContactDateState,
   readDataMode,
   selectRecentSurveyDates,
   setDataModeSearchParam
@@ -34,6 +35,17 @@ describe("incremental data lists", () => {
     expect(advanceVisibleCount(dataPageSize, 67)).toBe(40);
     expect(advanceVisibleCount(60, 67)).toBe(67);
     expect(advanceVisibleCount(20, 20)).toBe(20);
+  });
+});
+
+describe("contact planning", () => {
+  it("classifies the next contact date relative to today", () => {
+    const today = "2026-07-16";
+
+    expect(getContactDateState(undefined, today)).toBe("missing");
+    expect(getContactDateState("2026-07-15", today)).toBe("due");
+    expect(getContactDateState(today, today)).toBe("today");
+    expect(getContactDateState("2026-07-17", today)).toBe("future");
   });
 });
 
