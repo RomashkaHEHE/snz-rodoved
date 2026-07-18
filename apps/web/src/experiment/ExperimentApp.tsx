@@ -100,7 +100,7 @@ import {
   type SurveyContactValidationIssue
 } from "./surveyDraft";
 import { buildPdfArchiveName, getPdfSelectionIssue } from "./pdfArchive";
-import type { SurveyFilters } from "@snz-rodoved/shared";
+import { answerQuestions, type SurveyFilters } from "@snz-rodoved/shared";
 import "./experiment.css";
 
 type RouteId = "survey" | "entry" | "data" | "pdf";
@@ -284,41 +284,8 @@ const contactStatusLabels: Record<ContactStatus, string> = {
   no_contact: "Не дозвонились"
 };
 
-const questions: Array<{ id: QuestionId; number: number; label: string; group: QuestionGroup }> = [
-  { id: "q4", number: 4, label: "Вы рисовали в школе схему своей семьи?", group: "experience" },
-  { id: "q5", number: 5, label: "Вы знаете имя своей прабабушки?", group: "experience" },
-  { id: "q6", number: 6, label: "Вы можете назвать имена всех 4х прадедов?", group: "experience" },
-  { id: "q7", number: 7, label: "Найти предков, живших в 20 в. (СССР)", group: "interest" },
-  { id: "q8", number: 8, label: "Найти предков, живших в 20 в.", group: "interest" },
-  { id: "q9", number: 9, label: "Найти предков, живших в 19 в.", group: "interest" },
-  { id: "q10", number: 10, label: "Найти предков, живших в 18 в.", group: "interest" },
-  {
-    id: "q11",
-    number: 11,
-    label: "Найти документы на предка-участника военных действий",
-    group: "interest"
-  },
-  {
-    id: "q12",
-    number: 12,
-    label: "Найти жизненное событие предка (рождение/брак/смерть)",
-    group: "interest"
-  },
-  { id: "q13", number: 13, label: "Найти информацию о других детях предка", group: "interest" },
-  {
-    id: "q14",
-    number: 14,
-    label: "Найти подтверждение факта раскулачивания или репрессии",
-    group: "interest"
-  },
-  {
-    id: "q15",
-    number: 15,
-    label: "Установить место проживания предков до 1918 г.",
-    group: "interest"
-  },
-  { id: "q16", number: 16, label: "Нужна помощь в поисках?", group: "help" }
-];
+// Both products render the paper questionnaire from the same canonical catalog.
+const questions = answerQuestions;
 
 const warOptions = ["—", "Великая Отечественная война", "Первая мировая война", "Иная"];
 const routeTitles: Record<RouteId, string> = {
@@ -1166,6 +1133,12 @@ function EntryPage({
 }) {
   const [initialEntryState] = useState(() => readInitialPaperEntryState());
   const initialStoredDraft = editingResponse ? null : initialEntryState.storedDraft;
+  const [paperBasicSelections, setPaperBasicSelections] = useState<SurveyBasicSelections>(() =>
+    editingResponse
+      ? createCompleteBasicSelections()
+      : initialStoredDraft?.basicSelections ?? createEmptyBasicSelections()
+  );
+  const [paperBasicValidationAttempted, setPaperBasicValidationAttempted] = useState(false);
   const [batchState, setBatchState] = useState<EntryBatchState>(initialEntryState.batchState);
   const batchStateRef = useRef(batchState);
   const [draft, setDraft] = useState<ResponseDraft>(() =>
@@ -1188,6 +1161,10 @@ function EntryPage({
   const helpQuestions = questions.filter((question) => question.group === "help");
   const mobileEntryStepCount = questions.length + 1;
   const activeMobileQuestion = mobileEntryStep > 0 ? questions[mobileEntryStep - 1] : null;
+  const paperBasicsComplete = areBasicSelectionsComplete(paperBasicSelections);
+  const hasUnsavedPaperEntry =
+    isPaperDraftTouched(draft) || hasAnyBasicSelection(paperBasicSelections);
+  const canFinishBatch = batchState.count > 0 || hasUnsavedPaperEntry;
   const mobileEntrySectionLabel = activeMobileQuestion
     ? activeMobileQuestion.group === "experience"
       ? "Опыт"
@@ -1212,6 +1189,12 @@ function EntryPage({
     }
 
     const storedDraft = editingResponse ? null : readPaperEntryDraftState();
+    setPaperBasicSelections(
+      editingResponse
+        ? createCompleteBasicSelections()
+        : storedDraft?.basicSelections ?? createEmptyBasicSelections()
+    );
+    setPaperBasicValidationAttempted(false);
     setDraft(
       editingResponse
         ? responseToDraft(editingResponse)
@@ -1228,13 +1211,13 @@ function EntryPage({
       return;
     }
 
-    if (isPaperDraftTouched(draft)) {
-      writePaperEntryDraftState(draft, mobileEntryStep);
+    if (hasUnsavedPaperEntry) {
+      writePaperEntryDraftState(draft, mobileEntryStep, paperBasicSelections);
       return;
     }
 
     clearPaperEntryDraftState();
-  }, [draft, editingResponse, mobileEntryStep]);
+  }, [draft, editingResponse, hasUnsavedPaperEntry, mobileEntryStep, paperBasicSelections]);
 
   useEffect(() => {
     if (!highlightedQuestionId) {
@@ -1250,12 +1233,51 @@ function EntryPage({
   }
 
   function moveMobileEntry(nextStep: number) {
+    if (nextStep > 0 && mobileEntryStep === 0 && !validatePaperBasics()) {
+      return;
+    }
+
     setMobileEntryStep(Math.min(mobileEntryStepCount - 1, Math.max(0, nextStep)));
     window.requestAnimationFrame(() => {
       document
         .getElementById("mobile-entry-stage")
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
+  }
+
+  function handlePaperBasicSelection(field: SurveyBasicField) {
+    setPaperBasicSelections((current) => markBasicSelection(current, field));
+  }
+
+  function focusFirstMissingPaperBasic() {
+    const firstMissing = (["gender", "ageGroup", "residence"] as SurveyBasicField[]).find(
+      (field) => !paperBasicSelections[field]
+    );
+
+    if (!firstMissing) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLButtonElement>(`[data-basic-field="${firstMissing}"] button`)
+        ?.focus({ preventScroll: false });
+    });
+  }
+
+  function validatePaperBasics(): boolean {
+    if (paperBasicsComplete) {
+      return true;
+    }
+
+    setPaperBasicValidationAttempted(true);
+    if (isMobileEntry) {
+      setMobileEntryStep(0);
+    } else {
+      document.getElementById("entry-basic")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    focusFirstMissingPaperBasic();
+    return false;
   }
 
   function handleMobileQuestionChange(nextDraft: ResponseDraft) {
@@ -1328,7 +1350,10 @@ function EntryPage({
   }
 
   function finishBatch() {
-    if (isPaperDraftTouched(draft) && !window.confirm("Очистить несохранённые ответы и завершить серию?")) {
+    if (
+      hasUnsavedPaperEntry &&
+      !window.confirm("Очистить несохранённые ответы и завершить серию?")
+    ) {
       return;
     }
 
@@ -1337,6 +1362,8 @@ function EntryPage({
     batchStateRef.current = nextBatchState;
     setBatchState(nextBatchState);
     setDraft(createPaperDraftForDate(nextBatchState.surveyDate));
+    setPaperBasicSelections(createEmptyBasicSelections());
+    setPaperBasicValidationAttempted(false);
     setMobileEntryStep(0);
     setStatus("Серия завершена.");
     jumpToEntryStart();
@@ -1361,12 +1388,18 @@ function EntryPage({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!validatePaperBasics()) {
+      return;
+    }
+
     setSaving(true);
     try {
       const savedResponse = await onSave(draft, editingResponse?.id);
 
       if (editingResponse) {
         setDraft(createPaperDraftForDate(batchStateRef.current.surveyDate));
+        setPaperBasicSelections(createEmptyBasicSelections());
+        setPaperBasicValidationAttempted(false);
         setMobileEntryStep(0);
         setStatus("Изменения сохранены.");
         return;
@@ -1380,6 +1413,8 @@ function EntryPage({
       batchStateRef.current = nextBatchState;
       setBatchState(nextBatchState);
       setDraft(createPaperDraftForDate(nextBatchState.surveyDate));
+      setPaperBasicSelections(createEmptyBasicSelections());
+      setPaperBasicValidationAttempted(false);
       setMobileEntryStep(0);
       setStatus(`Анкета добавлена. В серии: ${nextBatchState.count}.`);
       jumpToEntryStart();
@@ -1406,7 +1441,11 @@ function EntryPage({
 
       <form className="task-panel entry-panel" onSubmit={handleSubmit}>
         {!editingResponse ? (
-          <section className="entry-batch" id="entry-batch" aria-label="Текущая серия бумажных анкет">
+          <section
+            className={canFinishBatch ? "entry-batch has-end-action" : "entry-batch"}
+            id="entry-batch"
+            aria-label="Текущая серия бумажных анкет"
+          >
             <div className="entry-batch-title">
               <CalendarDays aria-hidden size={22} />
               <div>
@@ -1424,19 +1463,23 @@ function EntryPage({
               />
             </label>
             <div className="entry-batch-count" aria-label={`Добавлено в серии: ${batchState.count}`}>
-              <span>Добавлено</span>
+              <span className="entry-count-desktop">Добавлено</span>
+              <span className="entry-count-mobile">В серии</span>
               <strong>{batchState.count}</strong>
             </div>
-            <button
-              aria-label="Завершить серию"
-              className="ghost-button entry-batch-end"
-              title="Завершить серию"
-              type="button"
-              onClick={finishBatch}
-            >
-              <CheckCircle aria-hidden size={17} />
-              <span>Завершить</span>
-            </button>
+            {canFinishBatch ? (
+              <button
+                aria-label="Завершить серию"
+                className="ghost-button entry-batch-end"
+                title="Завершить серию"
+                type="button"
+                onClick={finishBatch}
+              >
+                <CheckCircle aria-hidden size={17} />
+                <span className="entry-finish-desktop">Завершить</span>
+                <span className="entry-finish-mobile">Готово</span>
+              </button>
+            ) : null}
             {status || batchState.lastResponseId ? (
               <div className="entry-batch-feedback">
                 <p className="form-status entry-batch-status" role="status">
@@ -1473,6 +1516,12 @@ function EntryPage({
               </i>
             </div>
 
+            {mobileEntryStep === 0 && paperBasicValidationAttempted && !paperBasicsComplete ? (
+              <p className="form-status mobile-entry-status" role="status">
+                Выберите пол, возраст и место проживания.
+              </p>
+            ) : null}
+
             <section className="mobile-entry-stage" id="mobile-entry-stage">
               {activeMobileQuestion ? (
                 <QuestionStack
@@ -1488,8 +1537,11 @@ function EntryPage({
               ) : (
                 <BasicFields
                   draft={draft}
+                  selectedBasics={paperBasicSelections}
                   showDate={Boolean(editingResponse)}
+                  showMissing={paperBasicValidationAttempted}
                   onChange={setDraft}
+                  onSelection={handlePaperBasicSelection}
                 />
               )}
             </section>
@@ -1572,7 +1624,19 @@ function EntryPage({
                 <span>1-3</span>
                 <h2>Данные анкеты</h2>
               </div>
-              <BasicFields draft={draft} showDate={Boolean(editingResponse)} onChange={setDraft} />
+              <BasicFields
+                draft={draft}
+                selectedBasics={paperBasicSelections}
+                showDate={Boolean(editingResponse)}
+                showMissing={paperBasicValidationAttempted}
+                onChange={setDraft}
+                onSelection={handlePaperBasicSelection}
+              />
+              {paperBasicValidationAttempted && !paperBasicsComplete ? (
+                <p className="form-status entry-basic-status" role="status">
+                  Выберите пол, возраст и место проживания.
+                </p>
+              ) : null}
             </section>
 
             <section className="entry-section" id="entry-experience">
@@ -4346,6 +4410,10 @@ function createPaperDraftForDate(surveyDate: string): ResponseDraft {
   return { ...createEmptyDraft("paper"), surveyDate };
 }
 
+function createCompleteBasicSelections(): SurveyBasicSelections {
+  return { ageGroup: true, gender: true, residence: true };
+}
+
 function isPaperDraftTouched(draft: ResponseDraft): boolean {
   const empty = createPaperDraftForDate(draft.surveyDate);
 
@@ -4395,7 +4463,11 @@ function readPaperEntryDraftState(): PaperEntryDraftState | null {
   }
 }
 
-function writePaperEntryDraftState(draft: ResponseDraft, mobileEntryStep: number): void {
+function writePaperEntryDraftState(
+  draft: ResponseDraft,
+  mobileEntryStep: number,
+  basicSelections: SurveyBasicSelections
+): void {
   if (draft.source !== "paper") {
     return;
   }
@@ -4403,7 +4475,13 @@ function writePaperEntryDraftState(draft: ResponseDraft, mobileEntryStep: number
   try {
     window.sessionStorage.setItem(
       entryDraftStorageKey,
-      JSON.stringify(createPaperEntryDraftState({ ...draft, source: "paper" }, mobileEntryStep))
+      JSON.stringify(
+        createPaperEntryDraftState(
+          { ...draft, source: "paper" },
+          mobileEntryStep,
+          basicSelections
+        )
+      )
     );
   } catch {
     // Draft recovery is optional; data entry must still work if browser storage is unavailable.

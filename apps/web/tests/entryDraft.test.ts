@@ -29,6 +29,7 @@ const draft: PaperEntryDraft = {
   source: "paper",
   surveyDate: "2026-07-13"
 };
+const completeBasics = { ageGroup: true, gender: true, residence: true };
 
 describe("paper entry draft safety", () => {
   it("stores paper answers and consent choices while omitting contact/search fields", () => {
@@ -40,10 +41,16 @@ describe("paper entry draft safety", () => {
       freeText: "Личный запрос",
       researchTerritory: "Челябинская область"
     };
-    const state = createPaperEntryDraftState(unsafeDraft, 13, "2026-07-13T10:00:00.000Z");
+    const state = createPaperEntryDraftState(
+      unsafeDraft,
+      13,
+      completeBasics,
+      "2026-07-13T10:00:00.000Z"
+    );
     const serialized = JSON.stringify(state);
 
     expect(state.draft).toEqual(draft);
+    expect(state.basicSelections).toEqual(completeBasics);
     expect(serialized).not.toContain("Алёна");
     expect(serialized).not.toContain("900");
     expect(serialized).not.toContain("Личный запрос");
@@ -52,21 +59,56 @@ describe("paper entry draft safety", () => {
 
   it("restores a fresh valid draft and its mobile step", () => {
     const now = Date.parse("2026-07-13T11:00:00.000Z");
-    const stored = createPaperEntryDraftState(draft, 8, "2026-07-13T10:00:00.000Z");
+    const stored = createPaperEntryDraftState(
+      draft,
+      8,
+      completeBasics,
+      "2026-07-13T10:00:00.000Z"
+    );
 
     expect(parsePaperEntryDraftState(stored, now)).toEqual(stored);
   });
 
   it("falls back to the first step without rejecting valid answers", () => {
     const now = Date.parse("2026-07-13T11:00:00.000Z");
-    const stored = { ...createPaperEntryDraftState(draft, 8, "2026-07-13T10:00:00.000Z"), mobileEntryStep: 99 };
+    const stored = {
+      ...createPaperEntryDraftState(
+        draft,
+        8,
+        completeBasics,
+        "2026-07-13T10:00:00.000Z"
+      ),
+      mobileEntryStep: 99
+    };
 
     expect(parsePaperEntryDraftState(stored, now)?.mobileEntryStep).toBe(0);
   });
 
+  it("requires legacy drafts to reconfirm demographics before restoring a later step", () => {
+    const now = Date.parse("2026-07-13T11:00:00.000Z");
+    const stored = createPaperEntryDraftState(
+      draft,
+      8,
+      completeBasics,
+      "2026-07-13T10:00:00.000Z"
+    );
+    const legacyStored = { ...stored, basicSelections: undefined };
+
+    expect(parsePaperEntryDraftState(legacyStored, now)).toEqual({
+      ...stored,
+      basicSelections: { ageGroup: false, gender: false, residence: false },
+      mobileEntryStep: 0
+    });
+  });
+
   it("rejects expired, future, online, and malformed drafts", () => {
     const now = Date.parse("2026-07-13T11:00:00.000Z");
-    const valid = createPaperEntryDraftState(draft, 3, "2026-07-13T10:00:00.000Z");
+    const valid = createPaperEntryDraftState(
+      draft,
+      3,
+      completeBasics,
+      "2026-07-13T10:00:00.000Z"
+    );
 
     expect(
       parsePaperEntryDraftState(

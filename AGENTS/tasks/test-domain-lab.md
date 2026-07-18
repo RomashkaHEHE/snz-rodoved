@@ -30,7 +30,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - Experimental UI lives under `apps/web/src/experiment`.
 - The visible test site opens as a product UI with working task screens.
 - Current flows use the isolated test backend:
-  - public online survey starts with demographics, then shows one Q4-Q16 question at a time in the paper questionnaire's order. Deliberate `yes`/`no` answers advance automatically, Q11/Q16 wait when follow-up fields open, and an unanswered question moves on only through `Пропустить`;
+  - public online survey starts with demographics, then shows one Q4-Q16 question at a time in the paper questionnaire's order. The experimental interface consumes the shared `answerQuestions` catalog instead of maintaining a second question copy. Deliberate `yes`/`no` answers advance automatically, Q11/Q16 wait when follow-up fields open, and an unanswered question moves on only through `Пропустить`;
   - the public review records required processing-answer consent and optional invitation consent. These choices have distinct visible status, while the review states that answers and contacts are not published. Contact phone input accepts common punctuation but requires 10-15 digits before the review can open;
   - the final online check is four compact collapsed summaries for demographics, experience, interests, and help. Each summary exposes full answers and the relevant edit action only when opened;
   - versioned browser draft navigation preserves current question positions and migrates legacy five-step drafts to the matching focused-flow section;
@@ -43,10 +43,10 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - public online survey submits to the server after the review step, shows a completion screen, and stores a browser-local draft until successful submit;
   - public survey and workspace are separate shells without links between them. `/` has no workspace entry; `/entry`, `/data`, and `/pdf` have no survey entry;
   - operator entry, data, and PDF archive are behind workspace password login; authenticated workspace navigation contains only `Ввод`, `Данные`, and `PDF`;
-  - desktop operator entry remains one continuous form with answered/remaining progress, a next-missing-answer action, one section selector, temporary question highlighting, and grouped paper-form sections;
-  - at widths up to 720px, operator entry becomes a 14-step guided flow: demographics first, then one Q4-Q16 question at a time. Ordinary answers auto-advance, Q11/Q16 positive answers wait for dependent fields, back/next retain state, and the final step can cycle through unanswered questions before saving;
-  - paper rows can be entered as a tab-scoped series: the selected survey date, API-confirmed count, and last confirmed response ID survive route reloads in the same tab. The authoritative mutation response updates the workspace collection directly, avoiding duplicate retries when a follow-up list request fails. Each successful save clears respondent answers and returns focus to the start; `Проверить последнюю` opens that exact row in the shared editor, while a new date or `Завершить` resets the reference;
-  - unfinished paper entry has a separate 24-hour tab-scoped recovery draft. It restores the date, demographics, Q4-Q16, Q11 war detail, consent marks, and mobile step after reload, while excluding name, phone, search context, free text, and internal workflow fields;
+  - desktop operator entry remains one continuous form with explicit demographic confirmation, answered/remaining progress, a next-missing-answer action, one section selector, temporary question highlighting, and grouped paper-form sections;
+  - at widths up to 720px, operator entry becomes a 14-step guided flow: three explicit demographic choices first, then one Q4-Q16 question at a time. The first step blocks and focuses the first missing choice; ordinary answers auto-advance, Q11/Q16 positive answers wait for dependent fields, back/next retain state, and the final step can cycle through unanswered questions before saving;
+  - paper rows can be entered as a tab-scoped series: the selected survey date, API-confirmed count, and last confirmed response ID survive route reloads in the same tab. The authoritative mutation response updates the workspace collection directly, avoiding duplicate retries when a follow-up list request fails. Each successful save clears respondent answers and demographic confirmation before returning focus to the start; `Проверить последнюю` opens that exact row in the shared editor, while a new date or `Завершить` resets the reference. Empty series do not show a finish action, and mobile active-series controls keep visible compact labels;
+  - unfinished paper entry has a separate 24-hour tab-scoped recovery draft. It restores explicit demographic confirmation, date, Q4-Q16, Q11 war detail, consent marks, and mobile step after reload, while excluding name, phone, search context, free text, and internal workflow fields. A legacy draft without confirmation markers returns to questions 1-3;
   - entry submission is locked while the request is in flight so a repeated mobile tap cannot create duplicate rows;
   - data filters include date range, source, gender, age group, residence, help-only, contact-only, contact workflow status, next-contact date, missing next-contact date, and free text search;
   - active data filters are shown as removable chips so the operator can clear one constraint without resetting the whole slice;
@@ -287,3 +287,14 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - submitting without processing consent focused `consentToDataProcessing` and showed the existing validation status; the invitation checkbox remained explicitly optional;
   - desktop `1280x720` retained the centered 680px review column and the same action hierarchy without horizontal overflow;
   - the reset confirmation names the data loss before clearing the draft.
+- Local browser smoke for explicit paper demographics confirmed:
+  - a fresh paper row showed no selected gender, age, or residence on iPhone 12 mini `375x812` and desktop `1280x720`;
+  - attempting to continue or save focused `Ж`, retained the current step, showed restrained missing-field markers, and did not increase the server-confirmed series count;
+  - selecting only `Ж` created a safe tab draft; reload restored that choice, left age/residence neutral, and returned to step 1 rather than trusting defaults;
+  - completing all three choices opened Q4, and a 13-question local save increased the series count to one before resetting the next respondent to neutral demographics;
+  - `Проверить последнюю` reopened the saved row with `Ж`, `18-40 лет`, and `другое` selected; returning to a new row cleared those selections;
+  - the empty mobile series omitted its finish action, while an active series showed non-overlapping `В серии` and `Готово` labels. Desktop retained full labels; neither viewport had horizontal overflow.
+- Local browser smoke after connecting the experimental UI to the shared paper catalog confirmed:
+  - questions 1-3 opened first, followed by the exact Q4-Q15 order from the paper form and Q16 last;
+  - name, phone, territory, period, and free text were absent on the unanswered Q16 screen and appeared only after `Да`;
+  - the browser reported no warnings or errors during the full focused flow.

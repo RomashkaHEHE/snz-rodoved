@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  answerQuestions,
   answerQuestionIds,
   onlineSurveyResponseInputSchema,
   parseSurveyDateFromPdfFileName,
@@ -40,6 +41,13 @@ describe("survey response schema", () => {
   it("keeps questions 7 and 8 as separate fields", () => {
     expect(answerQuestionIds).toContain("q7");
     expect(answerQuestionIds).toContain("q8");
+  });
+
+  it("keeps the paper question order and asks about help last", () => {
+    expect(answerQuestions.map(({ id, number }) => ({ id, number }))).toEqual(
+      answerQuestionIds.map((id, index) => ({ id, number: index + 4 }))
+    );
+    expect(answerQuestions.at(-1)).toMatchObject({ id: "q16", group: "help", number: 16 });
   });
 
   it("accepts online survey search context", () => {

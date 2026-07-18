@@ -1,3 +1,10 @@
+import {
+  areBasicSelectionsComplete,
+  coerceBasicSelections,
+  createEmptyBasicSelections,
+  type SurveyBasicSelections
+} from "./surveyDraft";
+
 export type PaperEntryAnswer = "yes" | "no" | "unknown";
 export type PaperEntryGender = "female" | "male";
 export type PaperEntryAgeGroup = "under_18" | "18_40" | "over_40";
@@ -28,6 +35,7 @@ export interface PaperEntryDraft {
 }
 
 export interface PaperEntryDraftState {
+  basicSelections: SurveyBasicSelections;
   draft: PaperEntryDraft;
   mobileEntryStep: number;
   savedAt: string;
@@ -55,9 +63,11 @@ const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 export function createPaperEntryDraftState(
   draft: PaperEntryDraft,
   mobileEntryStep: number,
+  basicSelections = createEmptyBasicSelections(),
   savedAt = new Date().toISOString()
 ): PaperEntryDraftState {
   return {
+    basicSelections: coerceBasicSelections(basicSelections),
     draft: pickSafePaperDraft(draft),
     mobileEntryStep: normalizeMobileStep(mobileEntryStep),
     savedAt
@@ -85,9 +95,14 @@ export function parsePaperEntryDraftState(
     return null;
   }
 
+  const basicSelections = coerceBasicSelections(value.basicSelections);
+
   return {
+    basicSelections,
     draft: pickSafePaperDraft(draft as unknown as PaperEntryDraft),
-    mobileEntryStep: normalizeMobileStep(value.mobileEntryStep),
+    mobileEntryStep: areBasicSelectionsComplete(basicSelections)
+      ? normalizeMobileStep(value.mobileEntryStep)
+      : 0,
     savedAt: value.savedAt as string
   };
 }
