@@ -16,6 +16,7 @@ import {
   Phone,
   Plus,
   Save,
+  Send,
   Trash2,
   Upload,
   X
@@ -762,7 +763,7 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<unkn
   }
 
   function confirmSurveyReset() {
-    if (window.confirm("Очистить все ответы анкеты?")) {
+    if (window.confirm("Начать анкету заново? Все текущие ответы будут удалены.")) {
       resetSurvey();
     }
   }
@@ -827,11 +828,6 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<unkn
         <div className="survey-progress-block">
           <div className="survey-progress-meta">
             <span aria-live="polite">{progressLabel}</span>
-            {hasSurveyDraftContent(draft) || hasAnyBasicSelection(basicSelections) ? (
-              <button className="link-button" type="button" onClick={confirmSurveyReset}>
-                Очистить ответы
-              </button>
-            ) : null}
           </div>
           <div className="survey-progress" aria-hidden>
             <i style={{ width: `${progressPercent}%` }} />
@@ -860,11 +856,17 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<unkn
               </button>
             ) : (
               <button className="primary-button" disabled={saving} type="submit">
-                <Save aria-hidden size={18} />
+                <Send aria-hidden size={18} />
                 {saving ? "Отправка..." : "Отправить"}
               </button>
             )}
           </div>
+          {hasSurveyDraftContent(draft) || hasAnyBasicSelection(basicSelections) ? (
+            <button className="survey-reset-button" type="button" onClick={confirmSurveyReset}>
+              <Trash2 aria-hidden size={16} />
+              Начать заново
+            </button>
+          ) : null}
         </footer>
       </form>
     </section>
@@ -885,7 +887,7 @@ function getSurveyStepTitle(
   isReviewStep: boolean
 ): string {
   if (isReviewStep) {
-    return "Проверка";
+    return "Проверка ответов";
   }
   if (!question) {
     return "О себе";
@@ -904,7 +906,7 @@ function getSurveyProgressLabel(
   isReviewStep: boolean
 ): string {
   if (isReviewStep) {
-    return "Проверка ответов";
+    return "Перед отправкой";
   }
 
   return question ? `Вопрос ${question.number} из 16` : "Вопросы 1-3 из 16";
@@ -1033,8 +1035,8 @@ function SurveyReview({
       </ReviewDisclosure>
 
       <section className="survey-consent" aria-labelledby="survey-consent-title">
-        <h2 id="survey-consent-title">Согласие</h2>
-        <label className="consent-check">
+        <h2 id="survey-consent-title">Согласия</h2>
+        <label className="consent-check is-required">
           <input
             aria-required="true"
             checked={draft.consentToDataProcessing === true}
@@ -1044,17 +1046,23 @@ function SurveyReview({
               onChange({ ...draft, consentToDataProcessing: event.currentTarget.checked })
             }
           />
-          <span>Я согласен(-на) на обработку моих ответов.</span>
+          <span className="consent-copy">
+            <span>Я согласен(-на) на обработку моих ответов.</span>
+            <small>Обязательно · ответы и контакты не публикуются</small>
+          </span>
         </label>
         {draft.q16 === "yes" ? (
-          <label className="consent-check">
+          <label className="consent-check is-optional">
             <input
               checked={draft.consentToEvents === true}
               name="consentToEvents"
               type="checkbox"
               onChange={(event) => onChange({ ...draft, consentToEvents: event.currentTarget.checked })}
             />
-            <span>Я согласен(-на) получать приглашения на мероприятия проекта.</span>
+            <span className="consent-copy">
+              <span>Я согласен(-на) получать приглашения на мероприятия проекта.</span>
+              <small>По желанию</small>
+            </span>
           </label>
         ) : null}
       </section>

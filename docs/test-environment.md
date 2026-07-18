@@ -22,7 +22,7 @@ The test domain has its own interface and UX decisions.
 
 Current flows use the isolated test backend and test SQLite/PDF storage:
 
-- public online survey with browser-local draft restore, demographics followed by one Q4-Q16 question per screen in paper order, a Q16-dependent contact/search continuation, a compact expandable review with consent controls before submit, and a completion screen after successful submit;
+- public online survey with browser-local draft restore, demographics followed by one Q4-Q16 question per screen in paper order, a Q16-dependent contact/search continuation, a compact expandable review with consent controls before submit, and a completion screen after successful submit. The review distinguishes required answer processing from optional event invitations, keeps the submit action primary, and places the confirmed full reset below the navigation;
 - deliberate `yes`/`no` answers advance immediately unless Q11 or Q16 opens follow-up fields; unanswered questions move forward through an explicit `Пропустить` action. Legacy five-step drafts migrate to the corresponding question in the current versioned flow;
 - Q16 `yes` reveals required name/phone and optional territory/period/free-text fields; changing Q16 to another answer clears those dependent values and invitation consent. Public phone input accepts familiar formatting but requires 10-15 digits;
 - public submission requires explicit consent to processing answers. Invitation consent is optional and is shown for a help request; historical rows keep `Не зафиксировано` rather than being interpreted as refusal;

@@ -31,12 +31,13 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - The visible test site opens as a product UI with working task screens.
 - Current flows use the isolated test backend:
   - public online survey starts with demographics, then shows one Q4-Q16 question at a time in the paper questionnaire's order. Deliberate `yes`/`no` answers advance automatically, Q11/Q16 wait when follow-up fields open, and an unanswered question moves on only through `Пропустить`;
-  - the public review records required processing-answer consent and optional invitation consent. Contact phone input accepts common punctuation but requires 10-15 digits before the review can open;
+  - the public review records required processing-answer consent and optional invitation consent. These choices have distinct visible status, while the review states that answers and contacts are not published. Contact phone input accepts common punctuation but requires 10-15 digits before the review can open;
   - the final online check is four compact collapsed summaries for demographics, experience, interests, and help. Each summary exposes full answers and the relevant edit action only when opened;
   - versioned browser draft navigation preserves current question positions and migrates legacy five-step drafts to the matching focused-flow section;
   - the first online step starts with no selected demographics and blocks later steps until gender, age group, and residence have each been chosen deliberately;
   - online draft persistence expires after 24 hours and redacts name/phone; restored q16 help requests reopen the help step with empty contact fields;
   - resetting a non-empty online survey requires confirmation, and missing restored contacts return focus to the name input instead of leaving the visitor on review;
+  - the rare full-survey reset is placed after the review/navigation actions and does not compete with progress or submission. The submit action uses a send symbol and remains the only filled action on the final screen;
   - the online survey follows the paper form through Q16. A `yes` answer to Q16 reveals required name/phone fields and optional territory, period, and free-text fields; changing Q16 away from `yes` hides and clears every dependent value. The period control keeps quick presets, two range sliders, exact year inputs, and the same data contract;
   - Q11 war details follow the paper form's condition: the selector appears only for a `yes` answer and resets to `—` when that answer changes;
   - public online survey submits to the server after the review step, shows a completion screen, and stores a browser-local draft until successful submit;
@@ -280,3 +281,9 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - queue cards distinguish overdue, today, future, and missing contact dates while leaving long free text in the full-screen inspector;
   - the mobile inspector retained contacts, workflow, notes, and the complete Q4-Q16 review; desktop `1280x720` retained the two-column queue/inspector layout;
   - browser console logs contained no warnings or errors.
+- Local browser smoke for the calmer survey completion confirmed:
+  - the original demographics and Q4-Q16 order remained unchanged, and Q16 `Да` still revealed name, phone, territory, period, and free text before review;
+  - the review at iPhone 12 mini `375x812` showed four collapsed factual sections, distinct required/optional consent text, one primary send action, and a subordinate `Начать заново` action without horizontal overflow;
+  - submitting without processing consent focused `consentToDataProcessing` and showed the existing validation status; the invitation checkbox remained explicitly optional;
+  - desktop `1280x720` retained the centered 680px review column and the same action hierarchy without horizontal overflow;
+  - the reset confirmation names the data loss before clearing the draft.
