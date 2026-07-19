@@ -98,6 +98,7 @@ describe("online survey draft safety", () => {
   it("returns restored help requests to the contact step", () => {
     const complete = { ageGroup: true, gender: true, residence: true };
 
+    expect(resolveSurveyDraftStep(surveyHelpStep, complete, true)).toBe(surveyContactStep);
     expect(resolveSurveyDraftStep(surveyReviewStep, complete, true)).toBe(surveyContactStep);
     expect(resolveSurveyDraftStep(surveySearchStep, complete, true)).toBe(surveyContactStep);
     expect(resolveSurveyDraftStep(surveyReviewStep, complete, false)).toBe(surveyReviewStep);

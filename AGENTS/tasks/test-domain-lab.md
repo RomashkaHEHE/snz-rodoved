@@ -343,6 +343,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - empty contacts kept the respondent on the contact step, focused `Имя`, and produced the existing validation status; valid name/phone opened the search step;
   - back navigation followed `review -> search -> contacts -> Q16`; changing Q16 to `Нет` removed all dependent values from review;
   - reloading from the search step retained non-contact context, redacted name/phone, returned to the contact step, and explicitly asked for both values again;
+  - a live version-2 draft already answered `Q16: Да` migrated directly to contacts rather than showing a contact warning on the Q16 screen;
   - the contact and search steps had no horizontal overflow at `375x812`; the contact panel and its actions fit at `1280x720`; browser warning/error logs were empty.
 - Verification after the progressive Q16 continuation:
   - `npm run typecheck`;

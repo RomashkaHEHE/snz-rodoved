@@ -66,7 +66,7 @@ export function resolveSurveyDraftStep(
 
   if (hasHelpRequest) {
     // Name and phone are intentionally redacted from browser drafts.
-    return requestedStep > surveyContactStep ? surveyContactStep : requestedStep;
+    return requestedStep >= surveyHelpStep ? surveyContactStep : requestedStep;
   }
 
   return requestedStep === surveyContactStep || requestedStep === surveySearchStep
