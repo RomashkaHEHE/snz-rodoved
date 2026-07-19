@@ -1,5 +1,7 @@
 import type {
   ContactStatus,
+  SavedFilterPreset,
+  SavedFilterPresetInput,
   SurveyFilters,
   SurveyPdfFile,
   SurveyResponse,
@@ -37,6 +39,25 @@ export async function listLabResponses(filters: SurveyFilters = {}): Promise<Sur
     `/api/responses${buildFilterQuery(filters)}`
   );
   return result.responses;
+}
+
+export async function listLabFilterPresets(): Promise<SavedFilterPreset[]> {
+  const result = await request<{ presets: SavedFilterPreset[] }>("/api/filter-presets");
+  return result.presets;
+}
+
+export async function saveLabFilterPreset(
+  input: SavedFilterPresetInput
+): Promise<SavedFilterPreset> {
+  const result = await request<{ preset: SavedFilterPreset }>("/api/filter-presets", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+  return result.preset;
+}
+
+export async function deleteLabFilterPreset(id: string): Promise<void> {
+  await request<void>(`/api/filter-presets/${id}`, { method: "DELETE" });
 }
 
 export async function createLabResponse(input: SurveyResponseInput): Promise<SurveyResponse> {

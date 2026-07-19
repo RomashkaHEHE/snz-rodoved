@@ -86,6 +86,21 @@ ALTER TABLE responses ADD COLUMN consent_to_events INTEGER
   CHECK (consent_to_events IN (0, 1));
 `;
 
+export const savedFilterPresetsMigrationSql = `
+CREATE TABLE IF NOT EXISTS saved_filter_presets (
+  id TEXT PRIMARY KEY NOT NULL,
+  name TEXT NOT NULL,
+  filters_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS saved_filter_presets_name_idx
+  ON saved_filter_presets (name);
+CREATE INDEX IF NOT EXISTS saved_filter_presets_updated_at_idx
+  ON saved_filter_presets (updated_at);
+`;
+
 const migrations = [
   {
     id: "0001_initial",
@@ -118,6 +133,10 @@ const migrations = [
   {
     id: "0008_response_consents",
     sql: responseConsentsMigrationSql
+  },
+  {
+    id: "0009_saved_filter_presets",
+    sql: savedFilterPresetsMigrationSql
   }
 ] as const;
 

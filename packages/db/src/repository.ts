@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import {
   answerQuestionIds,
+  savedFilterPresetInputSchema,
+  surveyFiltersSchema,
   parseSurveyDateFromPdfFileName,
   partialSurveyResponseInputSchema,
   surveyPdfFileUploadSchema,
@@ -10,6 +12,8 @@ import {
   type AnswerValue,
   type PartialSurveyResponseInput,
   type ResponseSource,
+  type SavedFilterPreset,
+  type SavedFilterPresetInput,
   type SurveyFilters,
   type SurveyPdfFile,
   type SurveyResponse,
@@ -19,10 +23,13 @@ import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
 import {
   responses,
+  savedFilterPresets,
   surveyPdfFiles,
+  type NewSavedFilterPresetRow,
   type NewResponseRow,
   type NewSurveyPdfFileRow,
   type ResponseRow,
+  type SavedFilterPresetRow,
   type SurveyPdfFileRow
 } from "./schema.js";
 
@@ -174,6 +181,59 @@ export class SurveyRepository {
   deleteFake(): number {
     const result = this.db.delete(responses).where(eq(responses.isFake, "true")).run();
     return result.changes;
+  }
+}
+
+export class SavedFilterPresetRepository {
+  constructor(private readonly db: AppDatabase) {}
+
+  list(): SavedFilterPreset[] {
+    return this.db
+      .select()
+      .from(savedFilterPresets)
+      .orderBy(desc(savedFilterPresets.updatedAt))
+      .all()
+      .map(toSavedFilterPreset);
+  }
+
+  upsert(input: SavedFilterPresetInput): SavedFilterPreset {
+    const parsed = savedFilterPresetInputSchema.parse(input);
+    const filtersJson = JSON.stringify(parsed.filters);
+    const now = new Date().toISOString();
+    const existing = this.db
+      .select()
+      .from(savedFilterPresets)
+      .where(eq(savedFilterPresets.name, parsed.name))
+      .get();
+
+    if (existing) {
+      const updated = this.db
+        .update(savedFilterPresets)
+        .set({ filtersJson, updatedAt: now })
+        .where(eq(savedFilterPresets.id, existing.id))
+        .returning()
+        .get();
+      return toSavedFilterPreset(updated);
+    }
+
+    const row: NewSavedFilterPresetRow = {
+      id: randomUUID(),
+      name: parsed.name,
+      filtersJson,
+      createdAt: now,
+      updatedAt: now
+    };
+    return toSavedFilterPreset(
+      this.db.insert(savedFilterPresets).values(row).returning().get()
+    );
+  }
+
+  delete(id: string): boolean {
+    const result = this.db
+      .delete(savedFilterPresets)
+      .where(eq(savedFilterPresets.id, id))
+      .run();
+    return result.changes > 0;
   }
 }
 
@@ -355,6 +415,16 @@ function toSurveyPdfFile(row: SurveyPdfFileRow): SurveyPdfFile {
     displayName: row.displayName,
     originalFileName: row.originalFileName,
     sizeBytes: row.sizeBytes,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
+  };
+}
+
+function toSavedFilterPreset(row: SavedFilterPresetRow): SavedFilterPreset {
+  return {
+    id: row.id,
+    name: row.name,
+    filters: surveyFiltersSchema.parse(JSON.parse(row.filtersJson)),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt
   };

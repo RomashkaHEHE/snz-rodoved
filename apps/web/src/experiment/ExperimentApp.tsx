@@ -38,14 +38,17 @@ import {
   createLabFakeResponse,
   createLabOnlineResponse,
   createLabResponse,
+  deleteLabFilterPreset,
   deleteLabFakeResponses,
   deleteLabPdfFile,
   deleteLabResponse,
   getLabPdfDownloadUrl,
   getLabSession,
   listLabPdfFiles,
+  listLabFilterPresets,
   listLabResponses,
   loginLabWorkspace,
+  saveLabFilterPreset,
   updateLabContactWorkflow,
   uploadLabPdfFile,
   updateLabResponse,
@@ -105,7 +108,11 @@ import {
 } from "./surveyDraft";
 import { buildPdfArchiveName, getPdfSelectionIssue } from "./pdfArchive";
 import { resolveSegmentedKeyboardIndex } from "./segmentedControl";
-import { answerQuestions, type SurveyFilters } from "@snz-rodoved/shared";
+import {
+  answerQuestions,
+  type SavedFilterPreset,
+  type SurveyFilters
+} from "@snz-rodoved/shared";
 import "./experiment.css";
 
 type RouteId = "survey" | "entry" | "data" | "pdf";
@@ -233,10 +240,12 @@ interface SurveyDraftState {
   step: number;
 }
 
-interface FilterPreset {
-  createdAt: string;
+interface FilterPreset extends Omit<SavedFilterPreset, "filters"> {
   filters: Filters;
-  id: string;
+}
+
+interface LegacyFilterPreset {
+  filters: Filters;
   name: string;
 }
 
@@ -1734,9 +1743,10 @@ function DataPage({
   const [detailMode, setDetailMode] = useState<"view" | "edit">("view");
   const [detailDraft, setDetailDraft] = useState<ResponseDraft | null>(null);
   const [questionGroupFilter, setQuestionGroupFilter] = useState<QuestionGroupFilter>("all");
-  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => readDataFilterPresets());
+  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(() => readDataFilterPanelOpen());
   const [presetName, setPresetName] = useState("");
+  const [presetBusy, setPresetBusy] = useState(true);
   const [dataMode, setDataMode] = useState<DataMode>(() => readDataMode(window.location.search));
   const [visibleHelpCount, setVisibleHelpCount] = useState(dataPageSize);
   const [visibleRowCount, setVisibleRowCount] = useState(dataPageSize);
@@ -1822,6 +1832,53 @@ function DataPage({
     { count: matchingPdfs.length, icon: FileText, id: "pdf", label: "PDF" },
     { count: filteredResponses.length, icon: BarChart3, id: "charts", label: "Графики" }
   ];
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshFilterPresets() {
+      const presets = await listLabFilterPresets();
+      if (!cancelled) {
+        setFilterPresets(presets.map(toFilterPreset));
+      }
+    }
+
+    async function loadFilterPresets() {
+      setPresetBusy(true);
+      try {
+        const legacyPresets = readLegacyDataFilterPresets();
+        if (legacyPresets.length > 0) {
+          await Promise.all(
+            legacyPresets.map((preset) =>
+              saveLabFilterPreset({ name: preset.name, filters: toSurveyFilters(preset.filters) })
+            )
+          );
+          clearLegacyDataFilterPresets();
+        }
+
+        await refreshFilterPresets();
+      } catch {
+        if (!cancelled) {
+          setDataStatus("Не удалось загрузить сохранённые срезы.");
+        }
+      } finally {
+        if (!cancelled) {
+          setPresetBusy(false);
+        }
+      }
+    }
+
+    const handleFocus = () => {
+      void refreshFilterPresets().catch(() => undefined);
+    };
+
+    void loadFilterPresets();
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
 
   useEffect(() => {
     function handlePopState() {
@@ -2154,27 +2211,33 @@ function DataPage({
     setDataMode("contacts");
   }
 
-  function saveFilterPreset() {
+  async function saveFilterPreset() {
     if (!filtersActive) {
       setDataStatus("Сначала выберите фильтры для среза.");
       return;
     }
 
-    const nextPreset: FilterPreset = {
-      createdAt: new Date().toISOString(),
-      filters: cloneFilters(filters),
-      id: createClientId(),
-      name: cleanOptional(presetName) ?? createFilterPresetName(filters)
-    };
-    const nextPresets = [
-      nextPreset,
-      ...filterPresets.filter((preset) => preset.name !== nextPreset.name)
-    ].slice(0, 12);
-
-    setFilterPresets(nextPresets);
-    writeDataFilterPresets(nextPresets);
-    setPresetName("");
-    setDataStatus("Срез сохранён.");
+    setPresetBusy(true);
+    try {
+      const savedPreset = toFilterPreset(
+        await saveLabFilterPreset({
+          filters: toSurveyFilters(filters),
+          name: cleanOptional(presetName) ?? createFilterPresetName(filters)
+        })
+      );
+      setFilterPresets((current) => [
+        savedPreset,
+        ...current.filter(
+          (preset) => preset.id !== savedPreset.id && preset.name !== savedPreset.name
+        )
+      ]);
+      setPresetName("");
+      setDataStatus("Срез сохранён для рабочей зоны.");
+    } catch {
+      setDataStatus("Не удалось сохранить срез.");
+    } finally {
+      setPresetBusy(false);
+    }
   }
 
   function applyFilterPreset(preset: FilterPreset) {
@@ -2182,10 +2245,16 @@ function DataPage({
     setDataStatus(`Срез «${preset.name}» применён.`);
   }
 
-  function deleteFilterPreset(id: string) {
-    const nextPresets = filterPresets.filter((preset) => preset.id !== id);
-    setFilterPresets(nextPresets);
-    writeDataFilterPresets(nextPresets);
+  async function deleteFilterPreset(id: string) {
+    setPresetBusy(true);
+    try {
+      await deleteLabFilterPreset(id);
+      setFilterPresets((current) => current.filter((preset) => preset.id !== id));
+    } catch {
+      setDataStatus("Не удалось удалить срез.");
+    } finally {
+      setPresetBusy(false);
+    }
   }
 
   function changeDataMode(nextMode: DataMode) {
@@ -2378,7 +2447,7 @@ function DataPage({
         ) : null}
         {filtersOpen ? (
           <div className="filter-body">
-            <div className="filter-presets">
+            <div aria-busy={presetBusy} className="filter-presets">
               <div className="preset-save-row">
                 <label>
                   Сохранить срез
@@ -2388,7 +2457,12 @@ function DataPage({
                     onChange={(event) => setPresetName(event.target.value)}
                   />
                 </label>
-                <button className="ghost-button compact-button" disabled={!filtersActive} type="button" onClick={saveFilterPreset}>
+                <button
+                  className="ghost-button compact-button"
+                  disabled={!filtersActive || presetBusy}
+                  type="button"
+                  onClick={saveFilterPreset}
+                >
                   <Save aria-hidden size={16} />
                   Сохранить
                 </button>
@@ -2400,8 +2474,14 @@ function DataPage({
                       <button type="button" onClick={() => applyFilterPreset(preset)}>
                         {preset.name}
                       </button>
-                      <button aria-label={`Удалить срез ${preset.name}`} type="button" onClick={() => deleteFilterPreset(preset.id)}>
-                        x
+                      <button
+                        aria-label={`Удалить срез ${preset.name}`}
+                        disabled={presetBusy}
+                        title="Удалить срез"
+                        type="button"
+                        onClick={() => deleteFilterPreset(preset.id)}
+                      >
+                        <Trash2 aria-hidden size={15} />
                       </button>
                     </div>
                   ))}
@@ -4770,7 +4850,7 @@ function clearSurveyDraftState(): void {
   }
 }
 
-function readDataFilterPresets(): FilterPreset[] {
+function readLegacyDataFilterPresets(): LegacyFilterPreset[] {
   try {
     const raw = window.localStorage.getItem(dataFilterPresetsStorageKey);
     if (!raw) {
@@ -4783,19 +4863,19 @@ function readDataFilterPresets(): FilterPreset[] {
     }
 
     return parsed
-      .map(coerceStoredFilterPreset)
-      .filter((preset): preset is FilterPreset => preset !== null)
+      .map(coerceLegacyFilterPreset)
+      .filter((preset): preset is LegacyFilterPreset => preset !== null)
       .slice(0, 12);
   } catch {
     return [];
   }
 }
 
-function writeDataFilterPresets(presets: FilterPreset[]): void {
+function clearLegacyDataFilterPresets(): void {
   try {
-    window.localStorage.setItem(dataFilterPresetsStorageKey, JSON.stringify(presets));
+    window.localStorage.removeItem(dataFilterPresetsStorageKey);
   } catch {
-    // Saved slices are optional; data work must continue without localStorage.
+    // The server copy is authoritative after migration; stale local data is harmless.
   }
 }
 
@@ -4841,15 +4921,13 @@ function renderContactName(value: string | undefined, hidden: boolean): string {
   return hidden ? "Имя скрыто" : value;
 }
 
-function coerceStoredFilterPreset(value: unknown): FilterPreset | null {
+function coerceLegacyFilterPreset(value: unknown): LegacyFilterPreset | null {
   if (!isRecord(value) || !isRecord(value.filters)) {
     return null;
   }
 
   return {
-    createdAt: typeof value.createdAt === "string" ? value.createdAt : new Date().toISOString(),
     filters: coerceStoredFilters(value.filters),
-    id: typeof value.id === "string" && value.id ? value.id : createClientId(),
     name: typeof value.name === "string" && value.name.trim() ? value.name.trim() : "Срез"
   };
 }
@@ -4869,6 +4947,33 @@ function coerceStoredFilters(value: Record<string, unknown>): Filters {
     query: typeof value.query === "string" ? value.query.trim() : "",
     residence: readStoredList(value.residence, isResidence),
     source: value.source === "paper" || value.source === "online" ? value.source : "all"
+  };
+}
+
+function toFilterPreset(preset: SavedFilterPreset): FilterPreset {
+  return {
+    ...preset,
+    filters: filtersFromApi(preset.filters)
+  };
+}
+
+function filtersFromApi(filters: SurveyFilters): Filters {
+  const source = filters.source?.length === 1 ? filters.source[0] : "all";
+
+  return {
+    ageGroup: [...(filters.ageGroup ?? [])],
+    contactNextFrom: filters.contactNextFrom ?? "",
+    contactNextMissing: filters.contactNextMissing ?? false,
+    contactNextTo: filters.contactNextTo ?? "",
+    contactOnly: filters.contactOnly ?? false,
+    contactStatus: [...(filters.contactStatus ?? [])],
+    dateFrom: filters.dateFrom ?? "",
+    dateTo: filters.dateTo ?? "",
+    gender: [...(filters.gender ?? [])],
+    helpOnly: filters.helpOnly ?? false,
+    query: filters.query ?? "",
+    residence: [...(filters.residence ?? [])],
+    source
   };
 }
 
@@ -5455,10 +5560,6 @@ function addDaysString(days: number): string {
 function toDateInputString(date: Date): string {
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return localDate.toISOString().slice(0, 10);
-}
-
-function createClientId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function parseOptionalNumber(value: string): number | undefined {

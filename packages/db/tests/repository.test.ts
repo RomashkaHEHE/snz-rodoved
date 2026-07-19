@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   createDatabaseConnection,
+  SavedFilterPresetRepository,
   SurveyPdfFileRepository,
   SurveyRepository,
   type DatabaseConnection
@@ -219,5 +220,26 @@ describe("SurveyRepository", () => {
     const filtered = repository.list({ dateFrom: "2026-05-01", dateTo: "2026-05-31" });
     expect(filtered).toHaveLength(1);
     expect(filtered[0]?.surveyDate).toBe("2026-05-17");
+  });
+
+  it("stores shared filter presets and updates matching names", () => {
+    connection = createDatabaseConnection({ databasePath: ":memory:" });
+    const repository = new SavedFilterPresetRepository(connection.db);
+
+    const created = repository.upsert({
+      name: "Обращения",
+      filters: { contactStatus: ["new"], helpOnly: true }
+    });
+    const updated = repository.upsert({
+      name: "Обращения",
+      filters: { contactStatus: ["in_progress"], helpOnly: true }
+    });
+
+    expect(updated.id).toBe(created.id);
+    expect(repository.list()).toHaveLength(1);
+    expect(repository.list()[0]?.filters.contactStatus).toEqual(["in_progress"]);
+    expect(repository.delete(created.id)).toBe(true);
+    expect(repository.delete(created.id)).toBe(false);
+    expect(repository.list()).toHaveLength(0);
   });
 });

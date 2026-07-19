@@ -5,6 +5,7 @@ import {
   onlineSurveyResponseInputSchema,
   parseSurveyDateFromPdfFileName,
   partialSurveyResponseInputSchema,
+  savedFilterPresetInputSchema,
   surveyPdfFileNameSchema,
   surveyFiltersSchema,
   surveyResponseInputSchema,
@@ -223,6 +224,21 @@ describe("survey response schema", () => {
     expect(parsed.helpOnly).toBe(true);
     expect(parsed.contactStatus).toEqual(["in_progress", "no_contact"]);
     expect(parsed.query).toBe("Челябинская область");
+  });
+
+  it("validates saved filter presets", () => {
+    const parsed = savedFilterPresetInputSchema.parse({
+      name: "  Обращения за месяц  ",
+      filters: {
+        dateFrom: "2026-05-01",
+        helpOnly: true,
+        source: ["online"]
+      }
+    });
+
+    expect(parsed.name).toBe("Обращения за месяц");
+    expect(parsed.filters.helpOnly).toBe(true);
+    expect(() => savedFilterPresetInputSchema.parse({ name: " ", filters: {} })).toThrow();
   });
 
   it("contains the paper quick value for the war details dash", () => {

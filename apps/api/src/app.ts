@@ -9,6 +9,7 @@ import fastifyStatic from "@fastify/static";
 import multipart from "@fastify/multipart";
 import {
   createDatabaseConnection,
+  SavedFilterPresetRepository,
   SurveyPdfFileRepository,
   SurveyRepository,
   type DatabaseConnection
@@ -21,6 +22,7 @@ import {
   onlineSurveyResponseInputSchema,
   partialSurveyResponseInputSchema,
   residenceValues,
+  savedFilterPresetInputSchema,
   surveyResponseInputSchema,
   surveyPdfFileUploadSchema,
   warDetailQuickValues,
@@ -62,6 +64,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const connection = createDatabaseConnection({ databasePath: options.databasePath });
   const repository = new SurveyRepository(connection.db);
   const pdfRepository = new SurveyPdfFileRepository(connection.db);
+  const filterPresetRepository = new SavedFilterPresetRepository(connection.db);
   const pdfStorage = resolvePdfStorage(options);
   const authConfig = resolveAuthConfig(options.auth);
   const app = Fastify({ logger: options.logger ?? false });
@@ -92,7 +95,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     throwFileSizeLimit: true
   });
 
-  registerApiRoutes(app, repository, pdfRepository, pdfStorage.dir, authConfig, connection);
+  registerApiRoutes(
+    app,
+    repository,
+    pdfRepository,
+    filterPresetRepository,
+    pdfStorage.dir,
+    authConfig,
+    connection
+  );
   await registerFrontend(app, options.webDistDir);
 
   return app;
@@ -102,6 +113,7 @@ function registerApiRoutes(
   app: FastifyInstance,
   repository: SurveyRepository,
   pdfRepository: SurveyPdfFileRepository,
+  filterPresetRepository: SavedFilterPresetRepository,
   pdfStorageDir: string,
   authConfig: AuthConfig,
   connection: DatabaseConnection
@@ -170,6 +182,26 @@ function registerApiRoutes(
     const filters = parseFiltersFromQuery(request.query);
     return { responses: repository.list(filters) };
   });
+
+  app.get("/api/filter-presets", { preHandler: requireWorkspace }, async () => ({
+    presets: filterPresetRepository.list()
+  }));
+
+  app.post("/api/filter-presets", { preHandler: requireWorkspace }, async (request) => ({
+    preset: filterPresetRepository.upsert(savedFilterPresetInputSchema.parse(request.body))
+  }));
+
+  app.delete<{ Params: { id: string } }>(
+    "/api/filter-presets/:id",
+    { preHandler: requireWorkspace },
+    async (request, reply) => {
+      if (!filterPresetRepository.delete(request.params.id)) {
+        return reply.code(404).send({ error: "not_found" });
+      }
+
+      return reply.code(204).send();
+    }
+  );
 
   app.get("/api/responses/export.csv", { preHandler: requireWorkspace }, async (request, reply) => {
     const filters = parseFiltersFromQuery(request.query);

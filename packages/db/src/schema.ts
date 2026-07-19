@@ -83,3 +83,21 @@ export const surveyPdfFiles = sqliteTable(
 
 export type SurveyPdfFileRow = typeof surveyPdfFiles.$inferSelect;
 export type NewSurveyPdfFileRow = typeof surveyPdfFiles.$inferInsert;
+
+export const savedFilterPresets = sqliteTable(
+  "saved_filter_presets",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    filtersJson: text("filters_json").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull()
+  },
+  (table) => ({
+    nameIdx: uniqueIndex("saved_filter_presets_name_idx").on(table.name),
+    updatedAtIdx: index("saved_filter_presets_updated_at_idx").on(table.updatedAt)
+  })
+);
+
+export type SavedFilterPresetRow = typeof savedFilterPresets.$inferSelect;
+export type NewSavedFilterPresetRow = typeof savedFilterPresets.$inferInsert;

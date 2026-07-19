@@ -73,6 +73,76 @@ describe("api app", () => {
       url: "/api/pdf-files"
     });
     expect(pdfFilesUnauthorized.statusCode).toBe(401);
+
+    const filterPresetsUnauthorized = await app.inject({
+      method: "GET",
+      url: "/api/filter-presets"
+    });
+    expect(filterPresetsUnauthorized.statusCode).toBe(401);
+  });
+
+  it("stores shared filter presets behind workspace login", async () => {
+    app = await buildApp({
+      databasePath: ":memory:",
+      auth: {
+        username: "admin",
+        password: "secret",
+        workspacePassword: "workspace-secret",
+        sessionSecret: "test-secret"
+      },
+      webDistDir: false
+    });
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/workspace-login",
+      payload: { password: "workspace-secret" }
+    });
+    const cookie = login.headers["set-cookie"];
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/filter-presets",
+      headers: { cookie },
+      payload: {
+        name: "Обращения",
+        filters: { contactStatus: ["new"], helpOnly: true }
+      }
+    });
+    expect(created.statusCode).toBe(200);
+
+    const updated = await app.inject({
+      method: "POST",
+      url: "/api/filter-presets",
+      headers: { cookie },
+      payload: {
+        name: "Обращения",
+        filters: { contactStatus: ["in_progress"], helpOnly: true }
+      }
+    });
+    expect(updated.json().preset.id).toBe(created.json().preset.id);
+
+    const listed = await app.inject({
+      method: "GET",
+      url: "/api/filter-presets",
+      headers: { cookie }
+    });
+    expect(listed.json().presets).toHaveLength(1);
+    expect(listed.json().presets[0].filters.contactStatus).toEqual(["in_progress"]);
+
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: `/api/filter-presets/${created.json().preset.id}`,
+      headers: { cookie }
+    });
+    expect(deleted.statusCode).toBe(204);
+
+    const missing = await app.inject({
+      method: "DELETE",
+      url: `/api/filter-presets/${created.json().preset.id}`,
+      headers: { cookie }
+    });
+    expect(missing.statusCode).toBe(404);
   });
 
   it("accepts public online survey responses without workspace login", async () => {

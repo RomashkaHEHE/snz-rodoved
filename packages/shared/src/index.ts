@@ -319,9 +319,25 @@ export const surveyFiltersSchema = z.object({
   answerFilters: z.record(answerQuestionIdSchema, z.array(answerSchema)).optional()
 });
 
+export const savedFilterPresetInputSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Укажите название среза")
+    .max(80, "Название среза должно быть короче 80 символов"),
+  filters: surveyFiltersSchema
+});
+
 export type SurveyResponseInput = z.infer<typeof surveyResponseInputSchema>;
 export type PartialSurveyResponseInput = z.infer<typeof partialSurveyResponseInputSchema>;
 export type SurveyFilters = z.infer<typeof surveyFiltersSchema>;
+export type SavedFilterPresetInput = z.infer<typeof savedFilterPresetInputSchema>;
+
+export interface SavedFilterPreset extends SavedFilterPresetInput {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface SurveyResponse extends Omit<
   SurveyResponseInput,

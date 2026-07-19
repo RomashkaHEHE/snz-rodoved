@@ -53,7 +53,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - active data filters are shown as removable chips so the operator can clear one constraint without resetting the whole slice;
   - data filter controls start collapsed and the open/collapsed state is stored locally in the browser;
   - data filters are mirrored into `/data` URL query, so current slices survive reload/back-forward and can be copied as links;
-  - data filters can be saved as local browser presets for repeated reviews;
+  - data filters can be saved as workspace-wide server presets for repeated reviews. Presets are shared across devices, update by normalized name, and import legacy browser-local values once;
   - the data screen has task modes for `Обращения`, `Анкеты`, `PDF`, and `Графики`; desktop uses low-chrome tabs and phone layouts use one select. The selected mode is stored in the `view` URL parameter and survives reload/back-forward together with the filter slice;
   - contact and questionnaire lists mount 20 rows at first and continue in explicit 20-row batches. The full filtered array remains authoritative for counts, analytics, PDF coverage, CSV, and contact planning;
   - the data row inspector shows consent as `Да`/`Нет`/`Не зафиксировано` and full Q4-Q16 answers with `Да`/`Нет`/`Нет ответа` chips, not only the positive answers;
@@ -89,10 +89,9 @@ The test domain must have its own interface, its own UX decisions, and may use n
 ## Next Product Steps
 
 1. Review whether contact workflow needs assignee-like markers or a separate compact call screen.
-2. Review whether saved filter presets should remain local-only or become account-level server data.
-3. Keep reviewing both guided entry and the mobile data workspace on real iPhone/Safari.
-4. Consider a safer operator workflow for merging duplicated paper/online rows.
-5. Consider whether the online survey needs a shorter mode for people who only want help with one narrow topic.
+2. Keep reviewing both guided entry and the mobile data workspace on real iPhone/Safari.
+3. Consider a safer operator workflow for merging duplicated paper/online rows.
+4. Consider whether the online survey needs a shorter mode for people who only want help with one narrow topic.
 
 ## Last Verification
 
@@ -182,7 +181,10 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - the built JS contains `Активные фильтры`, `Дата с`, and `Статус:`;
   - the built CSS contains `active-filter-chips`.
 - HTTP/asset smoke for saved filter presets confirmed:
-  - the built JS contains `Сохранить срез`, `Сохранённые срезы`, and `rodoved-test-data-filter-presets-v1`;
+  - protected API tests cover list, create, same-name update, and deletion;
+  - repository tests cover newest-first listing, upsert by name, and deletion;
+  - two local browser tabs loaded the same server preset, a same-name save kept one row, and deletion was visible after the second tab refreshed;
+  - legacy `rodoved-test-data-filter-presets-v1` values are removed only after successful server import;
   - the built CSS contains `filter-presets` and `preset-row`.
 - HTTP/asset smoke for operator entry confirmed:
   - the built JS contains `Навигация по анкете`, `Заполнено`, `Найти пропуск`, `Данные анкеты`, and `Быстрый ввод`;
