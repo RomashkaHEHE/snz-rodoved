@@ -1762,7 +1762,7 @@ function DataPage({
 }) {
   const [filters, setFilters] = useState<Filters>(() => filtersFromSearch(window.location.search));
   const [dataStatus, setDataStatus] = useState("");
-  const [busyAction, setBusyAction] = useState<"csv" | "fake-add" | "fake-delete" | "row-delete" | "row-restore" | "row-save" | null>(null);
+  const [busyAction, setBusyAction] = useState<"csv" | "csv-contacts" | "fake-add" | "fake-delete" | "row-delete" | "row-restore" | "row-save" | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailMode, setDetailMode] = useState<"view" | "edit">("view");
   const [detailDraft, setDetailDraft] = useState<ResponseDraft | null>(null);
@@ -2199,12 +2199,16 @@ function DataPage({
     }
   }
 
-  async function handleExportCsv() {
-    setBusyAction("csv");
+  async function handleExportCsv(includeContacts = false) {
+    setBusyAction(includeContacts ? "csv-contacts" : "csv");
     setDataStatus("");
     try {
-      await exportLabResponsesCsv(toSurveyFilters(filters));
-      setDataStatus("CSV сформирован по текущему срезу.");
+      await exportLabResponsesCsv(toSurveyFilters(filters), { includeContacts });
+      setDataStatus(
+        includeContacts
+          ? "CSV с именами и телефонами сформирован."
+          : "CSV без имени и телефона сформирован."
+      );
     } catch {
       setDataStatus("Не удалось выгрузить CSV.");
     } finally {
@@ -2367,15 +2371,17 @@ function DataPage({
         </div>
         <div className="header-action-row">
           <button
-            aria-label={busyAction === "csv" ? "Формируется CSV" : "Скачать CSV по текущему срезу"}
+            aria-label={busyAction === "csv" ? "Формируется CSV" : "Скачать CSV без имени и телефона"}
             className="primary-button"
             disabled={busyAction !== null}
-            title="Скачать CSV по текущему срезу"
+            title="Скачать CSV без имени и телефона"
             type="button"
-            onClick={handleExportCsv}
+            onClick={() => void handleExportCsv()}
           >
             <Download aria-hidden size={18} />
-            <span className="data-action-label">{busyAction === "csv" ? "CSV..." : "CSV"}</span>
+            <span className="data-action-label">
+              {busyAction === "csv" ? "CSV..." : "CSV без имени и телефона"}
+            </span>
           </button>
           <details className="action-menu">
             <summary aria-label="Другие действия" className="ghost-button" title="Другие действия">
@@ -2383,6 +2389,23 @@ function DataPage({
               <span className="data-action-label">Ещё</span>
             </summary>
             <div className="action-menu-popover">
+              <button
+                disabled={busyAction !== null}
+                type="button"
+                onClick={(event) => {
+                  event.currentTarget.closest("details")?.removeAttribute("open");
+                  if (
+                    window.confirm(
+                      "Скачать CSV с именами и телефонами? Файл будет содержать контакты всех анкет в текущем срезе."
+                    )
+                  ) {
+                    void handleExportCsv(true);
+                  }
+                }}
+              >
+                <Download aria-hidden size={18} />
+                CSV с именами и телефонами
+              </button>
               <button
                 type="button"
                 onClick={(event) => {

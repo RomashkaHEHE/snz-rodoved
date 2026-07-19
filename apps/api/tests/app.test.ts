@@ -319,8 +319,13 @@ describe("api app", () => {
 
     expect(exported.statusCode).toBe(200);
     expect(exported.headers["content-type"]).toContain("text/csv");
+    expect(exported.headers["content-disposition"]).toContain(
+      "rodoved-responses-without-name-phone.csv"
+    );
     expect(exported.body).toContain("Источник");
-    expect(exported.body).toContain("Номер телефона");
+    expect(exported.body).not.toContain(";Имя;");
+    expect(exported.body).not.toContain("Номер телефона");
+    expect(exported.body).not.toContain("+7 900 000-00-00");
     expect(exported.body).toContain("Согласие на обработку данных");
     expect(exported.body).toContain("Согласие на приглашения");
     expect(exported.body).toContain("Статус обращения");
@@ -335,6 +340,20 @@ describe("api app", () => {
     expect(exported.body).toContain("Нет ответа");
     expect(exported.body).toContain("ВОв");
     expect(exported.body).not.toContain("I Мировая");
+
+    const exportedWithContacts = await app.inject({
+      method: "GET",
+      url: "/api/responses/export.csv?contactOnly=true&contactStatus=in_progress&query=Ивановы&includeContacts=true",
+      headers: { cookie }
+    });
+
+    expect(exportedWithContacts.statusCode).toBe(200);
+    expect(exportedWithContacts.headers["content-disposition"]).toContain(
+      "rodoved-responses-with-contacts.csv"
+    );
+    expect(exportedWithContacts.body).toContain(";Имя;Номер телефона;");
+    expect(exportedWithContacts.body).toContain("Алёна");
+    expect(exportedWithContacts.body).toContain("+7 900 000-00-00");
   });
 
   it("keeps deleted responses out of lists, analytics, and CSV until restored", async () => {

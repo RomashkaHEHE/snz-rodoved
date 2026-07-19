@@ -209,11 +209,15 @@ function registerApiRoutes(
 
   app.get("/api/responses/export.csv", { preHandler: requireWorkspace }, async (request, reply) => {
     const filters = parseFiltersFromQuery(request.query);
-    const csv = buildResponsesCsv(repository.list(filters));
+    const includeContacts = hasTrueQueryParam(request.query, "includeContacts");
+    const csv = buildResponsesCsv(repository.list(filters), { includeContacts });
+    const filename = includeContacts
+      ? "rodoved-responses-with-contacts.csv"
+      : "rodoved-responses-without-name-phone.csv";
 
     return reply
       .header("Content-Type", "text/csv; charset=utf-8")
-      .header("Content-Disposition", 'attachment; filename="rodoved-responses.csv"')
+      .header("Content-Disposition", `attachment; filename="${filename}"`)
       .send(csv);
   });
 
@@ -682,4 +686,12 @@ function randomItem<TValue>(values: readonly TValue[]): TValue {
 
 function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function hasTrueQueryParam(query: unknown, key: string): boolean {
+  if (!query || typeof query !== "object") {
+    return false;
+  }
+
+  return (query as Record<string, unknown>)[key] === "true";
 }

@@ -30,6 +30,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - Experimental UI lives under `apps/web/src/experiment`.
 - The visible test site opens as a product UI with working task screens.
 - Individual questionnaire deletion is a soft-delete backed by `responses.deleted_at`. The active repository query is the shared boundary for lists, filters, analytics, and CSV. The data-page secondary menu opens a recoverable trash view; immediate undo and per-row restore return the original row. Real rows cannot be permanently deleted from the UI, while fake-only cleanup physically removes active and trashed rows only when `isFake=true`.
+- The primary CSV export is the current filtered slice without `contactName`/`contactPhone`. A separate confirmed menu action requests `includeContacts=true` and downloads a clearly named contacts file. Column selection is enforced in `apps/api/src/csv.ts`, not inferred from the UI privacy toggle.
 - Current flows use the isolated test backend:
   - public online survey starts with demographics, then shows one Q4-Q16 question at a time in the paper questionnaire's order. The experimental interface consumes the shared `answerQuestions` catalog instead of maintaining a second question copy. Deliberate `yes`/`no` answers advance automatically, Q11/Q16 wait when follow-up fields open, and an unanswered question moves on only through `Пропустить`;
   - the public review records required processing-answer consent and a separate optional invitation consent from the original paper form. Invitation consent remains available regardless of Q16 and survives changes to the help request. These choices have distinct visible status, while the review states that answers and contacts are not published. Contact phone input accepts common punctuation but requires 10-15 digits before the review can open;
@@ -330,3 +331,9 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - `npm run test` (`73` tests);
   - `VITE_APP_ENV=test npm run build`;
   - `git diff --check`.
+- Local API/browser smoke for privacy-aware CSV export confirmed:
+  - the default filtered export omitted both contact headers and the seeded test name/phone values;
+  - `includeContacts=true` preserved the same slice, included both values, and returned the `with-contacts` filename;
+  - the default file and UI action explicitly say `without-name-phone` / `без имени и телефона` rather than claiming the remaining data is anonymous;
+  - at `375x812`, the primary action stayed icon-sized with an exact accessible name and the explicit contact export fit inside `Ещё`; at `1280x720`, the full primary label fit without horizontal overflow;
+  - the primary action completed with visible status, screen contacts remained masked, and browser warning/error logs were empty.

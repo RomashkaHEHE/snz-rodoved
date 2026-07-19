@@ -150,8 +150,17 @@ export function getLabPdfDownloadUrl(id: string): string {
   return `${apiBase}/api/pdf-files/${id}/download`;
 }
 
-export async function exportLabResponsesCsv(filters: SurveyFilters = {}): Promise<void> {
-  const response = await fetch(`${apiBase}/api/responses/export.csv${buildFilterQuery(filters)}`, {
+export async function exportLabResponsesCsv(
+  filters: SurveyFilters = {},
+  options: { includeContacts?: boolean } = {}
+): Promise<void> {
+  const params = new URLSearchParams(buildFilterQuery(filters).slice(1));
+  if (options.includeContacts) {
+    params.set("includeContacts", "true");
+  }
+  const queryString = params.toString();
+  const query = queryString ? `?${queryString}` : "";
+  const response = await fetch(`${apiBase}/api/responses/export.csv${query}`, {
     credentials: "include"
   });
 
@@ -163,7 +172,9 @@ export async function exportLabResponsesCsv(filters: SurveyFilters = {}): Promis
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "rodoved-test-responses.csv";
+  link.download = options.includeContacts
+    ? "rodoved-test-responses-with-contacts.csv"
+    : "rodoved-test-responses-without-name-phone.csv";
   document.body.append(link);
   link.click();
   link.remove();

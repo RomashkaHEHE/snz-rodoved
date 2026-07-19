@@ -6,6 +6,8 @@ The public online survey has a free-text field because the customer needs search
 
 When the online respondent answers `yes` to q16 ("need help"), the form asks for name and phone. These are personal contact fields and must remain available only to the workspace/admin flow, CSV export, and protected API responses.
 
+CSV export must require a deliberate choice before including `contactName` or `contactPhone`. The default protected export omits both columns at the server, regardless of the browser's local contact-visibility state. `includeContacts=true` is reserved for the separately named and confirmed workspace action. Do not call the default file anonymous: territory, free text, and workflow notes may still identify a person.
+
 The public form accepts familiar phone punctuation but requires 10-15 digits. This is a data-quality rule, not phone ownership verification.
 
 Consent fields are nullable booleans. `undefined`/database `NULL` means that no mark was recorded and must be displayed/exported as `Не зафиксировано`, never silently converted to `Нет`. Public online submission requires `consentToDataProcessing=true`; invitation consent is an independent optional answer from the original paper form and must not be cleared when Q16 changes. These controls record the respondent's choice but do not by themselves claim legal compliance; final legal text and policy links require customer/legal review.
