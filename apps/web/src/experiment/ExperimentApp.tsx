@@ -30,6 +30,7 @@ import {
   useState,
   type ChangeEvent,
   type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode
 } from "react";
 import {
@@ -103,6 +104,7 @@ import {
   type SurveyContactValidationIssue
 } from "./surveyDraft";
 import { buildPdfArchiveName, getPdfSelectionIssue } from "./pdfArchive";
+import { resolveSegmentedKeyboardIndex } from "./segmentedControl";
 import { answerQuestions, type SurveyFilters } from "@snz-rodoved/shared";
 import "./experiment.css";
 
@@ -3244,6 +3246,25 @@ function SegmentedGroup({
   ]
     .filter(Boolean)
     .join(" ");
+  const selectedIndex = options.findIndex((option) => option.value === value);
+  const tabStopIndex = selectedIndex >= 0 ? selectedIndex : 0;
+
+  function handleOptionKeyDown(
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    currentIndex: number
+  ) {
+    const nextIndex = resolveSegmentedKeyboardIndex(event.key, currentIndex, options.length);
+    if (nextIndex === null) {
+      return;
+    }
+
+    event.preventDefault();
+    const nextButton = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
+      "button"
+    )[nextIndex];
+    nextButton?.focus();
+    onChange(options[nextIndex].value);
+  }
 
   return (
     <fieldset
@@ -3254,13 +3275,15 @@ function SegmentedGroup({
     >
       {label ? <legend>{label}</legend> : null}
       <div>
-        {options.map((option) => (
+        {options.map((option, index) => (
           <button
             aria-pressed={value === option.value}
             className={value === option.value ? "is-selected" : ""}
             key={option.value}
+            tabIndex={index === tabStopIndex ? 0 : -1}
             type="button"
             onClick={() => onChange(option.value)}
+            onKeyDown={(event) => handleOptionKeyDown(event, index)}
           >
             {option.label}
           </button>

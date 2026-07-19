@@ -35,6 +35,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - the final online check is four compact collapsed summaries for demographics, experience, interests, and help. Each summary exposes full answers and the relevant edit action only when opened;
   - versioned browser draft navigation preserves current question positions and migrates legacy five-step drafts to the matching focused-flow section;
   - the first online step starts with no selected demographics and blocks later steps until gender, age group, and residence have each been chosen deliberately;
+  - single-choice segmented controls expose one tab stop per field/question. Arrow keys select adjacent options, including wrap-around, while `Home` and `End` jump to the boundaries. This reduces keyboard paper entry without adding visible shortcut instructions or changing touch controls;
   - online draft persistence expires after 24 hours and redacts name/phone; restored q16 help requests reopen the help step with empty contact fields;
   - resetting a non-empty online survey requires confirmation, and missing restored contacts return focus to the name input instead of leaving the visitor on review;
   - the rare full-survey reset is placed after the review/navigation actions and does not compete with progress or submission. The submit action uses a send symbol and remains the only filled action on the final screen;
@@ -303,3 +304,8 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - mobile detail showed contact reveal, contact tiles, search disclosure, status, date, quick dates, note, and save in the first viewport; demographic data and Q4-Q16 moved into a separate collapsed disclosure;
   - revealing a contact exposed the `tel:` number and one clear `Позвонить` action; the default state kept both name and phone hidden;
   - saving `В работе` persisted the status, updated the queue counts and re-sorted the row; closing the inspector after that did not auto-open the next row.
+- Local browser smoke for segmented-control keyboard entry confirmed:
+  - every one of the 17 single-choice groups in desktop paper entry exposed exactly one tabbable option rather than one tab stop per button;
+  - `ArrowLeft` changed Q4 from `—` to `Нет`, moved focus to the selected option, and updated the roving tab stop;
+  - the public survey accepted `ArrowRight` on Q4, recorded `Нет`, and followed the existing automatic advance to Q5;
+  - at `375x812`, a demographic option remained touch-selectable and the entry page had no horizontal overflow.
