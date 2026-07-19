@@ -1,4 +1,5 @@
 import {
+  ArchiveRestore,
   BarChart3,
   CalendarDays,
   CheckCircle,
@@ -44,10 +45,12 @@ import {
   deleteLabResponse,
   getLabPdfDownloadUrl,
   getLabSession,
+  listLabDeletedResponses,
   listLabPdfFiles,
   listLabFilterPresets,
   listLabResponses,
   loginLabWorkspace,
+  restoreLabResponse,
   saveLabFilterPreset,
   updateLabContactWorkflow,
   uploadLabPdfFile,
@@ -162,6 +165,7 @@ interface SurveyResponse extends AnswerFields {
   contactStatus: ContactStatus;
   contactNote?: string;
   contactNextDate?: string;
+  deletedAt?: string;
   isFake: boolean;
   createdAt: string;
   updatedAt: string;
@@ -291,6 +295,11 @@ const surveyDateFormatter = new Intl.DateTimeFormat("ru-RU", {
   year: "numeric"
 });
 
+const dateTimeFormatter = new Intl.DateTimeFormat("ru-RU", {
+  dateStyle: "short",
+  timeStyle: "short"
+});
+
 const contactStatusLabels: Record<ContactStatus, string> = {
   new: "Новое",
   in_progress: "В работе",
@@ -334,6 +343,7 @@ export function ExperimentApp() {
   const [route, setRoute] = useState<RouteId>(() => routeFromPath(window.location.pathname));
   const [session, setSession] = useState<LabSession | null>(null);
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
+  const [deletedResponses, setDeletedResponses] = useState<SurveyResponse[]>([]);
   const [pdfFiles, setPdfFiles] = useState<PdfRecord[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [workspaceStatus, setWorkspaceStatus] = useState("");
@@ -367,8 +377,13 @@ export function ExperimentApp() {
   }
 
   async function refreshWorkspaceData() {
-    const [nextResponses, nextPdfFiles] = await Promise.all([listLabResponses(), listLabPdfFiles()]);
+    const [nextResponses, nextDeletedResponses, nextPdfFiles] = await Promise.all([
+      listLabResponses(),
+      listLabDeletedResponses(),
+      listLabPdfFiles()
+    ]);
     setResponses(nextResponses as SurveyResponse[]);
+    setDeletedResponses(nextDeletedResponses as SurveyResponse[]);
     setPdfFiles(nextPdfFiles as PdfRecord[]);
   }
 
@@ -407,6 +422,11 @@ export function ExperimentApp() {
 
   async function removeResponse(id: string) {
     await deleteLabResponse(id);
+    await refreshWorkspaceData();
+  }
+
+  async function restoreResponse(id: string) {
+    await restoreLabResponse(id);
     await refreshWorkspaceData();
   }
 
@@ -515,6 +535,7 @@ export function ExperimentApp() {
       ) : null}
       {route === "data" && workspaceReady ? (
         <DataPage
+          deletedResponses={deletedResponses}
           pdfFiles={pdfFiles}
           responses={responses}
           onCreateFake={addFakeResponse}
@@ -522,6 +543,7 @@ export function ExperimentApp() {
           onDeleteFake={removeFakeResponses}
           onEdit={editResponse}
           onOpenPdfArchive={() => navigate("pdf")}
+          onRestore={restoreResponse}
           onSaveContact={saveContactWorkflow}
           onSave={saveDraft}
         />
@@ -1711,6 +1733,7 @@ function EntryPage({
 }
 
 function DataPage({
+  deletedResponses,
   pdfFiles,
   onCreateFake,
   responses,
@@ -1718,9 +1741,11 @@ function DataPage({
   onDeleteFake,
   onEdit,
   onOpenPdfArchive,
+  onRestore,
   onSaveContact,
   onSave
 }: {
+  deletedResponses: SurveyResponse[];
   pdfFiles: PdfRecord[];
   onCreateFake: () => Promise<void>;
   responses: SurveyResponse[];
@@ -1728,6 +1753,7 @@ function DataPage({
   onDeleteFake: () => Promise<number>;
   onEdit: (id: string) => void;
   onOpenPdfArchive: () => void;
+  onRestore: (id: string) => Promise<void>;
   onSaveContact: (
     id: string,
     input: { contactNextDate?: string; contactNote?: string; contactStatus: ContactStatus }
@@ -1736,7 +1762,7 @@ function DataPage({
 }) {
   const [filters, setFilters] = useState<Filters>(() => filtersFromSearch(window.location.search));
   const [dataStatus, setDataStatus] = useState("");
-  const [busyAction, setBusyAction] = useState<"csv" | "fake-add" | "fake-delete" | "row-delete" | "row-save" | null>(null);
+  const [busyAction, setBusyAction] = useState<"csv" | "fake-add" | "fake-delete" | "row-delete" | "row-restore" | "row-save" | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailMode, setDetailMode] = useState<"view" | "edit">("view");
   const [detailDraft, setDetailDraft] = useState<ResponseDraft | null>(null);
@@ -1750,6 +1776,9 @@ function DataPage({
   const [visibleRowCount, setVisibleRowCount] = useState(dataPageSize);
   const [showAllSurveyDates, setShowAllSurveyDates] = useState(false);
   const [hideContacts, setHideContacts] = useState(() => readContactPrivacyMode());
+  const [lastDeletedId, setLastDeletedId] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [trashOpen, setTrashOpen] = useState(false);
   const isMobileData = useMediaQuery("(max-width: 720px)");
   const mobileDetailRef = useRef<HTMLDivElement>(null);
   const mobileDetailTriggerRef = useRef<HTMLElement | null>(null);
@@ -1818,6 +1847,7 @@ function DataPage({
     : selectRecentSurveyDates(surveyDateSeries);
   const summary = buildSummary(filteredResponses);
   const selectedResponse = filteredResponses.find((response) => response.id === selectedId) ?? null;
+  const lastDeletedResponse = deletedResponses.find((response) => response.id === lastDeletedId) ?? null;
   const selectedResponseId = selectedResponse?.id ?? null;
   const selectedDraftDirty = Boolean(
     selectedResponse && detailDraft && !areResponseDraftsEqual(detailDraft, responseToDraft(selectedResponse))
@@ -2092,7 +2122,7 @@ function DataPage({
 
   async function handleDeleteResponse(response: SurveyResponse) {
     const rowType = response.isFake ? "демо-строку" : "строку";
-    if (!window.confirm(`Удалить ${rowType} за ${response.surveyDate}?`)) {
+    if (!window.confirm(`Переместить ${rowType} за ${response.surveyDate} в корзину?`)) {
       return;
     }
 
@@ -2105,10 +2135,29 @@ function DataPage({
         setDetailMode("view");
         setDetailDraft(null);
       }
-      setDataStatus("Строка удалена.");
+      setLastDeletedId(response.id);
+      setDataStatus("Анкета перемещена в корзину.");
     } catch {
-      setDataStatus("Не удалось удалить строку.");
+      setDataStatus("Не удалось переместить анкету в корзину.");
     } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleRestoreResponse(id: string) {
+    setBusyAction("row-restore");
+    setRestoringId(id);
+    setDataStatus("");
+    try {
+      await onRestore(id);
+      if (lastDeletedId === id) {
+        setLastDeletedId(null);
+      }
+      setDataStatus("Анкета восстановлена.");
+    } catch {
+      setDataStatus("Не удалось восстановить анкету.");
+    } finally {
+      setRestoringId(null);
       setBusyAction(null);
     }
   }
@@ -2127,7 +2176,7 @@ function DataPage({
   }
 
   async function handleDeleteFake() {
-    const fakeCount = responses.filter((response) => response.isFake).length;
+    const fakeCount = [...responses, ...deletedResponses].filter((response) => response.isFake).length;
     if (fakeCount === 0) {
       setDataStatus("Демо-анкет сейчас нет.");
       return;
@@ -2141,6 +2190,7 @@ function DataPage({
     setDataStatus("");
     try {
       const deleted = await onDeleteFake();
+      setLastDeletedId(null);
       setDataStatus(`Удалено демо-анкет: ${deleted}.`);
     } catch {
       setDataStatus("Не удалось удалить демо-анкеты.");
@@ -2265,6 +2315,21 @@ function DataPage({
     setDataMode(nextMode);
   }
 
+  if (trashOpen) {
+    return (
+      <TrashPage
+        busyId={restoringId}
+        responses={deletedResponses}
+        status={dataStatus}
+        onBack={() => {
+          setTrashOpen(false);
+          setDataStatus("");
+        }}
+        onRestore={handleRestoreResponse}
+      />
+    );
+  }
+
   const responseInspector = (
     <ResponseInspector
       busy={busyAction === "row-save"}
@@ -2319,6 +2384,17 @@ function DataPage({
             </summary>
             <div className="action-menu-popover">
               <button
+                type="button"
+                onClick={(event) => {
+                  event.currentTarget.closest("details")?.removeAttribute("open");
+                  setDataStatus("");
+                  setTrashOpen(true);
+                }}
+              >
+                <ArchiveRestore aria-hidden size={18} />
+                Корзина · {deletedResponses.length}
+              </button>
+              <button
                 aria-pressed={hideContacts}
                 className={hideContacts ? "privacy-button is-active" : "privacy-button"}
                 type="button"
@@ -2357,7 +2433,22 @@ function DataPage({
           </details>
         </div>
       </div>
-      {dataStatus ? <p className="form-status">{dataStatus}</p> : null}
+      {dataStatus ? (
+        <div className="data-status-row" role="status">
+          <p className="form-status">{dataStatus}</p>
+          {lastDeletedResponse ? (
+            <button
+              className="link-button"
+              disabled={busyAction !== null}
+              type="button"
+              onClick={() => void handleRestoreResponse(lastDeletedResponse.id)}
+            >
+              <ArchiveRestore aria-hidden size={17} />
+              Вернуть
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="data-mobile-bar">
         <label className="data-mode-select">
@@ -2745,6 +2836,75 @@ function DataPage({
           {responseInspector}
         </div>
       ) : null}
+    </section>
+  );
+}
+
+function TrashPage({
+  busyId,
+  onBack,
+  onRestore,
+  responses,
+  status
+}: {
+  busyId: string | null;
+  onBack: () => void;
+  onRestore: (id: string) => Promise<void>;
+  responses: SurveyResponse[];
+  status: string;
+}) {
+  return (
+    <section className="task-page trash-page">
+      <div className="task-heading trash-heading">
+        <div>
+          <p className="eyebrow">Удалённые анкеты</p>
+          <h1>Корзина</h1>
+        </div>
+        <button className="ghost-button" type="button" onClick={onBack}>
+          <ChevronLeft aria-hidden size={18} />
+          К данным
+        </button>
+      </div>
+
+      {status ? <p className="form-status" role="status">{status}</p> : null}
+
+      <section className="task-panel trash-panel">
+        <div className="section-title-row">
+          <h2>Анкеты</h2>
+          <span>{responses.length}</span>
+        </div>
+
+        {responses.length === 0 ? (
+          <p className="empty-state">Корзина пуста.</p>
+        ) : (
+          <div className="trash-list">
+            {responses.map((response) => (
+              <article className={response.isFake ? "trash-row is-demo" : "trash-row"} key={response.id}>
+                <div className="trash-row-main">
+                  <div className="trash-row-badges">
+                    <span className={`source-pill source-${response.source}`}>{sourceLabels[response.source]}</span>
+                    {response.isFake ? <span className="demo-badge">демо</span> : null}
+                  </div>
+                  <strong>{formatSurveyDateLabel(response.surveyDate)}</strong>
+                  <p>
+                    {genderLabels[response.gender]} · {ageLabels[response.ageGroup]} · {residenceLabels[response.residence]}
+                  </p>
+                  {response.deletedAt ? <small>Удалено {formatDateTimeLabel(response.deletedAt)}</small> : null}
+                </div>
+                <button
+                  className="ghost-button"
+                  disabled={busyId !== null}
+                  type="button"
+                  onClick={() => void onRestore(response.id)}
+                >
+                  <ArchiveRestore aria-hidden size={18} />
+                  {busyId === response.id ? "Восстанавливаем..." : "Восстановить"}
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </section>
   );
 }
@@ -3487,6 +3647,11 @@ function formatSurveyDateLabel(value: string): string {
   return surveyDateFormatter
     .format(new Date(Date.UTC(year, month - 1, day)))
     .replace(/\s*г\.$/u, "");
+}
+
+function formatDateTimeLabel(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : dateTimeFormatter.format(date);
 }
 
 function BarList({ data }: { data: Array<{ label: string; value: number }> }) {

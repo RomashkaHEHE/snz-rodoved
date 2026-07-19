@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, sql, type SQL } from "drizzle-orm";
 import {
   answerQuestionIds,
   savedFilterPresetInputSchema,
@@ -78,6 +78,7 @@ export class SurveyRepository {
       consentToDataProcessing: parsed.consentToDataProcessing ?? null,
       consentToEvents: parsed.consentToEvents ?? null,
       isFake: options.isFake ? "true" : "false",
+      deletedAt: null,
       createdAt: now,
       updatedAt: now
     };
@@ -87,14 +88,24 @@ export class SurveyRepository {
   }
 
   list(filters: SurveyFilters = {}): SurveyResponse[] {
-    const conditions = buildFilterConditions(filters);
-    const whereClause = conditions.length > 0 ? and(...conditions) : sql`1 = 1`;
+    const conditions = [isNull(responses.deletedAt), ...buildFilterConditions(filters)];
+    const whereClause = and(...conditions)!;
 
     return this.db
       .select()
       .from(responses)
       .where(whereClause)
       .orderBy(desc(responses.surveyDate), desc(responses.createdAt))
+      .all()
+      .map(toSurveyResponse);
+  }
+
+  listDeleted(): SurveyResponse[] {
+    return this.db
+      .select()
+      .from(responses)
+      .where(isNotNull(responses.deletedAt))
+      .orderBy(desc(responses.deletedAt), desc(responses.updatedAt))
       .all()
       .map(toSurveyResponse);
   }
@@ -165,7 +176,7 @@ export class SurveyRepository {
     const updated = this.db
       .update(responses)
       .set(updateData)
-      .where(eq(responses.id, id))
+      .where(and(eq(responses.id, id), isNull(responses.deletedAt)))
       .returning()
       .get();
 
@@ -173,8 +184,24 @@ export class SurveyRepository {
   }
 
   delete(id: string): boolean {
-    const result = this.db.delete(responses).where(eq(responses.id, id)).run();
+    const now = new Date().toISOString();
+    const result = this.db
+      .update(responses)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(and(eq(responses.id, id), isNull(responses.deletedAt)))
+      .run();
     return result.changes > 0;
+  }
+
+  restore(id: string): SurveyResponse | null {
+    const restored = this.db
+      .update(responses)
+      .set({ deletedAt: null, updatedAt: new Date().toISOString() })
+      .where(and(eq(responses.id, id), isNotNull(responses.deletedAt)))
+      .returning()
+      .get();
+
+    return restored ? toSurveyResponse(restored) : null;
   }
 
   deleteFake(): number {
@@ -403,7 +430,8 @@ function toSurveyResponse(row: ResponseRow): SurveyResponse {
     contactNote: row.contactNote ?? undefined,
     contactNextDate: row.contactNextDate ?? undefined,
     consentToDataProcessing: row.consentToDataProcessing ?? undefined,
-    consentToEvents: row.consentToEvents ?? undefined
+    consentToEvents: row.consentToEvents ?? undefined,
+    deletedAt: row.deletedAt ?? undefined
   };
 }
 

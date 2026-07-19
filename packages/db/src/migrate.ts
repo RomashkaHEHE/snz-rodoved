@@ -101,6 +101,11 @@ CREATE INDEX IF NOT EXISTS saved_filter_presets_updated_at_idx
   ON saved_filter_presets (updated_at);
 `;
 
+export const responseTrashMigrationSql = `
+ALTER TABLE responses ADD COLUMN deleted_at TEXT;
+CREATE INDEX IF NOT EXISTS responses_deleted_at_idx ON responses (deleted_at);
+`;
+
 const migrations = [
   {
     id: "0001_initial",
@@ -137,6 +142,10 @@ const migrations = [
   {
     id: "0009_saved_filter_presets",
     sql: savedFilterPresetsMigrationSql
+  },
+  {
+    id: "0010_response_trash",
+    sql: responseTrashMigrationSql
   }
 ] as const;
 

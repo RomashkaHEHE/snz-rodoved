@@ -68,6 +68,18 @@ describe("api app", () => {
     });
     expect(fakeDeleteUnauthorized.statusCode).toBe(401);
 
+    const trashUnauthorized = await app.inject({
+      method: "GET",
+      url: "/api/responses/trash"
+    });
+    expect(trashUnauthorized.statusCode).toBe(401);
+
+    const restoreUnauthorized = await app.inject({
+      method: "POST",
+      url: "/api/responses/missing/restore"
+    });
+    expect(restoreUnauthorized.statusCode).toBe(401);
+
     const pdfFilesUnauthorized = await app.inject({
       method: "GET",
       url: "/api/pdf-files"
@@ -325,6 +337,92 @@ describe("api app", () => {
     expect(exported.body).not.toContain("I Мировая");
   });
 
+  it("keeps deleted responses out of lists, analytics, and CSV until restored", async () => {
+    app = await buildApp({
+      databasePath: ":memory:",
+      auth: {
+        username: "admin",
+        password: "secret",
+        workspacePassword: "workspace-secret",
+        sessionSecret: "test-secret"
+      },
+      webDistDir: false
+    });
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/workspace-login",
+      payload: { password: "workspace-secret" }
+    });
+    const cookie = login.headers["set-cookie"];
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/responses",
+      headers: { cookie },
+      payload: { ...input, freeText: "Уникальная строка из корзины" }
+    });
+    const id = created.json().response.id as string;
+
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: `/api/responses/${id}`,
+      headers: { cookie }
+    });
+    expect(deleted.statusCode).toBe(204);
+
+    const list = await app.inject({ method: "GET", url: "/api/responses?q7=yes", headers: { cookie } });
+    expect(list.json().responses).toHaveLength(0);
+
+    const analytics = await app.inject({
+      method: "GET",
+      url: "/api/analytics/summary",
+      headers: { cookie }
+    });
+    expect(analytics.json().summary.total).toBe(0);
+
+    const exported = await app.inject({
+      method: "GET",
+      url: "/api/responses/export.csv",
+      headers: { cookie }
+    });
+    expect(exported.body).not.toContain("Уникальная строка из корзины");
+
+    const trash = await app.inject({
+      method: "GET",
+      url: "/api/responses/trash",
+      headers: { cookie }
+    });
+    expect(trash.json().responses).toHaveLength(1);
+    expect(trash.json().responses[0].id).toBe(id);
+    expect(trash.json().responses[0].deletedAt).toBeTruthy();
+
+    const updateDeleted = await app.inject({
+      method: "PATCH",
+      url: `/api/responses/${id}`,
+      headers: { cookie },
+      payload: { q7: "no" }
+    });
+    expect(updateDeleted.statusCode).toBe(404);
+
+    const restored = await app.inject({
+      method: "POST",
+      url: `/api/responses/${id}/restore`,
+      headers: { cookie }
+    });
+    expect(restored.statusCode).toBe(200);
+    expect(restored.json().response.deletedAt).toBeUndefined();
+
+    const repeatedRestore = await app.inject({
+      method: "POST",
+      url: `/api/responses/${id}/restore`,
+      headers: { cookie }
+    });
+    expect(repeatedRestore.statusCode).toBe(404);
+
+    const restoredList = await app.inject({ method: "GET", url: "/api/responses", headers: { cookie } });
+    expect(restoredList.json().responses).toHaveLength(1);
+  });
+
   it("generates and deletes only fake responses", async () => {
     app = await buildApp({
       databasePath: ":memory:",
@@ -351,6 +449,18 @@ describe("api app", () => {
       payload: input
     });
 
+    const trashedReal = await app.inject({
+      method: "POST",
+      url: "/api/responses",
+      headers: { cookie },
+      payload: { ...input, gender: "male" }
+    });
+    await app.inject({
+      method: "DELETE",
+      url: `/api/responses/${trashedReal.json().response.id}`,
+      headers: { cookie }
+    });
+
     const fake = await app.inject({
       method: "POST",
       url: "/api/responses/fake",
@@ -358,6 +468,18 @@ describe("api app", () => {
     });
     expect(fake.statusCode).toBe(201);
     expect(fake.json().response.isFake).toBe(true);
+
+    await app.inject({
+      method: "DELETE",
+      url: `/api/responses/${fake.json().response.id}`,
+      headers: { cookie }
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/api/responses/fake",
+      headers: { cookie }
+    });
 
     const beforeDelete = await app.inject({
       method: "GET",
@@ -372,7 +494,7 @@ describe("api app", () => {
       headers: { cookie }
     });
     expect(deleteFake.statusCode).toBe(200);
-    expect(deleteFake.json()).toEqual({ deleted: 1 });
+    expect(deleteFake.json()).toEqual({ deleted: 2 });
 
     const afterDelete = await app.inject({
       method: "GET",
@@ -381,6 +503,11 @@ describe("api app", () => {
     });
     expect(afterDelete.json().responses).toHaveLength(1);
     expect(afterDelete.json().responses[0].isFake).toBe(false);
+
+    const trash = await app.inject({ method: "GET", url: "/api/responses/trash", headers: { cookie } });
+    expect(trash.json().responses).toHaveLength(1);
+    expect(trash.json().responses[0].id).toBe(trashedReal.json().response.id);
+    expect(trash.json().responses[0].isFake).toBe(false);
   });
 
   it("uploads, filters, downloads, and deletes survey PDF files", async () => {

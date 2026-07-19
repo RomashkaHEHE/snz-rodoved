@@ -44,6 +44,7 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - Public `/` links to `/survey` for visitors.
 - Missing or unreadable paper answers are stored as `unknown`.
 - Fake/test questionnaires are stored as normal response rows with `isFake=true`; fake-only bulk deletion must never delete rows where `isFake=false`.
+- Test-domain questionnaire deletion is recoverable: individual delete sets `deletedAt`, active lists/filters/charts/CSV exclude the row, and `Ещё` opens a trash screen with restore. There is no permanent-delete action for real rows. Fake-only cleanup may permanently remove active or trashed rows only when `isFake=true`.
 - Questions 7 and 8 remain separate because both exist in the paper survey.
 - SQLite is the v1 persistence target for VPS deployment.
 - Production deploy target is isolated under `/home/user1/apps/snz-rodoved` unless changed by `DEPLOY_PATH`.

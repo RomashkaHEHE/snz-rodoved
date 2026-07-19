@@ -183,6 +183,10 @@ function registerApiRoutes(
     return { responses: repository.list(filters) };
   });
 
+  app.get("/api/responses/trash", { preHandler: requireWorkspace }, async () => ({
+    responses: repository.listDeleted()
+  }));
+
   app.get("/api/filter-presets", { preHandler: requireWorkspace }, async () => ({
     presets: filterPresetRepository.list()
   }));
@@ -316,6 +320,20 @@ function registerApiRoutes(
 
     return { response };
   });
+
+  app.post<{ Params: { id: string } }>(
+    "/api/responses/:id/restore",
+    { preHandler: requireWorkspace },
+    async (request, reply) => {
+      const response = repository.restore(request.params.id);
+
+      if (!response) {
+        return reply.code(404).send({ error: "not_found" });
+      }
+
+      return { response };
+    }
+  );
 
   app.delete("/api/responses/fake", { preHandler: requireWorkspace }, async () => {
     const deleted = repository.deleteFake();

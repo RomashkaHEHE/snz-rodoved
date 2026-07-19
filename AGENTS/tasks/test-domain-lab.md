@@ -29,6 +29,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - `apps/web/src/App.tsx` renders the experimental product app.
 - Experimental UI lives under `apps/web/src/experiment`.
 - The visible test site opens as a product UI with working task screens.
+- Individual questionnaire deletion is a soft-delete backed by `responses.deleted_at`. The active repository query is the shared boundary for lists, filters, analytics, and CSV. The data-page secondary menu opens a recoverable trash view; immediate undo and per-row restore return the original row. Real rows cannot be permanently deleted from the UI, while fake-only cleanup physically removes active and trashed rows only when `isFake=true`.
 - Current flows use the isolated test backend:
   - public online survey starts with demographics, then shows one Q4-Q16 question at a time in the paper questionnaire's order. The experimental interface consumes the shared `answerQuestions` catalog instead of maintaining a second question copy. Deliberate `yes`/`no` answers advance automatically, Q11/Q16 wait when follow-up fields open, and an unanswered question moves on only through `Пропустить`;
   - the public review records required processing-answer consent and a separate optional invitation consent from the original paper form. Invitation consent remains available regardless of Q16 and survives changes to the help request. These choices have distinct visible status, while the review states that answers and contacts are not published. Contact phone input accepts common punctuation but requires 10-15 digits before the review can open;
@@ -317,3 +318,15 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - `ArrowLeft` changed Q4 from `—` to `Нет`, moved focus to the selected option, and updated the roving tab stop;
   - the public survey accepted `ArrowRight` on Q4, recorded `Нет`, and followed the existing automatic advance to Q5;
   - at `375x812`, a demographic option remained touch-selectable and the entry page had no horizontal overflow.
+- Local browser/API smoke for recoverable questionnaire deletion confirmed:
+  - a deleted demo questionnaire disappeared from all active mode counts and appeared under `Ещё` as `Корзина · 1`;
+  - the trash screen showed source, demo marker, survey date, demographics, and deletion time without exposing contact data;
+  - restoring returned the same row to `Анкеты` and `Графики`, changed the trash count to zero, and left no browser warning/error logs;
+  - the complete trash screen fit at iPhone 12 mini `375x812`, the restore action remained full-width, and both `375x812` and `1280x720` had no horizontal overflow;
+  - repository/API tests prove deleted rows stay out of filters, analytics, and CSV, updates reject deleted rows, repeated restore returns `404`, and fake-only cleanup cannot remove an active or trashed real row.
+- Verification after response-trash implementation:
+  - `npm run typecheck`;
+  - `npm run lint`;
+  - `npm run test` (`73` tests);
+  - `VITE_APP_ENV=test npm run build`;
+  - `git diff --check`.

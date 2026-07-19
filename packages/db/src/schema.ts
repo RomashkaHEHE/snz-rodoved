@@ -43,6 +43,7 @@ export const responses = sqliteTable(
     consentToDataProcessing: integer("consent_to_data_processing", { mode: "boolean" }),
     consentToEvents: integer("consent_to_events", { mode: "boolean" }),
     isFake: text("is_fake").$type<"true" | "false">().notNull().default("false"),
+    deletedAt: text("deleted_at"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull()
   },
@@ -54,7 +55,8 @@ export const responses = sqliteTable(
     sourceIdx: index("responses_source_idx").on(table.source),
     contactStatusIdx: index("responses_contact_status_idx").on(table.contactStatus),
     contactNextDateIdx: index("responses_contact_next_date_idx").on(table.contactNextDate),
-    isFakeIdx: index("responses_is_fake_idx").on(table.isFake)
+    isFakeIdx: index("responses_is_fake_idx").on(table.isFake),
+    deletedAtIdx: index("responses_deleted_at_idx").on(table.deletedAt)
   })
 );
 

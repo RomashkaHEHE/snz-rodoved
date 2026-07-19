@@ -350,6 +350,7 @@ export interface SurveyResponse extends Omit<
   contactStatus: ContactStatus;
   contactNote?: string;
   contactNextDate?: string;
+  deletedAt?: string;
   isFake: boolean;
   createdAt: string;
   updatedAt: string;

@@ -29,6 +29,12 @@ Survey answer rules:
 
 Public statistics are intentionally absent in v1. Adding them later requires a new privacy/product decision.
 
+## Questionnaire deletion
+
+An operator's ordinary delete action is recoverable. It sets `deleted_at` and removes the row from active lists, filters, contact queues, charts, analytics, and CSV without destroying the questionnaire. The protected trash view may restore the same row and has no permanent-delete action for real data.
+
+Bulk demo cleanup is the only questionnaire path that physically removes rows. Its repository predicate must remain `is_fake=true` and must be tested against both active and trashed real rows; UI wording or trash state must never be used as the safety boundary.
+
 ## PDF archive
 
 Uploaded PDFs are scans of handwritten paper questionnaires for a whole survey day. Some paper forms may include respondent contact data even though structured fields deliberately do not.

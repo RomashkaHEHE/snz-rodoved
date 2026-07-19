@@ -41,6 +41,11 @@ export async function listLabResponses(filters: SurveyFilters = {}): Promise<Sur
   return result.responses;
 }
 
+export async function listLabDeletedResponses(): Promise<SurveyResponse[]> {
+  const result = await request<{ responses: SurveyResponse[] }>("/api/responses/trash");
+  return result.responses;
+}
+
 export async function listLabFilterPresets(): Promise<SavedFilterPreset[]> {
   const result = await request<{ presets: SavedFilterPreset[] }>("/api/filter-presets");
   return result.presets;
@@ -99,6 +104,13 @@ export async function updateLabContactWorkflow(
 
 export async function deleteLabResponse(id: string): Promise<void> {
   await request<void>(`/api/responses/${id}`, { method: "DELETE" });
+}
+
+export async function restoreLabResponse(id: string): Promise<SurveyResponse> {
+  const result = await request<{ response: SurveyResponse }>(`/api/responses/${id}/restore`, {
+    method: "POST"
+  });
+  return result.response;
 }
 
 export async function deleteLabFakeResponses(): Promise<number> {
