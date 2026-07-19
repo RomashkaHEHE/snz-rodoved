@@ -76,7 +76,7 @@ export class SurveyRepository {
       contactNote: null,
       contactNextDate: null,
       consentToDataProcessing: parsed.consentToDataProcessing ?? null,
-      consentToEvents: parsed.q16 === "yes" ? (parsed.consentToEvents ?? null) : null,
+      consentToEvents: parsed.consentToEvents ?? null,
       isFake: options.isFake ? "true" : "false",
       createdAt: now,
       updatedAt: now
@@ -160,7 +160,6 @@ export class SurveyRepository {
       updateData.contactStatus = "new";
       updateData.contactNote = null;
       updateData.contactNextDate = null;
-      updateData.consentToEvents = null;
     }
 
     const updated = this.db

@@ -31,7 +31,7 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - The visible test site opens as a product UI with working task screens.
 - Current flows use the isolated test backend:
   - public online survey starts with demographics, then shows one Q4-Q16 question at a time in the paper questionnaire's order. The experimental interface consumes the shared `answerQuestions` catalog instead of maintaining a second question copy. Deliberate `yes`/`no` answers advance automatically, Q11/Q16 wait when follow-up fields open, and an unanswered question moves on only through `Пропустить`;
-  - the public review records required processing-answer consent and optional invitation consent. These choices have distinct visible status, while the review states that answers and contacts are not published. Contact phone input accepts common punctuation but requires 10-15 digits before the review can open;
+  - the public review records required processing-answer consent and a separate optional invitation consent from the original paper form. Invitation consent remains available regardless of Q16 and survives changes to the help request. These choices have distinct visible status, while the review states that answers and contacts are not published. Contact phone input accepts common punctuation but requires 10-15 digits before the review can open;
   - the final online check is four compact collapsed summaries for demographics, experience, interests, and help. Each summary exposes full answers and the relevant edit action only when opened;
   - versioned browser draft navigation preserves current question positions and migrates legacy five-step drafts to the matching focused-flow section;
   - the first online step starts with no selected demographics and blocks later steps until gender, age group, and residence have each been chosen deliberately;
@@ -95,6 +95,12 @@ The test domain must have its own interface, its own UX decisions, and may use n
 
 ## Last Verification
 
+- Independent invitation-consent iteration:
+  - public review shows the optional invitation choice even when Q16 is `no`;
+  - a checked invitation choice survived `Q16: no -> yes -> no`, while contact/search fields still disappeared with the help branch;
+  - desktop paper entry renders both processing and invitation choices after Q16 regardless of its answer;
+  - repository and public API tests prove that `consentToEvents=true` is stored for `q16=no` and remains after an existing help request changes to `no`;
+  - the public review at iPhone 12 mini `375x812` had no horizontal overflow and browser warning/error logs were empty.
 - Last-saved paper response iteration:
   - state and collection tests cover restoring a valid response ID, rejecting it with an invalid series date, preserving/replacing it after confirmed saves, clearing it for a new date, and inserting/updating authoritative mutation results without duplicate rows;
   - a local paper create increased the confirmed series count and exposed `Проверить последнюю` only after the API response completed;

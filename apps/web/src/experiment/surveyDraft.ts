@@ -121,7 +121,6 @@ export function clearSurveyHelpDetails<
     contactName?: string;
     contactNextDate?: string;
     contactPhone?: string;
-    consentToEvents?: boolean;
     freeText?: string;
     researchPeriodEnd?: number;
     researchPeriodStart?: number;
@@ -133,7 +132,6 @@ export function clearSurveyHelpDetails<
     contactName: undefined,
     contactNextDate: undefined,
     contactPhone: undefined,
-    consentToEvents: undefined,
     freeText: undefined,
     researchPeriodEnd: undefined,
     researchPeriodStart: undefined,

@@ -1032,20 +1032,18 @@ function SurveyReview({
             <small>Обязательно · ответы и контакты не публикуются</small>
           </span>
         </label>
-        {draft.q16 === "yes" ? (
-          <label className="consent-check is-optional">
-            <input
-              checked={draft.consentToEvents === true}
-              name="consentToEvents"
-              type="checkbox"
-              onChange={(event) => onChange({ ...draft, consentToEvents: event.currentTarget.checked })}
-            />
-            <span className="consent-copy">
-              <span>Я согласен(-на) получать приглашения на мероприятия проекта.</span>
-              <small>По желанию</small>
-            </span>
-          </label>
-        ) : null}
+        <label className="consent-check is-optional">
+          <input
+            checked={draft.consentToEvents === true}
+            name="consentToEvents"
+            type="checkbox"
+            onChange={(event) => onChange({ ...draft, consentToEvents: event.currentTarget.checked })}
+          />
+          <span className="consent-copy">
+            <span>Я согласен(-на) получать приглашения на мероприятия проекта.</span>
+            <small>По желанию</small>
+          </span>
+        </label>
       </section>
     </div>
   );
@@ -3286,15 +3284,13 @@ function ConsentChoiceFields({
           onChange({ ...draft, consentToDataProcessing: fromChoice(value) })
         }
       />
-      {draft.q16 === "yes" ? (
-        <SegmentedGroup
-          compact
-          label="Согласие на приглашения"
-          options={options}
-          value={toChoice(draft.consentToEvents)}
-          onChange={(value) => onChange({ ...draft, consentToEvents: fromChoice(value) })}
-        />
-      ) : null}
+      <SegmentedGroup
+        compact
+        label="Согласие на приглашения"
+        options={options}
+        value={toChoice(draft.consentToEvents)}
+        onChange={(value) => onChange({ ...draft, consentToEvents: fromChoice(value) })}
+      />
     </div>
   );
 }
@@ -5068,7 +5064,7 @@ function normalizeDraft(draft: ResponseDraft): ResponseDraft {
     contactNextDate: draft.q16 === "yes" ? cleanOptional(draft.contactNextDate) : undefined,
     contactPhone: draft.q16 === "yes" ? cleanOptional(draft.contactPhone) : undefined,
     consentToDataProcessing: draft.consentToDataProcessing,
-    consentToEvents: draft.q16 === "yes" ? draft.consentToEvents : undefined,
+    consentToEvents: draft.consentToEvents,
     freeText: cleanOptional(draft.freeText),
     q11WarDetails: cleanOptional(draft.q11WarDetails) ?? "—",
     researchTerritory: cleanOptional(draft.researchTerritory)

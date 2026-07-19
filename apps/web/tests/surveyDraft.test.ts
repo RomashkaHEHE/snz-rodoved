@@ -48,7 +48,7 @@ describe("online survey draft safety", () => {
     expect(draft.contactName).toBe("Алёна");
   });
 
-  it("clears every field that depends on a request for help", () => {
+  it("clears help details without changing the separate invitation choice", () => {
     const draft = {
       contactName: "Алёна",
       contactNextDate: "2026-07-20",
@@ -65,7 +65,7 @@ describe("online survey draft safety", () => {
       contactName: undefined,
       contactNextDate: undefined,
       contactPhone: undefined,
-      consentToEvents: undefined,
+      consentToEvents: true,
       freeText: undefined,
       q16: "no",
       researchPeriodEnd: undefined,

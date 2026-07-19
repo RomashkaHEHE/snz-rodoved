@@ -8,7 +8,7 @@ When the online respondent answers `yes` to q16 ("need help"), the form asks for
 
 The public form accepts familiar phone punctuation but requires 10-15 digits. This is a data-quality rule, not phone ownership verification.
 
-Consent fields are nullable booleans. `undefined`/database `NULL` means that no mark was recorded and must be displayed/exported as `Не зафиксировано`, never silently converted to `Нет`. Public online submission requires `consentToDataProcessing=true`; invitation consent is optional and is cleared with the Q16 help branch. These controls record the respondent's choice but do not by themselves claim legal compliance; final legal text and policy links require customer/legal review.
+Consent fields are nullable booleans. `undefined`/database `NULL` means that no mark was recorded and must be displayed/exported as `Не зафиксировано`, never silently converted to `Нет`. Public online submission requires `consentToDataProcessing=true`; invitation consent is an independent optional answer from the original paper form and must not be cleared when Q16 changes. These controls record the respondent's choice but do not by themselves claim legal compliance; final legal text and policy links require customer/legal review.
 
 The test-domain browser draft may persist non-contact answers for at most 24 hours. It must remove `contactName` and `contactPhone` before every localStorage write and must not restore contact values left by an older client version. If q16 is `yes`, a restored draft returns to the help step and asks for the contacts again.
 

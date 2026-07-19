@@ -141,7 +141,23 @@ describe("SurveyRepository", () => {
     expect(withoutHelp?.contactName).toBeUndefined();
     expect(withoutHelp?.contactPhone).toBeUndefined();
     expect(withoutHelp?.consentToDataProcessing).toBe(true);
-    expect(withoutHelp?.consentToEvents).toBeUndefined();
+    expect(withoutHelp?.consentToEvents).toBe(true);
+  });
+
+  it("stores invitation consent independently from a help request", () => {
+    connection = createDatabaseConnection({ databasePath: ":memory:" });
+    const repository = new SurveyRepository(connection.db);
+
+    const created = repository.create({
+      ...baseInput,
+      consentToEvents: true,
+      q16: "no"
+    });
+
+    expect(created.q16).toBe("no");
+    expect(created.contactName).toBeUndefined();
+    expect(created.contactPhone).toBeUndefined();
+    expect(created.consentToEvents).toBe(true);
   });
 
   it("filters by contact workflow and free text search", () => {

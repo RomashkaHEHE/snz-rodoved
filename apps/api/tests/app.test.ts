@@ -190,6 +190,22 @@ describe("api app", () => {
     expect(created.json().response.consentToDataProcessing).toBe(true);
     expect(created.json().response.consentToEvents).toBe(true);
     expect(created.json().response.isFake).toBe(false);
+
+    const invitationOnly = await app.inject({
+      method: "POST",
+      url: "/api/public/survey-responses",
+      payload: {
+        ...onlinePayload,
+        contactName: undefined,
+        contactPhone: undefined,
+        q16: "no"
+      }
+    });
+
+    expect(invitationOnly.statusCode).toBe(201);
+    expect(invitationOnly.json().response.q16).toBe("no");
+    expect(invitationOnly.json().response.contactName).toBeUndefined();
+    expect(invitationOnly.json().response.consentToEvents).toBe(true);
   });
 
   it("logs in, creates responses, filters, and summarizes analytics", async () => {

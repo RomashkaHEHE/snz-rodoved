@@ -29,7 +29,7 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - Online survey rows are stored in `responses` with `source=online`; manual paper rows use `source=paper`.
 - Online survey rows may include `researchTerritory`, `researchPeriodStart`, `researchPeriodEnd`, and `freeText`.
 - If q16 is `yes` in the online survey, the UI shows `contactName` and `contactPhone`; these fields are stored on the response row and remain workspace-only.
-- Public online submission requires an explicit processing-answer consent. Invitation consent is optional; both values are nullable on stored rows so historical absence remains `Не зафиксировано`.
+- Public online submission requires an explicit processing-answer consent. Invitation consent is a separate optional answer from the original paper form and does not depend on Q16; both values are nullable on stored rows so historical absence remains `Не зафиксировано`.
 - Contact phone validation accepts common formatting and requires 10-15 digits in shared/API validation and the test-domain UI.
 - `/login` is password-only workspace login.
 - `/admin` is a separate username/password admin login.
