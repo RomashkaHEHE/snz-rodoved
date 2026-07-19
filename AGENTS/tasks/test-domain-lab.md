@@ -32,16 +32,16 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - Individual questionnaire deletion is a soft-delete backed by `responses.deleted_at`. The active repository query is the shared boundary for lists, filters, analytics, and CSV. The data-page secondary menu opens a recoverable trash view; immediate undo and per-row restore return the original row. Real rows cannot be permanently deleted from the UI, while fake-only cleanup physically removes active and trashed rows only when `isFake=true`.
 - The primary CSV export is the current filtered slice without `contactName`/`contactPhone`. A separate confirmed menu action requests `includeContacts=true` and downloads a clearly named contacts file. Column selection is enforced in `apps/api/src/csv.ts`, not inferred from the UI privacy toggle.
 - Current flows use the isolated test backend:
-  - public online survey starts with demographics, then shows one Q4-Q16 question at a time in the paper questionnaire's order. The experimental interface consumes the shared `answerQuestions` catalog instead of maintaining a second question copy. Deliberate `yes`/`no` answers advance automatically, Q11/Q16 wait when follow-up fields open, and an unanswered question moves on only through `Пропустить`;
+  - public online survey starts with demographics, then shows one Q4-Q16 question at a time in the paper questionnaire's order. The experimental interface consumes the shared `answerQuestions` catalog instead of maintaining a second question copy. Deliberate `yes`/`no` answers advance automatically except when Q11 opens its war selector, and an unanswered question moves on only through `Пропустить`; Q16 routes to review for `no`/blank or into its conditional continuation for `yes`;
   - the public review records required processing-answer consent and a separate optional invitation consent from the original paper form. Invitation consent remains available regardless of Q16 and survives changes to the help request. These choices have distinct visible status, while the review states that answers and contacts are not published. Contact phone input accepts common punctuation but requires 10-15 digits before the review can open;
   - the final online check is four compact collapsed summaries for demographics, experience, interests, and help. Each summary exposes full answers and the relevant edit action only when opened;
-  - versioned browser draft navigation preserves current question positions and migrates legacy five-step drafts to the matching focused-flow section;
+  - versioned browser draft navigation preserves current question positions and migrates legacy five-step and version-2 focused drafts to the matching question or review step;
   - the first online step starts with no selected demographics and blocks later steps until gender, age group, and residence have each been chosen deliberately;
   - single-choice segmented controls expose one tab stop per field/question. Arrow keys select adjacent options, including wrap-around, while `Home` and `End` jump to the boundaries. This reduces keyboard paper entry without adding visible shortcut instructions or changing touch controls;
-  - online draft persistence expires after 24 hours and redacts name/phone; restored q16 help requests reopen the help step with empty contact fields;
+  - online draft persistence expires after 24 hours and redacts name/phone; restored q16 help requests reopen the dedicated contact step with empty contact fields while retaining non-contact search context;
   - resetting a non-empty online survey requires confirmation, and missing restored contacts return focus to the name input instead of leaving the visitor on review;
   - the rare full-survey reset is placed after the review/navigation actions and does not compete with progress or submission. The submit action uses a send symbol and remains the only filled action on the final screen;
-  - the online survey follows the paper form through Q16. A `yes` answer to Q16 reveals required name/phone fields and optional territory, period, and free-text fields; changing Q16 away from `yes` hides and clears every dependent value. The period control keeps quick presets, two range sliders, exact year inputs, and the same data contract;
+  - the online survey follows the paper form through Q16. A `yes` answer to Q16 opens one required name/phone step and then one optional territory/period/free-text step; changing Q16 away from `yes` skips both and clears every dependent value. The period control keeps quick presets, two range sliders, exact year inputs, and the same data contract;
   - Q11 war details follow the paper form's condition: the selector appears only for a `yes` answer and resets to `—` when that answer changes;
   - public online survey submits to the server after the review step, shows a completion screen, and stores a browser-local draft until successful submit;
   - public survey and workspace are separate shells without links between them. `/` has no workspace entry; `/entry`, `/data`, and `/pdf` have no survey entry;
@@ -337,3 +337,16 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - the default file and UI action explicitly say `without-name-phone` / `без имени и телефона` rather than claiming the remaining data is anonymous;
   - at `375x812`, the primary action stayed icon-sized with an exact accessible name and the explicit contact export fit inside `Ещё`; at `1280x720`, the full primary label fit without horizontal overflow;
   - the primary action completed with visible status, screen contacts remained masked, and browser warning/error logs were empty.
+- Local browser smoke for the progressive Q16 continuation confirmed:
+  - demographics opened first, followed by the exact Q4-Q16 paper order; unanswered Q16 contained no contact or search controls;
+  - Q16 `Нет` went directly to review, while Q16 `Да` opened `Как с вами связаться` and then the optional `Что вы ищете?` step;
+  - empty contacts kept the respondent on the contact step, focused `Имя`, and produced the existing validation status; valid name/phone opened the search step;
+  - back navigation followed `review -> search -> contacts -> Q16`; changing Q16 to `Нет` removed all dependent values from review;
+  - reloading from the search step retained non-contact context, redacted name/phone, returned to the contact step, and explicitly asked for both values again;
+  - the contact and search steps had no horizontal overflow at `375x812`; the contact panel and its actions fit at `1280x720`; browser warning/error logs were empty.
+- Verification after the progressive Q16 continuation:
+  - `npm run typecheck`;
+  - `npm run lint`;
+  - `npm run test` (`74` tests);
+  - `VITE_APP_ENV=test npm run build`;
+  - `git diff --check`.

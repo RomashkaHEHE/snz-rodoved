@@ -5,6 +5,8 @@ import {
   coerceBasicSelections,
   coerceSurveyDraftStep,
   createEmptyBasicSelections,
+  getNextSurveyStep,
+  getPreviousSurveyStep,
   getSurveyContactValidationIssue,
   hasAnyBasicSelection,
   isSurveyDraftFresh,
@@ -13,9 +15,11 @@ import {
   resolveSurveyDraftStep,
   shouldAutoAdvanceSurveyQuestion,
   surveyDraftLifetimeMs,
+  surveyContactStep,
   surveyFlowVersion,
   surveyHelpStep,
-  surveyReviewStep
+  surveyReviewStep,
+  surveySearchStep
 } from "../src/experiment/surveyDraft";
 
 describe("online survey draft safety", () => {
@@ -94,8 +98,10 @@ describe("online survey draft safety", () => {
   it("returns restored help requests to the contact step", () => {
     const complete = { ageGroup: true, gender: true, residence: true };
 
-    expect(resolveSurveyDraftStep(surveyReviewStep, complete, true)).toBe(surveyHelpStep);
+    expect(resolveSurveyDraftStep(surveyReviewStep, complete, true)).toBe(surveyContactStep);
+    expect(resolveSurveyDraftStep(surveySearchStep, complete, true)).toBe(surveyContactStep);
     expect(resolveSurveyDraftStep(surveyReviewStep, complete, false)).toBe(surveyReviewStep);
+    expect(resolveSurveyDraftStep(surveyContactStep, complete, false)).toBe(surveyReviewStep);
     expect(resolveSurveyDraftStep(8, createEmptyBasicSelections(), false)).toBe(0);
   });
 
@@ -109,14 +115,29 @@ describe("online survey draft safety", () => {
     ]);
     expect(coerceSurveyDraftStep(8, surveyFlowVersion)).toBe(8);
     expect(coerceSurveyDraftStep(99, surveyFlowVersion)).toBe(surveyReviewStep);
+    expect(coerceSurveyDraftStep(13, 2)).toBe(surveyHelpStep);
+    expect(coerceSurveyDraftStep(14, 2)).toBe(surveyReviewStep);
     expect(coerceSurveyDraftStep(2, 99)).toBe(0);
+  });
+
+  it("routes the optional help branch without changing the paper-question order", () => {
+    expect(getNextSurveyStep(12, false)).toBe(surveyHelpStep);
+    expect(getNextSurveyStep(surveyHelpStep, false)).toBe(surveyReviewStep);
+    expect(getPreviousSurveyStep(surveyReviewStep, false)).toBe(surveyHelpStep);
+
+    expect(getNextSurveyStep(surveyHelpStep, true)).toBe(surveyContactStep);
+    expect(getNextSurveyStep(surveyContactStep, true)).toBe(surveySearchStep);
+    expect(getNextSurveyStep(surveySearchStep, true)).toBe(surveyReviewStep);
+    expect(getPreviousSurveyStep(surveyReviewStep, true)).toBe(surveySearchStep);
+    expect(getPreviousSurveyStep(surveySearchStep, true)).toBe(surveyContactStep);
+    expect(getPreviousSurveyStep(surveyContactStep, true)).toBe(surveyHelpStep);
   });
 
   it("auto-advances deliberate answers unless follow-up fields are opening", () => {
     expect(shouldAutoAdvanceSurveyQuestion("q4", "yes")).toBe(true);
     expect(shouldAutoAdvanceSurveyQuestion("q10", "no")).toBe(true);
     expect(shouldAutoAdvanceSurveyQuestion("q11", "yes")).toBe(false);
-    expect(shouldAutoAdvanceSurveyQuestion("q16", "yes")).toBe(false);
+    expect(shouldAutoAdvanceSurveyQuestion("q16", "yes")).toBe(true);
     expect(shouldAutoAdvanceSurveyQuestion("q16", "no")).toBe(true);
     expect(shouldAutoAdvanceSurveyQuestion("q8", "unknown")).toBe(false);
   });

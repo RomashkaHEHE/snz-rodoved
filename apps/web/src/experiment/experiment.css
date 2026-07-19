@@ -823,6 +823,22 @@ textarea {
   min-height: 15rem;
 }
 
+.survey-followup-stage {
+  align-content: start;
+  display: grid;
+  min-height: 10rem;
+}
+
+.survey-search-stage {
+  gap: 0.9rem;
+}
+
+.optional-marker {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
 .survey-question-stage .question-card,
 .survey-question-stage .question-card:first-child {
   align-content: start;
@@ -873,6 +889,11 @@ textarea {
   gap: 1rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   padding-top: 0.9rem;
+}
+
+.standalone-contact-grid {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .consent-choice-grid {

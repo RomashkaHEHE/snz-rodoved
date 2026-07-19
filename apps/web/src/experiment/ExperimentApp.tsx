@@ -94,6 +94,8 @@ import {
   coerceBasicSelections,
   coerceSurveyDraftStep,
   createEmptyBasicSelections,
+  getNextSurveyStep,
+  getPreviousSurveyStep,
   getSurveyContactValidationIssue,
   hasAnyBasicSelection,
   isSurveyDraftFresh,
@@ -101,9 +103,10 @@ import {
   redactSurveyDraftContacts,
   resolveSurveyDraftStep,
   shouldAutoAdvanceSurveyQuestion,
+  surveyContactStep,
   surveyFlowVersion,
-  surveyHelpStep,
   surveyReviewStep,
+  surveySearchStep,
   surveyStepCount,
   type SurveyBasicField,
   type SurveyBasicSelections,
@@ -609,16 +612,20 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<unkn
   const [draft, setDraft] = useState<ResponseDraft>(restoredDraft.draft);
   const [basicSelections, setBasicSelections] = useState(restoredDraft.basicSelections);
   const [basicValidationAttempted, setBasicValidationAttempted] = useState(false);
-  const [status, setStatus] = useState(restoredDraft.restored ? "Черновик восстановлен." : "");
+  const [status, setStatus] = useState(
+    restoredDraft.restored ? getSurveyRestoredStatus(restoredDraft.draft) : ""
+  );
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const surveyHeadingRef = useRef<HTMLHeadingElement>(null);
   const basicsComplete = areBasicSelectionsComplete(basicSelections);
   const currentQuestion = getSurveyQuestionForStep(step);
+  const isContactStep = step === surveyContactStep;
+  const isSearchStep = step === surveySearchStep;
   const isReviewStep = step === surveyReviewStep;
-  const stepTitle = getSurveyStepTitle(currentQuestion, isReviewStep);
-  const progressLabel = getSurveyProgressLabel(currentQuestion, isReviewStep);
-  const progressPercent = getSurveyProgressPercent(currentQuestion, isReviewStep);
+  const stepTitle = getSurveyStepTitle(step, currentQuestion);
+  const progressLabel = getSurveyProgressLabel(step, currentQuestion);
+  const progressPercent = getSurveyProgressPercent(step, currentQuestion);
 
   useEffect(() => {
     if (hasSurveyDraftContent(draft) || hasAnyBasicSelection(basicSelections) || step > 0) {
@@ -689,12 +696,20 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<unkn
       return;
     }
 
-    if (nextStep > step && step === surveyHelpStep && !validateHelpContacts()) {
+    setStatus("");
+    setStep(Math.min(surveyStepCount - 1, Math.max(0, nextStep)));
+  }
+
+  function moveSurveyForward() {
+    if (step === surveyContactStep && !validateHelpContacts()) {
       return;
     }
 
-    setStatus("");
-    setStep(Math.min(surveyStepCount - 1, Math.max(0, nextStep)));
+    navigateSurveyStep(getNextSurveyStep(step, draft.q16 === "yes"));
+  }
+
+  function moveSurveyBack() {
+    navigateSurveyStep(getPreviousSurveyStep(step, draft.q16 === "yes"));
   }
 
   function handleSurveyAnswer(questionId: QuestionId, answer: Answer) {
@@ -707,14 +722,15 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<unkn
     }
 
     window.requestAnimationFrame(() => {
-      setStep(Math.min(surveyStepCount - 1, step + 1));
+      const hasHelpRequest = questionId === "q16" ? answer === "yes" : draft.q16 === "yes";
+      setStep(getNextSurveyStep(step, hasHelpRequest));
     });
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (step !== surveyReviewStep) {
-      navigateSurveyStep(step + 1);
+      moveSurveyForward();
       return;
     }
 
@@ -724,7 +740,7 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<unkn
     }
 
     if (!validateHelpContacts()) {
-      setStep(surveyHelpStep);
+      setStep(surveyContactStep);
       return;
     }
 
@@ -798,8 +814,7 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<unkn
         <div className="survey-question-stage">
           <QuestionStack
             draft={draft}
-            requireContactDetails={currentQuestion.id === "q16"}
-            showOnlineHelpFields={currentQuestion.id === "q16"}
+            showContactFields={false}
             showUnknownOption={false}
             questionsToShow={[currentQuestion]}
             onAnswer={handleSurveyAnswer}
@@ -807,6 +822,14 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<unkn
           />
         </div>
       );
+    }
+
+    if (isContactStep) {
+      return <SurveyContactStep draft={draft} onChange={setDraft} />;
+    }
+
+    if (isSearchStep) {
+      return <SurveySearchStep draft={draft} onChange={setDraft} />;
     }
 
     return (
@@ -845,7 +868,7 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<unkn
           {status ? <p className="form-status">{status}</p> : null}
           <div className="survey-footer-actions">
             {step > 0 ? (
-              <button className="ghost-button" type="button" onClick={() => navigateSurveyStep(step - 1)}>
+              <button className="ghost-button" type="button" onClick={moveSurveyBack}>
                 Назад
               </button>
             ) : null}
@@ -853,9 +876,9 @@ function SurveyPage({ onSave }: { onSave: (draft: ResponseDraft) => Promise<unkn
               <button
                 className="primary-button"
                 type="button"
-                onClick={() => navigateSurveyStep(step + 1)}
+                onClick={moveSurveyForward}
               >
-                {getSurveyForwardLabel(currentQuestion, draft)}
+                {getSurveyForwardLabel(step, currentQuestion, draft)}
               </button>
             ) : (
               <button className="primary-button" disabled={saving} type="submit">
@@ -886,11 +909,17 @@ function getSurveyQuestionStep(questionId: QuestionId): number {
 }
 
 function getSurveyStepTitle(
-  question: (typeof questions)[number] | null,
-  isReviewStep: boolean
+  step: number,
+  question: (typeof questions)[number] | null
 ): string {
-  if (isReviewStep) {
+  if (step === surveyReviewStep) {
     return "Проверка ответов";
+  }
+  if (step === surveyContactStep) {
+    return "Как с вами связаться";
+  }
+  if (step === surveySearchStep) {
+    return "Что вы ищете?";
   }
   if (!question) {
     return "О себе";
@@ -905,31 +934,47 @@ function getSurveyStepTitle(
 }
 
 function getSurveyProgressLabel(
-  question: (typeof questions)[number] | null,
-  isReviewStep: boolean
+  step: number,
+  question: (typeof questions)[number] | null
 ): string {
-  if (isReviewStep) {
+  if (step === surveyReviewStep) {
     return "Перед отправкой";
+  }
+  if (step === surveyContactStep) {
+    return "Дополнительные сведения · 1 из 2";
+  }
+  if (step === surveySearchStep) {
+    return "Дополнительные сведения · 2 из 2";
   }
 
   return question ? `Вопрос ${question.number} из 16` : "Вопросы 1-3 из 16";
 }
 
 function getSurveyProgressPercent(
-  question: (typeof questions)[number] | null,
-  isReviewStep: boolean
+  step: number,
+  question: (typeof questions)[number] | null
 ): number {
-  if (isReviewStep) {
+  if (step === surveyReviewStep) {
     return 100;
   }
+  if (step === surveyContactStep) {
+    return (17 / 19) * 100;
+  }
+  if (step === surveySearchStep) {
+    return (18 / 19) * 100;
+  }
 
-  return ((question?.number ?? 3) / 16) * 100;
+  return ((question?.number ?? 3) / 19) * 100;
 }
 
 function getSurveyForwardLabel(
+  step: number,
   question: (typeof questions)[number] | null,
   draft: ResponseDraft
 ): string {
+  if (step === surveySearchStep) {
+    return "Проверить ответы";
+  }
   if (!question) {
     return "Далее";
   }
@@ -937,9 +982,44 @@ function getSurveyForwardLabel(
     return "Пропустить";
   }
   if (question.id === "q16") {
-    return "Проверить ответы";
+    return draft.q16 === "yes" ? "Далее" : "Проверить ответы";
   }
   return "Далее";
+}
+
+function getSurveyRestoredStatus(draft: ResponseDraft): string {
+  return draft.q16 === "yes"
+    ? "Черновик восстановлен. Введите имя и телефон снова."
+    : "Черновик восстановлен.";
+}
+
+function SurveyContactStep({
+  draft,
+  onChange
+}: {
+  draft: ResponseDraft;
+  onChange: (draft: ResponseDraft) => void;
+}) {
+  return (
+    <div className="survey-followup-stage">
+      <ContactFields draft={draft} required standalone onChange={onChange} />
+    </div>
+  );
+}
+
+function SurveySearchStep({
+  draft,
+  onChange
+}: {
+  draft: ResponseDraft;
+  onChange: (draft: ResponseDraft) => void;
+}) {
+  return (
+    <div className="survey-followup-stage survey-search-stage">
+      <span className="optional-marker">Необязательно</span>
+      <SearchFields draft={draft} onChange={onChange} />
+    </div>
+  );
 }
 
 function SurveyReview({
@@ -3209,6 +3289,44 @@ function SearchFields({
   );
 }
 
+function ContactFields({
+  draft,
+  required = false,
+  standalone = false,
+  onChange
+}: {
+  draft: ResponseDraft;
+  required?: boolean;
+  standalone?: boolean;
+  onChange: (draft: ResponseDraft) => void;
+}) {
+  return (
+    <div className={standalone ? "contact-grid standalone-contact-grid" : "contact-grid"}>
+      <label>
+        Имя
+        <input
+          autoComplete="name"
+          required={required}
+          value={draft.contactName ?? ""}
+          onChange={(event) => onChange({ ...draft, contactName: event.target.value || undefined })}
+        />
+      </label>
+      <label>
+        Номер телефона
+        <input
+          autoComplete="tel"
+          inputMode="tel"
+          placeholder="+7 900 000-00-00"
+          required={required}
+          type="tel"
+          value={draft.contactPhone ?? ""}
+          onChange={(event) => onChange({ ...draft, contactPhone: event.target.value || undefined })}
+        />
+      </label>
+    </div>
+  );
+}
+
 function PeriodControl({
   draft,
   onChange
@@ -3328,6 +3446,7 @@ function QuestionStack({
   idPrefix,
   requireContactDetails = false,
   showConsentChoices = false,
+  showContactFields = true,
   showOnlineHelpFields = false,
   showUnknownOption = true,
   questionsToShow,
@@ -3339,6 +3458,7 @@ function QuestionStack({
   idPrefix?: string;
   requireContactDetails?: boolean;
   showConsentChoices?: boolean;
+  showContactFields?: boolean;
   showOnlineHelpFields?: boolean;
   showUnknownOption?: boolean;
   questionsToShow: typeof questions;
@@ -3396,30 +3516,8 @@ function QuestionStack({
               </select>
             </label>
           ) : null}
-          {question.id === "q16" && draft.q16 === "yes" ? (
-            <div className="contact-grid">
-              <label>
-                Имя
-                <input
-                  autoComplete="name"
-                  required={requireContactDetails}
-                  value={draft.contactName ?? ""}
-                  onChange={(event) => onChange({ ...draft, contactName: event.target.value || undefined })}
-                />
-              </label>
-              <label>
-                Номер телефона
-                <input
-                  autoComplete="tel"
-                  inputMode="tel"
-                  placeholder="+7 900 000-00-00"
-                  required={requireContactDetails}
-                  type="tel"
-                  value={draft.contactPhone ?? ""}
-                  onChange={(event) => onChange({ ...draft, contactPhone: event.target.value || undefined })}
-                />
-              </label>
-            </div>
+          {question.id === "q16" && draft.q16 === "yes" && showContactFields ? (
+            <ContactFields draft={draft} required={requireContactDetails} onChange={onChange} />
           ) : null}
           {question.id === "q16" && draft.q16 === "yes" && showOnlineHelpFields ? (
             <div className="online-help-fields">

@@ -10,14 +10,18 @@ export interface SurveyBasicSelections {
 }
 
 export const surveyDraftLifetimeMs = 24 * 60 * 60 * 1000;
-// Demographics use step 0, paper questions Q4-Q16 use steps 1-13, and review uses 14.
-export const surveyFlowVersion = 2;
+// Demographics and Q4-Q16 stay fixed; the help branch adds contacts and search context.
+export const surveyFlowVersion = 3;
 export const surveyHelpStep = 13;
-export const surveyReviewStep = 14;
-export const surveyStepCount = 15;
+export const surveyContactStep = 14;
+export const surveySearchStep = 15;
+export const surveyReviewStep = 16;
+export const surveyStepCount = 17;
 
 // V1 grouped experience, interests, and help into steps 1, 2, and 3.
 const legacySurveyStepMap = [0, 1, 4, surveyHelpStep, surveyReviewStep] as const;
+const previousSurveyFlowVersion = 2;
+const previousSurveyReviewStep = 14;
 
 export function createEmptyBasicSelections(): SurveyBasicSelections {
   return { ageGroup: false, gender: false, residence: false };
@@ -54,13 +58,20 @@ export function areBasicSelectionsComplete(selections: SurveyBasicSelections): b
 export function resolveSurveyDraftStep(
   requestedStep: number,
   selections: SurveyBasicSelections,
-  requiresContact: boolean
+  hasHelpRequest: boolean
 ): number {
   if (!areBasicSelectionsComplete(selections)) {
     return 0;
   }
 
-  return requiresContact && requestedStep > surveyHelpStep ? surveyHelpStep : requestedStep;
+  if (hasHelpRequest) {
+    // Name and phone are intentionally redacted from browser drafts.
+    return requestedStep > surveyContactStep ? surveyContactStep : requestedStep;
+  }
+
+  return requestedStep === surveyContactStep || requestedStep === surveySearchStep
+    ? surveyReviewStep
+    : requestedStep;
 }
 
 export function coerceSurveyDraftStep(value: unknown, flowVersion: unknown): number {
@@ -70,6 +81,14 @@ export function coerceSurveyDraftStep(value: unknown, flowVersion: unknown): num
 
   if (flowVersion === surveyFlowVersion) {
     return Math.min(surveyStepCount - 1, Math.max(0, value));
+  }
+
+  if (flowVersion === previousSurveyFlowVersion) {
+    if (value >= 0 && value <= surveyHelpStep) {
+      return value;
+    }
+
+    return value === previousSurveyReviewStep ? surveyReviewStep : 0;
   }
 
   if (flowVersion === undefined && value >= 0 && value < legacySurveyStepMap.length) {
@@ -87,7 +106,39 @@ export function shouldAutoAdvanceSurveyQuestion(
     return false;
   }
 
-  return !(answer === "yes" && (questionId === "q11" || questionId === "q16"));
+  return !(answer === "yes" && questionId === "q11");
+}
+
+export function getNextSurveyStep(currentStep: number, hasHelpRequest: boolean): number {
+  if (currentStep < surveyHelpStep) {
+    return Math.min(surveyHelpStep, currentStep + 1);
+  }
+
+  if (currentStep === surveyHelpStep) {
+    return hasHelpRequest ? surveyContactStep : surveyReviewStep;
+  }
+
+  if (currentStep === surveyContactStep) {
+    return surveySearchStep;
+  }
+
+  return surveyReviewStep;
+}
+
+export function getPreviousSurveyStep(currentStep: number, hasHelpRequest: boolean): number {
+  if (currentStep === surveyReviewStep) {
+    return hasHelpRequest ? surveySearchStep : surveyHelpStep;
+  }
+
+  if (currentStep === surveySearchStep) {
+    return surveyContactStep;
+  }
+
+  if (currentStep === surveyContactStep) {
+    return surveyHelpStep;
+  }
+
+  return Math.max(0, currentStep - 1);
 }
 
 export function getSurveyContactValidationIssue(draft: {
