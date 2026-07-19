@@ -58,6 +58,7 @@ const answerKeys = [
   "q15",
   "q16"
 ] as const;
+const finalPaperMobileStep = answerKeys.length + 1;
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 export function createPaperEntryDraftState(
@@ -142,7 +143,10 @@ function readOptionalBoolean(value: unknown): boolean | undefined {
 }
 
 function normalizeMobileStep(value: unknown): number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 13
+  return typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= finalPaperMobileStep
     ? value
     : 0;
 }

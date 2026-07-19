@@ -46,9 +46,9 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - public online survey submits to the server after the review step, shows a completion screen, and stores a browser-local draft until successful submit;
   - public survey and workspace are separate shells without links between them. `/` has no workspace entry; `/entry`, `/data`, and `/pdf` have no survey entry;
   - operator entry, data, and PDF archive are behind workspace password login; authenticated workspace navigation contains only `Ввод`, `Данные`, and `PDF`;
-  - desktop operator entry remains one continuous form with explicit demographic confirmation, answered/remaining progress, a next-missing-answer action, one section selector, temporary question highlighting, and grouped paper-form sections;
-  - at widths up to 720px, operator entry becomes a 14-step guided flow: three explicit demographic choices first, then one Q4-Q16 question at a time. The first step blocks and focuses the first missing choice; ordinary answers auto-advance, Q11/Q16 positive answers wait for dependent fields, back/next retain state, and the final step can cycle through unanswered questions before saving;
-  - paper rows can be entered as a tab-scoped series: the selected survey date, API-confirmed count, and last confirmed response ID survive route reloads in the same tab. The authoritative mutation response updates the workspace collection directly, avoiding duplicate retries when a follow-up list request fails. Each successful save clears respondent answers and demographic confirmation before returning focus to the start; `Проверить последнюю` opens that exact row in the shared editor, while a new date or `Завершить` resets the reference. Empty series do not show a finish action, and mobile active-series controls keep visible compact labels;
+  - desktop operator entry remains one continuous form with explicit demographic confirmation, answered/remaining progress, grouped paper-form sections, and temporary question highlighting. The form is capped at a calmer reading width, the former section selector is removed, and the next-unanswered action appears only after entry has started and unanswered rows remain;
+  - at widths up to 720px, paper operator entry becomes a 15-step guided flow: three explicit demographic choices first, then one Q4-Q16 question at a time, followed by the paper consent marks on a separate final step. The first step blocks and focuses the first missing choice; ordinary answers auto-advance, Q11/Q16 positive answers wait for dependent fields, and back/next retain state;
+  - paper rows can be entered as a tab-scoped series: the selected survey date, API-confirmed count, and last confirmed response ID survive route reloads in the same tab. The authoritative mutation response updates the workspace collection directly, avoiding duplicate retries when a follow-up list request fails. Each successful save clears respondent answers and demographic confirmation before returning focus to the start; `Проверить последнюю` opens that exact row in the shared editor, while a new date or `Завершить` resets the reference. Empty series do not show a finish action. An unsaved first draft uses a distinct `Очистить` action; on phone only its reset icon remains visible, with the full accessible label retained;
   - unfinished paper entry has a separate 24-hour tab-scoped recovery draft. It restores explicit demographic confirmation, date, Q4-Q16, Q11 war detail, consent marks, and mobile step after reload, while excluding name, phone, search context, free text, and internal workflow fields. A legacy draft without confirmation markers returns to questions 1-3;
   - entry submission is locked while the request is in flight so a repeated mobile tap cannot create duplicate rows;
   - data filters include date range, source, gender, age group, residence, help-only, contact-only, contact workflow status, next-contact date, missing next-contact date, and free text search;
@@ -122,16 +122,16 @@ The test domain must have its own interface, its own UX decisions, and may use n
 - Consent/contact-quality iteration:
   - shared, database, API, and web targeted suites passed: 56 tests total;
   - public mobile/browser smoke confirmed the original 1-16 order, Q16-only help fields, invalid-phone focus, required processing consent, optional invitation consent, successful submit, and persisted inspector values;
-  - paper entry shows tri-state consent controls on Q16 in both continuous desktop and 14-step phone layouts;
+  - paper entry originally showed tri-state consent controls alongside Q16; the later entry-clarity iteration moved the phone controls to a separate final step while keeping them below Q16 in the continuous desktop form;
   - iPhone 12 mini `375x812` and desktop `1280x720` checks had no horizontal overflow.
 - `npm run typecheck`
 - `npm run lint`
 - `npm run test`
 - `VITE_APP_ENV=test npm run build`
 - Local browser smoke for device-specific paper entry confirmed:
-  - at iPhone 12 mini `375x812`, entry renders one 14-step flow and no desktop toolbar; the initial document height is about 836px rather than the former 3064px continuous form, with no horizontal overflow;
+  - at iPhone 12 mini `375x812`, entry originally rendered one 14-step flow and no desktop toolbar; the later entry-clarity iteration added a fifteenth consent step without returning to the former 3064px continuous phone form;
   - an ordinary Q4 answer advances to Q5, `Назад` retains the selected answer, and manual `Далее` still allows an intentional `Нет ответа`;
-  - Q11 `Да` stays on the current step and reveals the full war selector; Q16 `Да` stays on the final step and reveals name/phone fields;
+  - Q11 `Да` stays on the current step and reveals the full war selector; Q16 `Да` stays on its question step and reveals name/phone fields before the final consent step;
   - saving a mobile questionnaire increments the API-confirmed series counter and returns to demographics for the next row;
   - at `1280x720`, the mobile flow is absent and the continuous desktop toolbar plus all 13 question rows remain available;
   - browser console contains no warnings or errors.
@@ -349,5 +349,18 @@ The test domain must have its own interface, its own UX decisions, and may use n
   - `npm run typecheck`;
   - `npm run lint`;
   - `npm run test` (`74` tests);
+  - `VITE_APP_ENV=test npm run build`;
+  - `git diff --check`.
+- Local browser smoke for the paper-entry clarity iteration confirmed:
+  - an isolated local database accepted one complete mobile paper row, increased the server-confirmed series count to one, reset the next respondent to neutral demographics, and reopened the exact row through `Проверить последнюю`;
+  - at `375x812`, Q16 contains only its answer and conditional name/phone fields; `Далее` opens a separate `Согласия` step with both paper consent marks and the save action;
+  - an unsaved first draft exposes `Очистить черновик` rather than `Завершить серию`; its phone icon is 44px wide, and the measured date input ends before the counter begins;
+  - the desktop entry column is capped at 1040px. Its initial progress bar has no navigation buttons, while answering Q4 reveals one `Следующий пропуск` action that highlights and scrolls Q5 into view;
+  - widths `375`, `599`, `720`, `721`, and `1280` had no horizontal overflow or overflowing form controls. The guided flow is active through 720px and the continuous flow starts at 721px;
+  - browser warning/error logs were empty.
+- Verification after the paper-entry clarity iteration:
+  - `npm run typecheck`;
+  - `npm run lint`;
+  - `npm run test` (`77` tests);
   - `VITE_APP_ENV=test npm run build`;
   - `git diff --check`.

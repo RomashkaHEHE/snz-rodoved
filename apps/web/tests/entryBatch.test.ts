@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   advanceEntryBatch,
   changeEntryBatchDate,
-  parseEntryBatchState
+  parseEntryBatchState,
+  resolveEntryBatchEndAction
 } from "../src/experiment/entryBatch";
 
 describe("entry batch state", () => {
@@ -51,5 +52,15 @@ describe("entry batch state", () => {
         "2026-07-12"
       )
     ).toEqual({ count: 0, surveyDate: "2026-07-12" });
+  });
+
+  it("distinguishes clearing a draft from finishing a saved series", () => {
+    const emptySeries = { count: 0, surveyDate: "2026-07-12" };
+    const savedSeries = { count: 2, surveyDate: "2026-07-12" };
+
+    expect(resolveEntryBatchEndAction(emptySeries, false)).toBe("none");
+    expect(resolveEntryBatchEndAction(emptySeries, true)).toBe("clear-draft");
+    expect(resolveEntryBatchEndAction(savedSeries, false)).toBe("finish-series");
+    expect(resolveEntryBatchEndAction(savedSeries, true)).toBe("finish-series");
   });
 });

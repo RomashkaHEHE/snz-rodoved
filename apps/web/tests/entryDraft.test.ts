@@ -69,6 +69,18 @@ describe("paper entry draft safety", () => {
     expect(parsePaperEntryDraftState(stored, now)).toEqual(stored);
   });
 
+  it("restores the final mobile consent step", () => {
+    const now = Date.parse("2026-07-13T11:00:00.000Z");
+    const stored = createPaperEntryDraftState(
+      draft,
+      14,
+      completeBasics,
+      "2026-07-13T10:00:00.000Z"
+    );
+
+    expect(parsePaperEntryDraftState(stored, now)?.mobileEntryStep).toBe(14);
+  });
+
   it("falls back to the first step without rejecting valid answers", () => {
     const now = Date.parse("2026-07-13T11:00:00.000Z");
     const stored = {

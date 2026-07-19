@@ -18,6 +18,7 @@ import {
   PenLine,
   Phone,
   Plus,
+  RotateCcw,
   Save,
   Send,
   Trash2,
@@ -61,6 +62,7 @@ import {
   advanceEntryBatch,
   changeEntryBatchDate,
   parseEntryBatchState,
+  resolveEntryBatchEndAction,
   type EntryBatchState
 } from "./entryBatch";
 import {
@@ -1273,13 +1275,22 @@ function EntryPage({
   const experienceQuestions = questions.filter((question) => question.group === "experience");
   const interestQuestions = questions.filter((question) => question.group === "interest");
   const helpQuestions = questions.filter((question) => question.group === "help");
-  const mobileEntryStepCount = questions.length + 1;
-  const activeMobileQuestion = mobileEntryStep > 0 ? questions[mobileEntryStep - 1] : null;
+  const showMobileConsentStep = draft.source === "paper";
+  const mobileEntryStepCount = questions.length + 1 + (showMobileConsentStep ? 1 : 0);
+  const activeMobileQuestion =
+    mobileEntryStep > 0 && mobileEntryStep <= questions.length
+      ? questions[mobileEntryStep - 1]
+      : null;
+  const isMobileConsentStep = showMobileConsentStep && mobileEntryStep === mobileEntryStepCount - 1;
+  const answeredQuestionCount = questions.length - unknownQuestions.length;
   const paperBasicsComplete = areBasicSelectionsComplete(paperBasicSelections);
   const hasUnsavedPaperEntry =
     isPaperDraftTouched(draft) || hasAnyBasicSelection(paperBasicSelections);
-  const canFinishBatch = batchState.count > 0 || hasUnsavedPaperEntry;
-  const mobileEntrySectionLabel = activeMobileQuestion
+  const batchEndAction = resolveEntryBatchEndAction(batchState, hasUnsavedPaperEntry);
+  const showBatchEndAction = batchEndAction !== "none";
+  const mobileEntrySectionLabel = isMobileConsentStep
+    ? "Согласия"
+    : activeMobileQuestion
     ? activeMobileQuestion.group === "experience"
       ? "Опыт"
       : activeMobileQuestion.group === "interest"
@@ -1341,10 +1352,6 @@ function EntryPage({
     const timeout = window.setTimeout(() => setHighlightedQuestionId(null), 2200);
     return () => window.clearTimeout(timeout);
   }, [highlightedQuestionId]);
-
-  function jumpToEntrySection(sectionId: string) {
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
 
   function moveMobileEntry(nextStep: number) {
     if (nextStep > 0 && mobileEntryStep === 0 && !validatePaperBasics()) {
@@ -1463,10 +1470,15 @@ function EntryPage({
     setStatus("");
   }
 
-  function finishBatch() {
+  function handleBatchEnd() {
+    const clearingDraftOnly = batchEndAction === "clear-draft";
     if (
       hasUnsavedPaperEntry &&
-      !window.confirm("Очистить несохранённые ответы и завершить серию?")
+      !window.confirm(
+        clearingDraftOnly
+          ? "Очистить несохранённые ответы?"
+          : "Очистить несохранённые ответы и завершить серию?"
+      )
     ) {
       return;
     }
@@ -1479,7 +1491,7 @@ function EntryPage({
     setPaperBasicSelections(createEmptyBasicSelections());
     setPaperBasicValidationAttempted(false);
     setMobileEntryStep(0);
-    setStatus("Серия завершена.");
+    setStatus(clearingDraftOnly ? "Черновик очищен." : "Серия завершена.");
     jumpToEntryStart();
   }
 
@@ -1543,7 +1555,6 @@ function EntryPage({
     <section className="task-page entry-task">
       <div className="task-heading">
         <div>
-          <p className="eyebrow">Оператор</p>
           <h1>{editingResponse ? "Изменение анкеты" : "Быстрый ввод"}</h1>
         </div>
         {editingResponse ? (
@@ -1556,17 +1567,10 @@ function EntryPage({
       <form className="task-panel entry-panel" onSubmit={handleSubmit}>
         {!editingResponse ? (
           <section
-            className={canFinishBatch ? "entry-batch has-end-action" : "entry-batch"}
+            className={showBatchEndAction ? "entry-batch has-end-action" : "entry-batch"}
             id="entry-batch"
             aria-label="Текущая серия бумажных анкет"
           >
-            <div className="entry-batch-title">
-              <CalendarDays aria-hidden size={22} />
-              <div>
-                <span>Текущая серия</span>
-                <strong>Бумажные анкеты</strong>
-              </div>
-            </div>
             <label className="entry-batch-date">
               Дата опроса
               <input
@@ -1581,17 +1585,29 @@ function EntryPage({
               <span className="entry-count-mobile">В серии</span>
               <strong>{batchState.count}</strong>
             </div>
-            {canFinishBatch ? (
+            {showBatchEndAction ? (
               <button
-                aria-label="Завершить серию"
-                className="ghost-button entry-batch-end"
-                title="Завершить серию"
+                aria-label={batchEndAction === "clear-draft" ? "Очистить черновик" : "Завершить серию"}
+                className={
+                  batchEndAction === "clear-draft"
+                    ? "ghost-button entry-batch-end is-clear-draft"
+                    : "ghost-button entry-batch-end"
+                }
+                title={batchEndAction === "clear-draft" ? "Очистить черновик" : "Завершить серию"}
                 type="button"
-                onClick={finishBatch}
+                onClick={handleBatchEnd}
               >
-                <CheckCircle aria-hidden size={17} />
-                <span className="entry-finish-desktop">Завершить</span>
-                <span className="entry-finish-mobile">Готово</span>
+                {batchEndAction === "clear-draft" ? (
+                  <RotateCcw aria-hidden size={17} />
+                ) : (
+                  <CheckCircle aria-hidden size={17} />
+                )}
+                <span className="entry-finish-desktop">
+                  {batchEndAction === "clear-draft" ? "Очистить" : "Завершить"}
+                </span>
+                <span className="entry-finish-mobile">
+                  {batchEndAction === "clear-draft" ? "Очистить" : "Готово"}
+                </span>
               </button>
             ) : null}
             {status || batchState.lastResponseId ? (
@@ -1621,7 +1637,13 @@ function EntryPage({
               className="mobile-entry-progress"
             >
               <div>
-                <span>{activeMobileQuestion ? `Вопрос ${activeMobileQuestion.number}` : "Вопросы 1-3"}</span>
+                <span>
+                  {isMobileConsentStep
+                    ? "После вопроса 16"
+                    : activeMobileQuestion
+                      ? `Вопрос ${activeMobileQuestion.number}`
+                      : "Вопросы 1-3"}
+                </span>
                 <strong>{mobileEntrySectionLabel}</strong>
               </div>
               <b>{mobileEntryStep + 1} / {mobileEntryStepCount}</b>
@@ -1643,11 +1665,14 @@ function EntryPage({
                   highlightedQuestionId={highlightedQuestionId}
                   idPrefix="mobile-entry"
                   requireContactDetails={requireEditingContacts}
-                  showConsentChoices={draft.source === "paper"}
                   showOnlineHelpFields={showEditingSearchFields}
                   questionsToShow={[activeMobileQuestion]}
                   onChange={handleMobileQuestionChange}
                 />
+              ) : isMobileConsentStep ? (
+                <div className="mobile-entry-consents">
+                  <ConsentChoiceFields draft={draft} onChange={setDraft} />
+                </div>
               ) : (
                 <BasicFields
                   draft={draft}
@@ -1694,43 +1719,24 @@ function EntryPage({
         ) : (
           <>
             <div className="entry-toolbar" aria-label="Навигация по анкете">
-              <div className="entry-progress" aria-label={`Заполнено ${questions.length - unknownQuestions.length} из ${questions.length}`}>
+              <div className="entry-progress" aria-label={`Заполнено ${answeredQuestionCount} из ${questions.length}`}>
                 <div>
-                  <strong>Заполнено {questions.length - unknownQuestions.length} из {questions.length}</strong>
+                  <strong>Заполнено {answeredQuestionCount} из {questions.length}</strong>
                   <span>{unknownQuestions.length > 0 ? `Осталось: ${unknownQuestions.length}` : "Все ответы отмечены"}</span>
                 </div>
                 <i aria-hidden>
-                  <b style={{ width: `${((questions.length - unknownQuestions.length) / questions.length) * 100}%` }} />
+                  <b style={{ width: `${(answeredQuestionCount / questions.length) * 100}%` }} />
                 </i>
               </div>
-              <div className="entry-jump-row">
+              {answeredQuestionCount > 0 && unknownQuestions.length > 0 ? (
                 <button
                   className="entry-next-unknown"
-                  disabled={unknownQuestions.length === 0}
                   type="button"
                   onClick={jumpToNextUnknown}
                 >
-                  Найти пропуск
+                  Следующий пропуск
                 </button>
-                <label className="entry-section-select">
-                  <span>Раздел</span>
-                  <select
-                    defaultValue=""
-                    onChange={(event) => {
-                      if (event.currentTarget.value) {
-                        jumpToEntrySection(event.currentTarget.value);
-                        event.currentTarget.value = "";
-                      }
-                    }}
-                  >
-                    <option disabled value="">Перейти к...</option>
-                    <option value="entry-basic">1-3 · Данные</option>
-                    <option value="entry-experience">4-6 · Опыт</option>
-                    <option value="entry-interest">7-15 · Интересы</option>
-                    <option value="entry-help">16 · Помощь</option>
-                  </select>
-                </label>
-              </div>
+              ) : null}
             </div>
 
             <section className="entry-section" id="entry-basic">

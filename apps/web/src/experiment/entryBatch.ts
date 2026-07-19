@@ -4,6 +4,8 @@ export interface EntryBatchState {
   surveyDate: string;
 }
 
+export type EntryBatchEndAction = "none" | "clear-draft" | "finish-series";
+
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 export function parseEntryBatchState(value: unknown, fallbackSurveyDate: string): EntryBatchState {
@@ -43,4 +45,15 @@ export function advanceEntryBatch(
     count: state.count + 1,
     ...(lastResponseId ? { lastResponseId } : {})
   };
+}
+
+export function resolveEntryBatchEndAction(
+  state: EntryBatchState,
+  hasUnsavedDraft: boolean
+): EntryBatchEndAction {
+  if (state.count > 0) {
+    return "finish-series";
+  }
+
+  return hasUnsavedDraft ? "clear-draft" : "none";
 }

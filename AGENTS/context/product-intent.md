@@ -16,7 +16,7 @@ Public questions Q4-Q16 should be presented one at a time on every device. A del
 
 Desktop and phone layouts may use different controls for the same state. For example, desktop data modes use tabs while phone layouts use one select. This is intentional when it keeps every option reachable without creating a wall of buttons.
 
-Paper entry follows the same device-specific rule. Desktop keeps the whole questionnaire visible for overview and keyboard work; phone layouts guide the operator through demographics and one question at a time. A mobile answer may advance immediately when no dependent field is required, while Q11 and Q16 remain in place for their conditional details.
+Paper entry follows the same device-specific rule. Desktop keeps the whole questionnaire visible for overview and keyboard work; phone layouts guide the operator through demographics and one question at a time. A mobile answer may advance immediately when no dependent field is required, while Q11 and Q16 remain in place for their conditional details. The two consent marks from the paper form follow Q16 as a separate final phone step, so contacts and consent controls do not compete on one screen.
 
 An interrupted paper-entry session should recover without making contact data linger in browser storage. Restore questionnaire answers and the operator's current step after a reload or mobile tab eviction, but deliberately require name and phone to be re-entered. This trades a small amount of repeated work for a clearer privacy boundary.
 
