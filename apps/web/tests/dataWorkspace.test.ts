@@ -5,6 +5,7 @@ import {
   dataPageSize,
   getContactDateState,
   readDataMode,
+  resolveInitialContactSelection,
   selectRecentSurveyDates,
   setDataModeSearchParam
 } from "../src/experiment/dataWorkspace";
@@ -46,6 +47,24 @@ describe("contact planning", () => {
     expect(getContactDateState("2026-07-15", today)).toBe("due");
     expect(getContactDateState(today, today)).toBe("today");
     expect(getContactDateState("2026-07-17", today)).toBe("future");
+  });
+
+  it("selects the first desktop contact only once for a queue slice", () => {
+    const base = {
+      currentKey: "contacts:contact-1:3",
+      dataMode: "contacts" as const,
+      firstContactId: "contact-1",
+      isMobile: false,
+      selectedId: null
+    };
+
+    expect(resolveInitialContactSelection({ ...base, previousKey: "" })).toBe("contact-1");
+    expect(resolveInitialContactSelection({ ...base, previousKey: base.currentKey })).toBeNull();
+    expect(resolveInitialContactSelection({ ...base, previousKey: "", selectedId: "contact-2" })).toBeNull();
+    expect(resolveInitialContactSelection({ ...base, previousKey: "", isMobile: true })).toBeNull();
+    expect(
+      resolveInitialContactSelection({ ...base, dataMode: "rows", previousKey: "" })
+    ).toBeNull();
   });
 });
 

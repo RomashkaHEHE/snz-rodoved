@@ -52,6 +52,34 @@ export function getContactDateState(
   return contactNextDate === today ? "today" : "future";
 }
 
+export function resolveInitialContactSelection({
+  currentKey,
+  dataMode,
+  firstContactId,
+  isMobile,
+  previousKey,
+  selectedId
+}: {
+  currentKey: string;
+  dataMode: DataMode;
+  firstContactId: string | undefined;
+  isMobile: boolean;
+  previousKey: string;
+  selectedId: string | null;
+}): string | null {
+  if (
+    dataMode !== "contacts" ||
+    isMobile ||
+    selectedId ||
+    !firstContactId ||
+    previousKey === currentKey
+  ) {
+    return null;
+  }
+
+  return firstContactId;
+}
+
 export function buildSurveyDateSeries(responses: SurveyDateResponse[]): SurveyDatePoint[] {
   const grouped = new Map<string, SurveyDatePoint>();
 

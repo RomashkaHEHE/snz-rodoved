@@ -2203,6 +2203,16 @@ button:disabled {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.contact-state-pill {
+  background: var(--accent-soft);
+  border-radius: 3px;
+  color: var(--accent-strong);
+  font-size: 0.75rem;
+  font-weight: 900;
+  padding: 0.24rem 0.42rem;
 }
 
 .inspector-close-button {
@@ -2230,8 +2240,8 @@ button:disabled {
   margin: 0;
 }
 
-.mobile-contact-privacy-button {
-  display: none;
+.contact-privacy-button {
+  display: inline-flex;
 }
 
 .detail-item {
@@ -2260,6 +2270,67 @@ button:disabled {
 
 .wide-detail {
   grid-column: 1 / -1;
+}
+
+.contact-call-action {
+  justify-self: start;
+  text-decoration: none;
+}
+
+.inspector-disclosure {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.inspector-disclosure > summary {
+  align-items: center;
+  cursor: pointer;
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  list-style: none;
+  min-height: 48px;
+  padding: 0.7rem 0.8rem;
+}
+
+.inspector-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.inspector-disclosure > summary > span {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.inspector-disclosure > summary strong {
+  font-weight: 900;
+}
+
+.inspector-disclosure > summary small {
+  color: var(--muted);
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inspector-disclosure > summary svg {
+  color: var(--accent);
+  transition: transform 160ms ease;
+}
+
+.inspector-disclosure[open] > summary svg {
+  transform: rotate(180deg);
+}
+
+.inspector-disclosure-content,
+.questionnaire-disclosure-content {
+  border-top: 1px solid var(--line-soft);
+  display: grid;
+  gap: 0.8rem;
+  padding: 0.8rem;
 }
 
 .answer-review-grid {
@@ -2335,6 +2406,14 @@ button:disabled {
   font-weight: 900;
   min-height: 36px;
   padding: 0.35rem 0.55rem;
+}
+
+.quick-date-row .quick-date-clear {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  min-width: 36px;
+  padding: 0.35rem;
 }
 
 .inline-editor {
@@ -2877,8 +2956,20 @@ button:disabled {
     padding: 0;
   }
 
-  .mobile-contact-privacy-button {
+  .contact-privacy-button {
     display: inline-flex;
+  }
+
+  .contact-priority-inspector {
+    gap: 0.8rem;
+  }
+
+  .contact-priority-inspector .contact-call-action {
+    justify-self: stretch;
+  }
+
+  .contact-priority-inspector .contact-workflow {
+    padding: 0.8rem;
   }
 
   .mobile-answer-review {

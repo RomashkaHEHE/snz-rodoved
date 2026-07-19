@@ -9,6 +9,8 @@ import {
   Database,
   Download,
   Ellipsis,
+  Eye,
+  EyeOff,
   FileText,
   ListFilter,
   LockKeyhole,
@@ -72,6 +74,7 @@ import {
   dataPageSize,
   getContactDateState,
   readDataMode,
+  resolveInitialContactSelection,
   selectRecentSurveyDates,
   setDataModeSearchParam,
   surveyDateDisplayLimit,
@@ -1740,6 +1743,7 @@ function DataPage({
   const isMobileData = useMediaQuery("(max-width: 720px)");
   const mobileDetailRef = useRef<HTMLDivElement>(null);
   const mobileDetailTriggerRef = useRef<HTMLElement | null>(null);
+  const contactAutoSelectionKeyRef = useRef("");
   const filteredResponses = useMemo(
     () => responses.filter((response) => matchesFilters(response, filters)),
     [responses, filters]
@@ -1788,6 +1792,7 @@ function DataPage({
   const contactPlanCounts = useMemo(() => buildContactPlanCounts(contactPlanBase), [contactPlanBase]);
   const activeContactPlan = getContactPlanFilter(filters);
   const sortedHelpRequests = useMemo(() => [...helpRequests].sort(compareContactQueue), [helpRequests]);
+  const contactAutoSelectionKey = `${filtersToSearch(filters, "contacts")}:${sortedHelpRequests[0]?.id ?? ""}:${sortedHelpRequests.length}`;
   const selectedHelpIndex = sortedHelpRequests.findIndex((response) => response.id === selectedId);
   const selectedRowIndex = filteredResponses.findIndex((response) => response.id === selectedId);
   const effectiveHelpCount = Math.max(visibleHelpCount, selectedHelpIndex + 1);
@@ -1846,6 +1851,31 @@ function DataPage({
       setDetailDraft(null);
     }
   }, [filteredResponses, selectedId]);
+
+  useEffect(() => {
+    if (dataMode !== "contacts") {
+      contactAutoSelectionKeyRef.current = "";
+      return;
+    }
+
+    const nextSelectedId = resolveInitialContactSelection({
+      currentKey: contactAutoSelectionKey,
+      dataMode,
+      firstContactId: sortedHelpRequests[0]?.id,
+      isMobile: isMobileData,
+      previousKey: contactAutoSelectionKeyRef.current,
+      selectedId
+    });
+
+    if (!nextSelectedId) {
+      return;
+    }
+
+    contactAutoSelectionKeyRef.current = contactAutoSelectionKey;
+    setSelectedId(nextSelectedId);
+    setDetailMode("view");
+    setDetailDraft(null);
+  }, [contactAutoSelectionKey, dataMode, isMobileData, selectedId, sortedHelpRequests]);
 
   useEffect(() => {
     if (selectedResponse && detailMode === "view") {
@@ -1944,6 +1974,9 @@ function DataPage({
   function closeResponse() {
     if (detailMode === "edit" && !confirmDiscardResponseChanges(selectedDraftDirty)) {
       return;
+    }
+    if (dataMode === "contacts") {
+      contactAutoSelectionKeyRef.current = contactAutoSelectionKey;
     }
     setDataStatus("");
     setSelectedId(null);
@@ -2170,6 +2203,7 @@ function DataPage({
       hideContacts={hideContacts}
       mobile={isMobileData}
       mode={detailMode}
+      prioritizeContact={dataMode === "contacts"}
       response={selectedResponse}
       status={dataStatus}
       onCancel={() => {
@@ -2621,7 +2655,7 @@ function DataPage({
 
       {isMobileData && selectedResponse ? (
         <div
-          aria-label={`Анкета за ${selectedResponse.surveyDate}`}
+          aria-label={`${dataMode === "contacts" ? "Обращение" : "Анкета"} за ${selectedResponse.surveyDate}`}
           aria-modal="true"
           className="mobile-data-detail-layer"
           ref={mobileDetailRef}
@@ -3820,6 +3854,7 @@ function ResponseInspector({
   onSaveContact,
   onSave,
   onToggleContacts,
+  prioritizeContact,
   response,
   status
 }: {
@@ -3840,6 +3875,7 @@ function ResponseInspector({
   ) => Promise<void>;
   onSave: () => Promise<void>;
   onToggleContacts: () => void;
+  prioritizeContact: boolean;
   response: SurveyResponse | null;
   status: string;
 }) {
@@ -3856,7 +3892,12 @@ function ResponseInspector({
   if (mode === "edit" && draft) {
     return (
       <aside className="row-inspector">
-        <ResponseInspectorHeading mobile={mobile} response={response} onClose={onClose} />
+        <ResponseInspectorHeading
+          mobile={mobile}
+          prioritizeContact={prioritizeContact}
+          response={response}
+          onClose={onClose}
+        />
         {mobile ? (
           <MobileResponseEditor
             busy={busy}
@@ -3900,75 +3941,59 @@ function ResponseInspector({
     );
   }
 
+  const contactFirst = prioritizeContact && response.q16 === "yes";
+
   return (
-    <aside className="row-inspector">
-      <ResponseInspectorHeading mobile={mobile} response={response} onClose={onClose} />
+    <aside className={contactFirst ? "row-inspector contact-priority-inspector" : "row-inspector"}>
+      <ResponseInspectorHeading
+        mobile={mobile}
+        prioritizeContact={contactFirst}
+        response={response}
+        onClose={onClose}
+      />
 
-      <div className="detail-grid">
-        <Detail label="Пол" value={genderLabels[response.gender]} />
-        <Detail label="Возраст" value={ageLabels[response.ageGroup]} />
-        <Detail label="Проживание" value={residenceLabels[response.residence]} />
-        <Detail label="Помощь" value={answerLabels[response.q16]} />
-        <Detail
-          label="Обработка ответов"
-          value={formatConsent(response.consentToDataProcessing)}
-        />
-        <Detail label="Приглашения" value={formatConsent(response.consentToEvents)} />
-      </div>
-
-      {response.q16 === "yes" ? (
+      {contactFirst ? (
         <>
-          <section className="inspector-section contact-summary-section">
-            <div className="section-title-row">
-              <h3>Запрос на помощь</h3>
-              {response.contactName || response.contactPhone ? (
-                <button
-                  aria-label={hideContacts ? "Показать контакты" : "Скрыть контакты"}
-                  aria-pressed={!hideContacts}
-                  className="ghost-button compact-button mobile-contact-privacy-button"
-                  type="button"
-                  onClick={onToggleContacts}
-                >
-                  <LockKeyhole aria-hidden size={16} />
-                  {hideContacts ? "Показать" : "Скрыть"}
-                </button>
-              ) : null}
-            </div>
-            <div className="detail-grid">
-              <Detail label="Имя" masked={hideContacts && Boolean(response.contactName)} value={response.contactName} />
-              <Detail
-                label="Телефон"
-                masked={hideContacts && Boolean(response.contactPhone)}
-                phone
-                value={response.contactPhone}
-              />
-              {response.researchTerritory ? <Detail label="Территория" value={response.researchTerritory} /> : null}
-              {response.researchPeriodStart || response.researchPeriodEnd ? (
-                <Detail label="Период" value={formatResearchPeriod(response)} />
-              ) : null}
-              {response.freeText ? <Detail label="Комментарий" value={response.freeText} wide /> : null}
-            </div>
-          </section>
+          <ContactRequestSection
+            compact
+            hideContacts={hideContacts}
+            response={response}
+            onToggleContacts={onToggleContacts}
+          />
           <ContactWorkflowPanel mobile={mobile} response={response} onSave={onSaveContact} />
+          <ResponseQuestionnaireDisclosure response={response} />
         </>
-      ) : null}
-
-      {mobile ? (
-        <details className="mobile-answer-review">
-          <summary>
-            <span>Ответы на вопросы 4-16</span>
-            <ChevronDown aria-hidden size={18} />
-          </summary>
-          <ResponseAnswerReview hideHeading response={response} />
-        </details>
       ) : (
-        <ResponseAnswerReview response={response} />
+        <>
+          <ResponseOverview response={response} />
+          {response.q16 === "yes" ? (
+            <>
+              <ContactRequestSection
+                hideContacts={hideContacts}
+                response={response}
+                onToggleContacts={onToggleContacts}
+              />
+              <ContactWorkflowPanel mobile={mobile} response={response} onSave={onSaveContact} />
+            </>
+          ) : null}
+          {mobile ? (
+            <details className="mobile-answer-review">
+              <summary>
+                <span>Ответы на вопросы 4-16</span>
+                <ChevronDown aria-hidden size={18} />
+              </summary>
+              <ResponseAnswerReview hideHeading response={response} />
+            </details>
+          ) : (
+            <ResponseAnswerReview response={response} />
+          )}
+        </>
       )}
 
       <div className="form-actions inspector-actions">
         <button className="primary-button" type="button" onClick={() => onEdit(response)}>
           <PenLine aria-hidden size={17} />
-          Изменить здесь
+          Изменить анкету
         </button>
         {!mobile ? (
           <button className="ghost-button" type="button" onClick={() => onOpenEntry(response.id)}>
@@ -3987,10 +4012,12 @@ function ResponseInspector({
 function ResponseInspectorHeading({
   mobile,
   onClose,
+  prioritizeContact = false,
   response
 }: {
   mobile: boolean;
   onClose: () => void;
+  prioritizeContact?: boolean;
   response: SurveyResponse;
 }) {
   return (
@@ -3999,6 +4026,9 @@ function ResponseInspectorHeading({
         <div className="inspector-badges">
           <span className={`source-pill source-${response.source}`}>{sourceLabels[response.source]}</span>
           {response.isFake ? <span className="demo-badge">демо</span> : null}
+          {prioritizeContact ? (
+            <span className="contact-state-pill">{contactStatusLabels[response.contactStatus]}</span>
+          ) : null}
         </div>
         <h3>{response.surveyDate}</h3>
       </div>
@@ -4013,6 +4043,132 @@ function ResponseInspectorHeading({
       </button>
     </div>
   );
+}
+
+function ResponseOverview({ response }: { response: SurveyResponse }) {
+  return (
+    <div className="detail-grid">
+      <Detail label="Пол" value={genderLabels[response.gender]} />
+      <Detail label="Возраст" value={ageLabels[response.ageGroup]} />
+      <Detail label="Проживание" value={residenceLabels[response.residence]} />
+      <Detail label="Помощь" value={answerLabels[response.q16]} />
+      <Detail
+        label="Обработка ответов"
+        value={formatConsent(response.consentToDataProcessing)}
+      />
+      <Detail label="Приглашения" value={formatConsent(response.consentToEvents)} />
+    </div>
+  );
+}
+
+function ContactRequestSection({
+  compact = false,
+  hideContacts,
+  onToggleContacts,
+  response
+}: {
+  compact?: boolean;
+  hideContacts: boolean;
+  onToggleContacts: () => void;
+  response: SurveyResponse;
+}) {
+  const hasSearchDetails = Boolean(
+    response.researchTerritory ||
+    response.researchPeriodStart ||
+    response.researchPeriodEnd ||
+    response.freeText
+  );
+
+  return (
+    <section className="inspector-section contact-summary-section">
+      <div className="section-title-row">
+        <h3>{compact ? "Контакт" : "Запрос на помощь"}</h3>
+        {response.contactName || response.contactPhone ? (
+          <button
+            aria-label={hideContacts ? "Показать контакты" : "Скрыть контакты"}
+            aria-pressed={!hideContacts}
+            className="ghost-button compact-button contact-privacy-button"
+            type="button"
+            onClick={onToggleContacts}
+          >
+            {hideContacts ? <Eye aria-hidden size={17} /> : <EyeOff aria-hidden size={17} />}
+            {hideContacts ? "Показать" : "Скрыть"}
+          </button>
+        ) : null}
+      </div>
+      <div className="detail-grid contact-primary-grid">
+        <Detail label="Имя" masked={hideContacts && Boolean(response.contactName)} value={response.contactName} />
+        <Detail
+          label="Телефон"
+          masked={hideContacts && Boolean(response.contactPhone)}
+          phone
+          value={response.contactPhone}
+        />
+        {!compact && response.researchTerritory ? (
+          <Detail label="Территория" value={response.researchTerritory} />
+        ) : null}
+        {!compact && (response.researchPeriodStart || response.researchPeriodEnd) ? (
+          <Detail label="Период" value={formatResearchPeriod(response)} />
+        ) : null}
+        {!compact && response.freeText ? <Detail label="Комментарий" value={response.freeText} wide /> : null}
+      </div>
+      {!hideContacts && response.contactPhone ? (
+        <a className="primary-button contact-call-action" href={`tel:${normalizePhone(response.contactPhone)}`}>
+          <Phone aria-hidden size={18} />
+          Позвонить
+        </a>
+      ) : null}
+      {compact && hasSearchDetails ? (
+        <details className="inspector-disclosure contact-request-disclosure">
+          <summary>
+            <span>
+              <strong>Детали поиска</strong>
+              <small>{getContactRequestSummary(response)}</small>
+            </span>
+            <ChevronDown aria-hidden size={18} />
+          </summary>
+          <div className="detail-grid inspector-disclosure-content">
+            {response.researchTerritory ? <Detail label="Территория" value={response.researchTerritory} /> : null}
+            {response.researchPeriodStart || response.researchPeriodEnd ? (
+              <Detail label="Период" value={formatResearchPeriod(response)} />
+            ) : null}
+            {response.freeText ? <Detail label="Комментарий" value={response.freeText} wide /> : null}
+          </div>
+        </details>
+      ) : null}
+    </section>
+  );
+}
+
+function ResponseQuestionnaireDisclosure({ response }: { response: SurveyResponse }) {
+  return (
+    <details className="inspector-disclosure questionnaire-disclosure">
+      <summary>
+        <span>
+          <strong>Анкета и ответы</strong>
+          <small>
+            {genderLabels[response.gender]} · {ageLabels[response.ageGroup]} · {residenceLabels[response.residence]}
+          </small>
+        </span>
+        <ChevronDown aria-hidden size={18} />
+      </summary>
+      <div className="questionnaire-disclosure-content">
+        <ResponseOverview response={response} />
+        <ResponseAnswerReview hideHeading response={response} />
+      </div>
+    </details>
+  );
+}
+
+function getContactRequestSummary(response: SurveyResponse): string {
+  const summary = [
+    response.researchTerritory,
+    response.researchPeriodStart || response.researchPeriodEnd
+      ? formatResearchPeriod(response)
+      : undefined
+  ].filter((value): value is string => Boolean(value));
+
+  return summary.join(" · ") || (response.freeText ? "Есть комментарий" : "");
 }
 
 function ResponseAnswerReview({ hideHeading = false, response }: { hideHeading?: boolean; response: SurveyResponse }) {
@@ -4135,14 +4291,20 @@ function ContactWorkflowPanel({
         <button type="button" onClick={() => setContactNextDate(addDaysString(7))}>
           +7 дней
         </button>
-        <button type="button" onClick={() => setContactNextDate("")}>
-          Снять
+        <button
+          aria-label="Снять дату следующего контакта"
+          className="quick-date-clear"
+          title="Снять дату"
+          type="button"
+          onClick={() => setContactNextDate("")}
+        >
+          <X aria-hidden size={17} />
         </button>
       </div>
       <label>
         Заметка
         <textarea
-          rows={3}
+          rows={mobile ? 2 : 3}
           value={contactNote}
           onChange={(event) => setContactNote(event.target.value)}
         />
