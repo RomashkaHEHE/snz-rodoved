@@ -195,6 +195,22 @@ const optionalResearchYearSchema = z
   .nullable()
   .transform((value) => value ?? undefined);
 
+const optionalBooleanSchema = z
+  .boolean()
+  .optional()
+  .nullable()
+  .transform((value) => value ?? undefined);
+
+export function isValidContactPhone(value: string): boolean {
+  const normalized = value.trim();
+  if (!/^[+\d\s().-]+$/.test(normalized)) {
+    return false;
+  }
+
+  const digitCount = normalized.replace(/\D/g, "").length;
+  return digitCount >= 10 && digitCount <= 15;
+}
+
 const surveyResponseInputObjectSchema = z.object({
   surveyDate: dateSchema,
   gender: genderSchema,
@@ -217,7 +233,12 @@ const surveyResponseInputObjectSchema = z.object({
   researchPeriodEnd: optionalResearchYearSchema,
   freeText: optionalTextField(1500, "Свободный текст должен быть короче 1500 символов"),
   contactName: optionalTextField(120, "Имя должно быть короче 120 символов"),
-  contactPhone: optionalTextField(40, "Номер телефона должен быть короче 40 символов")
+  contactPhone: optionalTextField(40, "Номер телефона должен быть короче 40 символов").refine(
+    (value) => !value || isValidContactPhone(value),
+    "Укажите номер телефона: от 10 до 15 цифр"
+  ),
+  consentToDataProcessing: optionalBooleanSchema,
+  consentToEvents: optionalBooleanSchema
 });
 
 function hasValidResearchPeriod(value: {
@@ -239,13 +260,18 @@ export const surveyResponseInputSchema = surveyResponseInputObjectSchema.refine(
   }
 );
 
-export const onlineSurveyResponseInputSchema = surveyResponseInputSchema.refine(
-  (value) => value.q16 !== "yes" || (Boolean(value.contactName) && Boolean(value.contactPhone)),
-  {
-    message: "Для запроса помощи нужно указать имя и телефон",
-    path: ["contactPhone"]
-  }
-);
+export const onlineSurveyResponseInputSchema = surveyResponseInputSchema
+  .refine(
+    (value) => value.q16 !== "yes" || (Boolean(value.contactName) && Boolean(value.contactPhone)),
+    {
+      message: "Для запроса помощи нужно указать имя и телефон",
+      path: ["contactPhone"]
+    }
+  )
+  .refine((value) => value.consentToDataProcessing === true, {
+    message: "Нужно согласие на обработку ответов",
+    path: ["consentToDataProcessing"]
+  });
 
 export const partialSurveyResponseInputSchema = surveyResponseInputObjectSchema
   .partial()
@@ -272,6 +298,7 @@ export type SurveyFilters = z.infer<typeof surveyFiltersSchema>;
 export interface SurveyResponse extends Omit<SurveyResponseInput, "source"> {
   id: string;
   source: ResponseSource;
+  deletedAt?: string;
   isFake: boolean;
   createdAt: string;
   updatedAt: string;

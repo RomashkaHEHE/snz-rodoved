@@ -5,6 +5,8 @@
 - `packages/shared` — общие типы, Zod-схемы, каталог вопросов.
 - `packages/db` — Drizzle schema, SQLite connection, migrations, repository.
 - `docs` — стабильная документация о том, как проект работает.
+- `docs/test-production-differences.md` — решения `test`, уже перенесённые в
+  production, и продуктовые отличия, ожидающие рассмотрения.
 - `AGENTS` — контекст для будущих агентов: цели решений, активные задачи, идеи.
 - `scripts` — эксплуатационные скрипты.
 - `.github/workflows/deploy.yml` — автодеплой на production при push в `main`.

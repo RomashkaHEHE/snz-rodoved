@@ -75,7 +75,8 @@ describe("SurveyRepository", () => {
         researchPeriodEnd: 1945,
         freeText: "Дополнительный комментарий",
         contactName: "Алёна",
-        contactPhone: "+7 900 000-00-00"
+        contactPhone: "+7 900 000-00-00",
+        consentToDataProcessing: true
       },
       { source: "online" }
     );
@@ -89,11 +90,12 @@ describe("SurveyRepository", () => {
     expect(onlineRows[0]?.researchPeriodStart).toBe(1850);
     expect(onlineRows[0]?.contactName).toBe("Алёна");
     expect(onlineRows[0]?.contactPhone).toBe("+7 900 000-00-00");
+    expect(onlineRows[0]?.consentToDataProcessing).toBe(true);
     expect(paperRows).toHaveLength(1);
     expect(paperRows[0]?.source).toBe("paper");
   });
 
-  it("updates and deletes responses", () => {
+  it("soft-deletes and restores responses", () => {
     connection = createDatabaseConnection({ databasePath: ":memory:" });
     const repository = new SurveyRepository(connection.db);
     const created = repository.create(baseInput);
@@ -103,20 +105,44 @@ describe("SurveyRepository", () => {
     expect(updated?.q11WarDetails).toBe("I Мировая");
 
     expect(repository.delete(created.id)).toBe(true);
+    expect(repository.delete(created.id)).toBe(false);
     expect(repository.list()).toHaveLength(0);
+    expect(repository.list({ answerFilters: { q7: ["yes"] } })).toHaveLength(0);
+
+    const deleted = repository.listDeleted();
+    expect(deleted).toHaveLength(1);
+    expect(deleted[0]?.id).toBe(created.id);
+    expect(deleted[0]?.deletedAt).toBeTruthy();
+    expect(repository.update(created.id, { q16: "yes" })).toBeNull();
+
+    const restored = repository.restore(created.id);
+    expect(restored?.id).toBe(created.id);
+    expect(restored?.deletedAt).toBeUndefined();
+    expect(repository.list()).toHaveLength(1);
+    expect(repository.listDeleted()).toHaveLength(0);
+    expect(repository.restore(created.id)).toBeNull();
   });
 
-  it("deletes only fake responses in bulk", () => {
+  it("permanently deletes active and trashed fake responses only", () => {
     connection = createDatabaseConnection({ databasePath: ":memory:" });
     const repository = new SurveyRepository(connection.db);
-    repository.create(baseInput);
+    const activeReal = repository.create(baseInput);
+    const trashedReal = repository.create({ ...baseInput, gender: "male" });
     repository.create({ ...baseInput, gender: "male" }, { isFake: true });
+    const trashedFake = repository.create(
+      { ...baseInput, residence: "other" },
+      { isFake: true }
+    );
 
-    expect(repository.deleteFake()).toBe(1);
+    expect(repository.delete(trashedReal.id)).toBe(true);
+    expect(repository.delete(trashedFake.id)).toBe(true);
+
+    expect(repository.deleteFake()).toBe(2);
 
     const rows = repository.list();
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.isFake).toBe(false);
+    expect(rows[0]?.id).toBe(activeReal.id);
+    expect(repository.listDeleted().map((row) => row.id)).toEqual([trashedReal.id]);
   });
 
   it("stores and filters survey PDF files by date", () => {

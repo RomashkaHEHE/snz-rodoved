@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   answerQuestionIds,
+  isValidContactPhone,
   onlineSurveyResponseInputSchema,
   parseSurveyDateFromPdfFileName,
   surveyPdfFileNameSchema,
@@ -53,6 +54,7 @@ describe("survey response schema", () => {
       freeText: "Ищу сведения по фамилии Ивановы",
       contactName: "Алёна",
       contactPhone: "+7 900 000-00-00",
+      consentToDataProcessing: true,
       q4: "unknown",
       q5: "yes",
       q6: "no",
@@ -74,6 +76,7 @@ describe("survey response schema", () => {
     expect(parsed.researchPeriodStart).toBe(1850);
     expect(parsed.contactName).toBe("Алёна");
     expect(parsed.contactPhone).toBe("+7 900 000-00-00");
+    expect(parsed.consentToDataProcessing).toBe(true);
   });
 
   it("rejects a reversed online research period", () => {
@@ -124,6 +127,37 @@ describe("survey response schema", () => {
         q16: "yes"
       })
     ).toThrow();
+  });
+
+  it("requires processing consent for online responses", () => {
+    expect(() =>
+      onlineSurveyResponseInputSchema.parse({
+        surveyDate: "2026-07-08",
+        gender: "female",
+        ageGroup: "over_40",
+        residence: "other",
+        q4: "unknown",
+        q5: "unknown",
+        q6: "unknown",
+        q7: "unknown",
+        q8: "unknown",
+        q9: "unknown",
+        q10: "unknown",
+        q11: "unknown",
+        q12: "unknown",
+        q13: "unknown",
+        q14: "unknown",
+        q15: "unknown",
+        q16: "no"
+      })
+    ).toThrow();
+  });
+
+  it("accepts familiar phone formatting and rejects malformed numbers", () => {
+    expect(isValidContactPhone("+7 (900) 000-00-00")).toBe(true);
+    expect(isValidContactPhone("8 900 000 00 00")).toBe(true);
+    expect(isValidContactPhone("12345")).toBe(false);
+    expect(isValidContactPhone("+7 CALL-ME")).toBe(false);
   });
 
   it("contains the paper quick value for the war details dash", () => {

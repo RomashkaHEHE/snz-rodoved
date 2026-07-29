@@ -274,6 +274,7 @@ button {
 .pdf-panel,
 .analytics-details,
 .table-panel,
+.trash-details,
 .admin-panel,
 .login-panel {
   background: #fffdf8;
@@ -292,6 +293,7 @@ button {
 .pdf-panel,
 .analytics-details,
 .table-panel,
+.trash-details,
 .entry-panel {
   margin-bottom: 1rem;
 }
@@ -475,6 +477,51 @@ textarea {
   color: #22302b;
 }
 
+.action-menu {
+  position: relative;
+}
+
+.action-menu > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.action-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.action-menu-popover {
+  background: #fffdf8;
+  border: 1px solid #d7cbbc;
+  border-radius: 4px;
+  box-shadow: 0 10px 28px rgba(44, 47, 38, 0.14);
+  display: grid;
+  min-width: min(300px, calc(100vw - 2rem));
+  padding: 0.4rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  z-index: 20;
+}
+
+.action-menu-popover button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  color: #22302b;
+  display: flex;
+  font-weight: 700;
+  gap: 0.6rem;
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+}
+
+.action-menu-popover button:hover {
+  background: #f2ece1;
+}
+
 .danger-button {
   color: #8a2e24;
 }
@@ -536,6 +583,21 @@ textarea {
   color: var(--color-muted);
   grid-column: 1 / -1;
   margin: 0;
+}
+
+.consent-checkbox {
+  align-items: flex-start;
+  border-top: 1px solid #eee5d9;
+  display: flex;
+  gap: 0.7rem;
+  padding-top: 1rem;
+}
+
+.consent-checkbox input {
+  flex: 0 0 auto;
+  height: 22px;
+  margin-top: 0.05rem;
+  width: 22px;
 }
 
 .form-actions {
@@ -767,6 +829,93 @@ th {
   text-decoration: none;
 }
 
+.contact-masked {
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.table-pagination {
+  align-items: center;
+  border-top: 1px solid #eadfce;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+  padding-top: 0.9rem;
+}
+
+.table-pagination span {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.table-status {
+  margin: 0.8rem 0 0;
+}
+
+.trash-details {
+  padding: 0;
+}
+
+.trash-details > summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  font-weight: 800;
+  gap: 0.6rem;
+  list-style: none;
+  padding: 1rem 1.25rem;
+}
+
+.trash-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.trash-details > summary span {
+  background: #e8dfd1;
+  border-radius: 3px;
+  min-width: 1.75rem;
+  padding: 0.15rem 0.45rem;
+  text-align: center;
+}
+
+.trash-content {
+  border-top: 1px solid #eadfce;
+  padding: 1rem 1.25rem;
+}
+
+.trash-list {
+  display: grid;
+}
+
+.trash-row {
+  align-items: center;
+  border-bottom: 1px solid #eee5d9;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+}
+
+.trash-row:first-child {
+  padding-top: 0;
+}
+
+.trash-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.trash-row > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.trash-row span {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
 .row-actions button {
   align-items: center;
   background: #f2ece1;
@@ -892,7 +1041,8 @@ th {
   .filter-panel,
   .pdf-panel,
   .analytics-details,
-  .table-panel,
+    .table-panel,
+    .trash-details,
   .admin-panel,
   .login-panel {
     padding: 0.9rem;
@@ -917,12 +1067,21 @@ th {
     width: 100%;
   }
 
+  .header-actions > .action-menu,
+  .header-actions > .action-menu > summary {
+    width: 100%;
+  }
+
   .form-top-grid,
   .filter-grid,
   .contact-request-grid,
   .online-extra-grid,
   .pdf-upload-form,
   .stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .online-survey-form .form-top-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1103,6 +1262,15 @@ th {
   .row-actions button {
     width: 100%;
   }
+
+  .trash-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .trash-row > button {
+    width: 100%;
+  }
 }
 
 @media (max-width: 420px) {
@@ -1126,6 +1294,11 @@ th {
 
   .period-fields > div {
     grid-template-columns: 1fr;
+  }
+
+  .table-pagination {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   td {

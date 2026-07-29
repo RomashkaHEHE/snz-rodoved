@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-07-08
+Last updated: 2026-07-29
 
 ## Baseline
 
@@ -28,6 +28,9 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - Public `/survey` lets visitors submit the same 16-question survey without a workspace login.
 - Online survey rows are stored in `responses` with `source=online`; manual paper rows use `source=paper`.
 - Online survey rows may include `researchTerritory`, `researchPeriodStart`, `researchPeriodEnd`, and `freeText`.
+- Online Q16 help requests may include name and phone. Public phone validation
+  requires 10-15 digits, and public submission requires a stored processing
+  consent mark.
 - `/login` is password-only workspace login.
 - `/admin` is a separate username/password admin login.
 - `/admin` can update both the admin password and the workspace password.
@@ -41,6 +44,17 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 - Public `/` links to `/survey` for visitors.
 - Missing or unreadable paper answers are stored as `unknown`.
 - Fake/test questionnaires are stored as normal response rows with `isFake=true`; fake-only bulk deletion must never delete rows where `isFake=false`.
+- Ordinary questionnaire deletion is recoverable through `deletedAt`; active
+  lists, filters, analytics, and CSV exclude trashed rows until restoration.
+- Contact names and phones are masked in the table by default. The primary CSV
+  omits both fields at the API boundary; contact export is separately named and
+  confirmed.
+- The production response table mounts rows in batches of 30 without changing
+  totals, filters, analytics, or export.
+- Segmented answer controls use a single keyboard tab stop and support arrow,
+  `Home`, and `End` navigation.
+- Known production dependency vulnerabilities were cleared by updating Fastify
+  and `@fastify/static`; validate with `npm audit --omit=dev`.
 - Questions 7 and 8 remain separate because both exist in the paper survey.
 - SQLite is the v1 persistence target for VPS deployment.
 - Production deploy target is isolated under `/home/user1/apps/snz-rodoved` unless changed by `DEPLOY_PATH`.
@@ -50,8 +64,11 @@ V1 implementation has been scaffolded as a maintainable full-stack app:
 
 ## Active Tasks
 
-No active implementation task after the initial v1 scaffold. See completed task:
+No active implementation task.
 
+Completed baseline tasks:
+
+- [test-to-production-port.md](tasks/test-to-production-port.md)
 - [v1-site-implementation.md](tasks/v1-site-implementation.md)
 - [api-and-data-layer.md](tasks/api-and-data-layer.md)
 - [admin-ui.md](tasks/admin-ui.md)

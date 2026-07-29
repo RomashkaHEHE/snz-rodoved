@@ -171,13 +171,21 @@ function registerApiRoutes(
     return { responses: repository.list(filters) };
   });
 
+  app.get("/api/responses/trash", { preHandler: requireWorkspace }, async () => ({
+    responses: repository.listDeleted()
+  }));
+
   app.get("/api/responses/export.csv", { preHandler: requireWorkspace }, async (request, reply) => {
     const filters = parseFiltersFromQuery(request.query);
-    const csv = buildResponsesCsv(repository.list(filters));
+    const includeContacts = hasTrueQueryParam(request.query, "includeContacts");
+    const csv = buildResponsesCsv(repository.list(filters), { includeContacts });
+    const filename = includeContacts
+      ? "rodoved-responses-with-contacts.csv"
+      : "rodoved-responses-without-name-phone.csv";
 
     return reply
       .header("Content-Type", "text/csv; charset=utf-8")
-      .header("Content-Disposition", 'attachment; filename="rodoved-responses.csv"')
+      .header("Content-Disposition", `attachment; filename="${filename}"`)
       .send(csv);
   });
 
@@ -284,6 +292,20 @@ function registerApiRoutes(
 
     return { response };
   });
+
+  app.post<{ Params: { id: string } }>(
+    "/api/responses/:id/restore",
+    { preHandler: requireWorkspace },
+    async (request, reply) => {
+      const response = repository.restore(request.params.id);
+
+      if (!response) {
+        return reply.code(404).send({ error: "not_found" });
+      }
+
+      return { response };
+    }
+  );
 
   app.delete("/api/responses/fake", { preHandler: requireWorkspace }, async () => {
     const deleted = repository.deleteFake();
@@ -572,6 +594,14 @@ function getErrorMessage(error: unknown): string {
   }
 
   return "Bad request";
+}
+
+function hasTrueQueryParam(query: unknown, key: string): boolean {
+  if (!query || typeof query !== "object") {
+    return false;
+  }
+
+  return (query as Record<string, unknown>)[key] === "true";
 }
 
 function readSurveyDate(body: unknown): string | undefined {

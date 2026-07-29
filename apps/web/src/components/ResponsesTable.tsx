@@ -1,5 +1,5 @@
-import { Pencil, Trash2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ageGroupLabels,
   answerLabels,
@@ -9,6 +9,11 @@ import {
   type SurveyResponse
 } from "@snz-rodoved/shared";
 import { deleteResponse } from "../api/client";
+import {
+  getNextVisibleResponseCount,
+  getVisibleResponseBatch,
+  responseBatchSize
+} from "../responseBatch";
 
 interface ResponsesTableProps {
   responses: SurveyResponse[];
@@ -18,15 +23,39 @@ interface ResponsesTableProps {
 
 export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableProps) {
   const fakeCount = responses.filter((response) => response.isFake).length;
+  const [hideContacts, setHideContacts] = useState(readContactPrivacyMode);
+  const [status, setStatus] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(responseBatchSize);
+  const responseIdentity = useMemo(
+    () => responses.map((response) => response.id).join(","),
+    [responses]
+  );
+  const visibleResponses = getVisibleResponseBatch(responses, visibleCount);
+
+  useEffect(() => {
+    setVisibleCount(responseBatchSize);
+  }, [responseIdentity]);
+
+  useEffect(() => {
+    writeContactPrivacyMode(hideContacts);
+  }, [hideContacts]);
 
   async function handleDelete(response: SurveyResponse) {
-    const confirmed = window.confirm(`Удалить анкету от ${response.surveyDate}?`);
+    const confirmed = window.confirm(
+      `Переместить анкету от ${response.surveyDate} в корзину? Её можно будет восстановить.`
+    );
     if (!confirmed) {
       return;
     }
 
-    await deleteResponse(response.id);
-    onDeleted();
+    setStatus(null);
+    try {
+      await deleteResponse(response.id);
+      setStatus("Анкета перемещена в корзину.");
+      onDeleted();
+    } catch {
+      setStatus("Не удалось переместить анкету в корзину.");
+    }
   }
 
   return (
@@ -37,6 +66,15 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
           <h2>Анкеты в базе: {responses.length}</h2>
           {fakeCount > 0 ? <p className="table-note">Фейковых в текущем срезе: {fakeCount}</p> : null}
         </div>
+        <button
+          aria-pressed={!hideContacts}
+          className="ghost-button"
+          onClick={() => setHideContacts((current) => !current)}
+          type="button"
+        >
+          {hideContacts ? <Eye aria-hidden size={18} /> : <EyeOff aria-hidden size={18} />}
+          {hideContacts ? "Показать контакты" : "Скрыть контакты"}
+        </button>
       </div>
       <div className="table-wrap">
         <table>
@@ -58,7 +96,7 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
             </tr>
           </thead>
           <tbody>
-            {responses.map((response) => (
+            {visibleResponses.map((response) => (
               <tr className={response.isFake ? "fake-row" : ""} key={response.id}>
                 <td data-label="Дата">{response.surveyDate}</td>
                 <td data-label="Тип">
@@ -77,7 +115,7 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
                 <td data-label="Возраст">{ageGroupLabels[response.ageGroup]}</td>
                 <td data-label="Проживание">{residenceLabels[response.residence]}</td>
                 <td data-label="Поиск">{formatResearchInfo(response)}</td>
-                <td data-label="Контакт">{renderContactInfo(response)}</td>
+                <td data-label="Контакт">{renderContactInfo(response, hideContacts)}</td>
                 <td data-label="Q7">{answerLabels[response.q7]}</td>
                 <td data-label="Q8">{answerLabels[response.q8]}</td>
                 <td data-label="Q11">
@@ -107,6 +145,25 @@ export function ResponsesTable({ responses, onEdit, onDeleted }: ResponsesTableP
           </tbody>
         </table>
       </div>
+      {status ? <p className="data-status table-status" role="status">{status}</p> : null}
+      {visibleResponses.length < responses.length ? (
+        <div className="table-pagination">
+          <span>
+            Показано {visibleResponses.length} из {responses.length}
+          </span>
+          <button
+            className="ghost-button"
+            onClick={() =>
+              setVisibleCount((current) =>
+                getNextVisibleResponseCount(current, responses.length)
+              )
+            }
+            type="button"
+          >
+            Показать ещё
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -117,9 +174,13 @@ function formatResearchInfo(response: SurveyResponse): string {
   return parts.length > 0 ? parts.join(" · ") : "—";
 }
 
-function renderContactInfo(response: SurveyResponse): ReactNode {
+function renderContactInfo(response: SurveyResponse, hidden: boolean): ReactNode {
   if (!response.contactName && !response.contactPhone) {
     return "—";
+  }
+
+  if (hidden) {
+    return <span className="contact-masked">Скрыто</span>;
   }
 
   return (
@@ -134,6 +195,25 @@ function renderContactInfo(response: SurveyResponse): ReactNode {
 
 function normalizePhoneHref(value: string): string {
   return value.replace(/[^\d+]/g, "");
+}
+
+const contactPrivacyStorageKey = "rodoved-hide-contacts-v1";
+
+function readContactPrivacyMode(): boolean {
+  try {
+    const stored = window.localStorage.getItem(contactPrivacyStorageKey);
+    return stored === null ? true : stored === "true";
+  } catch {
+    return true;
+  }
+}
+
+function writeContactPrivacyMode(value: boolean): void {
+  try {
+    window.localStorage.setItem(contactPrivacyStorageKey, String(value));
+  } catch {
+    // The safe default remains active when browser storage is unavailable.
+  }
 }
 
 function formatResearchPeriod(response: SurveyResponse): string | undefined {

@@ -2,6 +2,7 @@ import {
   ClipboardList,
   Database,
   Download,
+  Ellipsis,
   FileText,
   Mail,
   Phone,
@@ -18,6 +19,7 @@ import {
   deleteFakeResponses,
   getAnalyticsSummary,
   getSession,
+  listDeletedResponses,
   listResponses,
   updatePasswords
 } from "./api/client";
@@ -27,6 +29,7 @@ import { AdminLoginPanel, WorkspaceLoginPanel } from "./components/LoginPanel";
 import { OnlineSurveyPage } from "./components/OnlineSurveyPage";
 import { PdfArchive } from "./components/PdfArchive";
 import { ResponseForm } from "./components/ResponseForm";
+import { ResponseTrash } from "./components/ResponseTrash";
 import { ResponsesTable } from "./components/ResponsesTable";
 import "./styles.css";
 
@@ -208,6 +211,7 @@ function EditorPage({ navigate }: { navigate: (route: AppRoute) => void }) {
 function DataPage({ navigate }: { navigate: (route: AppRoute) => void }) {
   const [filters, setFilters] = useState<SurveyFilters>({});
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
+  const [deletedResponses, setDeletedResponses] = useState<SurveyResponse[]>([]);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [editing, setEditing] = useState<SurveyResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -218,11 +222,13 @@ function DataPage({ navigate }: { navigate: (route: AppRoute) => void }) {
   const refreshData = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextResponses, nextSummary] = await Promise.all([
+      const [nextResponses, nextDeletedResponses, nextSummary] = await Promise.all([
         listResponses(filters),
+        listDeletedResponses(),
         getAnalyticsSummary(filters)
       ]);
       setResponses(nextResponses);
+      setDeletedResponses(nextDeletedResponses);
       setSummary(nextSummary);
     } finally {
       setLoading(false);
@@ -253,10 +259,18 @@ function DataPage({ navigate }: { navigate: (route: AppRoute) => void }) {
     };
   }, [refreshData]);
 
-  async function handleExport() {
+  async function handleExport(includeContacts = false) {
     setExporting(true);
+    setFakeActionStatus(null);
     try {
-      await exportResponsesCsv(filters);
+      await exportResponsesCsv(filters, { includeContacts });
+      setFakeActionStatus(
+        includeContacts
+          ? "CSV с именами и телефонами сформирован."
+          : "CSV без имени и телефона сформирован."
+      );
+    } catch {
+      setFakeActionStatus("Не удалось сформировать CSV.");
     } finally {
       setExporting(false);
     }
@@ -323,10 +337,42 @@ function DataPage({ navigate }: { navigate: (route: AppRoute) => void }) {
             <Trash2 aria-hidden size={18} />
             Удалить фейковые
           </button>
-          <button className="primary-button" disabled={exporting} onClick={handleExport} type="button">
+          <button
+            className="primary-button"
+            disabled={exporting}
+            onClick={() => handleExport()}
+            type="button"
+          >
             <Download aria-hidden size={18} />
-            {exporting ? "Экспорт..." : "CSV"}
+            {exporting ? "Экспорт..." : "CSV без имени и телефона"}
           </button>
+          <details className="action-menu">
+            <summary
+              aria-label="Другие варианты экспорта"
+              className="ghost-button"
+              title="Другие варианты экспорта"
+            >
+              <Ellipsis aria-hidden size={18} />
+            </summary>
+            <div className="action-menu-popover">
+              <button
+                disabled={exporting}
+                onClick={(event) => {
+                  event.currentTarget.closest("details")?.removeAttribute("open");
+                  const confirmed = window.confirm(
+                    "Скачать CSV с именами и телефонами? Файл будет содержать контакты анкет в текущем срезе."
+                  );
+                  if (confirmed) {
+                    void handleExport(true);
+                  }
+                }}
+                type="button"
+              >
+                <Download aria-hidden size={18} />
+                CSV с именами и телефонами
+              </button>
+            </div>
+          </details>
         </div>
       </section>
       {fakeActionStatus ? <p className="data-status">{fakeActionStatus}</p> : null}
@@ -348,6 +394,7 @@ function DataPage({ navigate }: { navigate: (route: AppRoute) => void }) {
         />
       ) : null}
       <ResponsesTable responses={responses} onDeleted={refreshData} onEdit={setEditing} />
+      <ResponseTrash responses={deletedResponses} onRestored={refreshData} />
     </main>
   );
 }

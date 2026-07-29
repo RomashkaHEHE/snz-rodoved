@@ -8,6 +8,7 @@ import {
   answerValues,
   genderLabels,
   genderValues,
+  isValidContactPhone,
   residenceLabels,
   residenceValues,
   warDetailQuickValues,
@@ -44,9 +45,19 @@ export function OnlineSurveyPage({ authenticated, onHome, onWorkspace }: OnlineS
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving(true);
     setStatus(null);
 
+    if (form.q16 === "yes" && form.contactPhone && !isValidContactPhone(form.contactPhone)) {
+      setStatus("Укажите номер телефона: от 10 до 15 цифр.");
+      return;
+    }
+
+    if (form.consentToDataProcessing !== true) {
+      setStatus("Для отправки нужно согласие на обработку ответов.");
+      return;
+    }
+
+    setSaving(true);
     try {
       await submitOnlineSurvey({
         ...form,
@@ -243,6 +254,18 @@ export function OnlineSurveyPage({ authenticated, onHome, onWorkspace }: OnlineS
                 </div>
               ))}
             </div>
+
+            <label className="consent-checkbox">
+              <input
+                checked={form.consentToDataProcessing === true}
+                required
+                type="checkbox"
+                onChange={(event) =>
+                  setForm({ ...form, consentToDataProcessing: event.target.checked })
+                }
+              />
+              <span>Согласие на обработку ответов и контактных данных для работы с анкетой</span>
+            </label>
 
             <div className="form-actions">
               {status ? <p className="form-status">{status}</p> : null}

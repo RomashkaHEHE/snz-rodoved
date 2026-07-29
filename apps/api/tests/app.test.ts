@@ -30,6 +30,7 @@ const input: SurveyResponseInput = {
 describe("api app", () => {
   let app: FastifyInstance | undefined;
   let pdfStorageDir: string | undefined;
+  let webDistDir: string | undefined;
 
   afterEach(async () => {
     await app?.close();
@@ -38,6 +39,35 @@ describe("api app", () => {
       fs.rmSync(pdfStorageDir, { recursive: true, force: true });
       pdfStorageDir = undefined;
     }
+    if (webDistDir) {
+      fs.rmSync(webDistDir, { recursive: true, force: true });
+      webDistDir = undefined;
+    }
+  });
+
+  it("serves the frontend shell without swallowing missing API routes", async () => {
+    webDistDir = fs.mkdtempSync(path.join(os.tmpdir(), "snz-rodoved-web-dist-"));
+    fs.writeFileSync(
+      path.join(webDistDir, "index.html"),
+      "<!doctype html><title>Static smoke</title><main>frontend shell</main>",
+      "utf8"
+    );
+    app = await buildApp({
+      databasePath: ":memory:",
+      auth: { username: "admin", password: "secret", sessionSecret: "test-secret" },
+      webDistDir
+    });
+
+    const root = await app.inject({ method: "GET", url: "/" });
+    const clientRoute = await app.inject({ method: "GET", url: "/data" });
+    const missingApi = await app.inject({ method: "GET", url: "/api/missing" });
+
+    expect(root.statusCode).toBe(200);
+    expect(root.body).toContain("frontend shell");
+    expect(clientRoute.statusCode).toBe(200);
+    expect(clientRoute.body).toContain("frontend shell");
+    expect(missingApi.statusCode).toBe(404);
+    expect(missingApi.json()).toEqual({ error: "not_found" });
   });
 
   it("protects responses behind login", async () => {
@@ -68,6 +98,18 @@ describe("api app", () => {
     });
     expect(fakeDeleteUnauthorized.statusCode).toBe(401);
 
+    const trashUnauthorized = await app.inject({
+      method: "GET",
+      url: "/api/responses/trash"
+    });
+    expect(trashUnauthorized.statusCode).toBe(401);
+
+    const restoreUnauthorized = await app.inject({
+      method: "POST",
+      url: "/api/responses/missing/restore"
+    });
+    expect(restoreUnauthorized.statusCode).toBe(401);
+
     const pdfFilesUnauthorized = await app.inject({
       method: "GET",
       url: "/api/pdf-files"
@@ -90,7 +132,8 @@ describe("api app", () => {
       researchPeriodEnd: 1945,
       freeText: "Свободный комментарий",
       contactName: "Алёна",
-      contactPhone: "+7 900 000-00-00"
+      contactPhone: "+7 900 000-00-00",
+      consentToDataProcessing: true
     };
     delete onlinePayload.surveyDate;
 
@@ -106,7 +149,17 @@ describe("api app", () => {
     expect(created.json().response.researchPeriodStart).toBe(1850);
     expect(created.json().response.contactName).toBe("Алёна");
     expect(created.json().response.contactPhone).toBe("+7 900 000-00-00");
+    expect(created.json().response.consentToDataProcessing).toBe(true);
     expect(created.json().response.isFake).toBe(false);
+
+    const withoutConsent = { ...onlinePayload };
+    delete withoutConsent.consentToDataProcessing;
+    const rejected = await app.inject({
+      method: "POST",
+      url: "/api/public/survey-responses",
+      payload: withoutConsent
+    });
+    expect(rejected.statusCode).toBe(400);
   });
 
   it("logs in, creates responses, filters, and summarizes analytics", async () => {
@@ -134,7 +187,12 @@ describe("api app", () => {
       method: "POST",
       url: "/api/responses",
       headers: { cookie },
-      payload: input
+      payload: {
+        ...input,
+        contactName: "Алёна",
+        contactPhone: "+7 900 000-00-00",
+        consentToDataProcessing: true
+      }
     });
     expect(create.statusCode).toBe(201);
     expect(create.json().response.isFake).toBe(false);
@@ -170,8 +228,14 @@ describe("api app", () => {
 
     expect(exported.statusCode).toBe(200);
     expect(exported.headers["content-type"]).toContain("text/csv");
+    expect(exported.headers["content-disposition"]).toContain(
+      "rodoved-responses-without-name-phone.csv"
+    );
     expect(exported.body).toContain("Источник");
-    expect(exported.body).toContain("Номер телефона");
+    expect(exported.body).not.toContain("Номер телефона");
+    expect(exported.body).not.toContain("Алёна");
+    expect(exported.body).not.toContain("+7 900 000-00-00");
+    expect(exported.body).toContain("Согласие на обработку данных");
     expect(exported.body).toContain("Дата опроса");
     expect(exported.body).toContain("7. Найти предков, живших в 20 в. (СССР)");
     expect(exported.body).toContain("8. Найти предков, живших в 20 в.");
@@ -179,6 +243,100 @@ describe("api app", () => {
     expect(exported.body).toContain("Нет ответа");
     expect(exported.body).toContain("ВОв");
     expect(exported.body).not.toContain("I Мировая");
+
+    const exportedWithContacts = await app.inject({
+      method: "GET",
+      url: "/api/responses/export.csv?q7=yes&includeContacts=true",
+      headers: { cookie }
+    });
+
+    expect(exportedWithContacts.statusCode).toBe(200);
+    expect(exportedWithContacts.headers["content-disposition"]).toContain(
+      "rodoved-responses-with-contacts.csv"
+    );
+    expect(exportedWithContacts.body).toContain("Номер телефона");
+    expect(exportedWithContacts.body).toContain("Алёна");
+    expect(exportedWithContacts.body).toContain("+7 900 000-00-00");
+  });
+
+  it("keeps deleted responses out of active data until restored", async () => {
+    app = await buildApp({
+      databasePath: ":memory:",
+      auth: {
+        username: "admin",
+        password: "secret",
+        workspacePassword: "workspace-secret",
+        sessionSecret: "test-secret"
+      },
+      webDistDir: false
+    });
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/workspace-login",
+      payload: { password: "workspace-secret" }
+    });
+    const cookie = login.headers["set-cookie"];
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/responses",
+      headers: { cookie },
+      payload: { ...input, freeText: "Строка из корзины" }
+    });
+    const id = created.json().response.id as string;
+
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: `/api/responses/${id}`,
+      headers: { cookie }
+    });
+    expect(deleted.statusCode).toBe(204);
+
+    const active = await app.inject({ method: "GET", url: "/api/responses", headers: { cookie } });
+    const analytics = await app.inject({
+      method: "GET",
+      url: "/api/analytics/summary",
+      headers: { cookie }
+    });
+    const exported = await app.inject({
+      method: "GET",
+      url: "/api/responses/export.csv",
+      headers: { cookie }
+    });
+    const trash = await app.inject({
+      method: "GET",
+      url: "/api/responses/trash",
+      headers: { cookie }
+    });
+
+    expect(active.json().responses).toHaveLength(0);
+    expect(analytics.json().summary.total).toBe(0);
+    expect(exported.body).not.toContain("Строка из корзины");
+    expect(trash.json().responses).toHaveLength(1);
+    expect(trash.json().responses[0].deletedAt).toBeTruthy();
+
+    const updateDeleted = await app.inject({
+      method: "PATCH",
+      url: `/api/responses/${id}`,
+      headers: { cookie },
+      payload: { q7: "no" }
+    });
+    expect(updateDeleted.statusCode).toBe(404);
+
+    const restored = await app.inject({
+      method: "POST",
+      url: `/api/responses/${id}/restore`,
+      headers: { cookie }
+    });
+    expect(restored.statusCode).toBe(200);
+    expect(restored.json().response.deletedAt).toBeUndefined();
+
+    const repeatedRestore = await app.inject({
+      method: "POST",
+      url: `/api/responses/${id}/restore`,
+      headers: { cookie }
+    });
+    expect(repeatedRestore.statusCode).toBe(404);
   });
 
   it("generates and deletes only fake responses", async () => {

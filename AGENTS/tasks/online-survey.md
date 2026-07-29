@@ -21,7 +21,11 @@ Let public visitors submit the same 16-question survey online, while keeping the
 - Public submit endpoint does not require workspace auth, but server forces `source=online`.
 - Free text should remain search context, not a request for contact data.
 - If q16 is `yes`, the public survey shows `contactName` and `contactPhone` directly under q16 and the public API requires both fields.
-- Contacts stay workspace-only: protected responses, protected table/edit UI, and CSV export may show them, but the public site must not expose submitted contacts.
+- The phone accepts common punctuation but must contain 10-15 digits.
+- Public submission requires `consentToDataProcessing=true`; the nullable stored
+  value preserves historical absence.
+- Contacts stay workspace-only. The protected table masks them by default and the
+  default CSV omits both columns; a separately confirmed export may include them.
 
 ## Relevant files
 
@@ -41,7 +45,8 @@ Let public visitors submit the same 16-question survey online, while keeping the
 
 ## Next steps
 
-- Watch real usage: if many online answers include contacts, add stronger copy or structured contact-consent handling.
+- Have the final processing-consent text and policy link reviewed by the customer
+  or legal owner.
 - Consider a real map/timeline only after the customer confirms what they need from those controls.
 
 ## Exit criteria
@@ -50,3 +55,4 @@ Let public visitors submit the same 16-question survey online, while keeping the
 - `/data` can filter by source and shows online context.
 - CSV export includes source, online context fields, name, and phone.
 - Tests cover public submit, source filtering, online fields, and required q16 contact fields.
+- Tests cover processing consent and phone validation.

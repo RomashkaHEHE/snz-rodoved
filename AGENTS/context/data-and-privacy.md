@@ -6,6 +6,20 @@ The public online survey has a free-text field because the customer needs search
 
 When the online respondent answers `yes` to q16 ("need help"), the form asks for name and phone. These are personal contact fields and must remain available only to the workspace/admin flow, CSV export, and protected API responses.
 
+The workspace response table masks contact names and phones by default. This is a
+display safeguard, not an API boundary: editing and an explicit reveal still use
+the protected response payload.
+
+The default CSV export omits the contact columns on the server. A separately
+named `includeContacts=true` export requires an explicit confirmed workspace
+action. Do not call the default file anonymous because territory and free text may
+still identify a person.
+
+Public phone input accepts familiar punctuation but requires 10-15 digits.
+Public online submission requires `consentToDataProcessing=true`; historical and
+paper rows may store `NULL` when no mark was recorded. The current consent copy is
+a product safeguard, not a claim that final legal policy text has been approved.
+
 Survey answer rules:
 
 - answer fields are `yes`, `no`, or `unknown`;
@@ -17,6 +31,16 @@ Survey answer rules:
 - online responses may have `contactName` and `contactPhone` when q16 is `yes`.
 
 Public statistics are intentionally absent in v1. Adding them later requires a new privacy/product decision.
+
+## Questionnaire deletion
+
+Ordinary deletion is recoverable. It sets `deleted_at`; the repository excludes
+deleted rows from active lists, filters, analytics, and CSV, and rejects updates
+until the row is restored.
+
+Fake-only cleanup is the only permanent response deletion. Its database predicate
+must remain `is_fake=true` and must be tested against both active and trashed real
+rows.
 
 ## PDF archive
 

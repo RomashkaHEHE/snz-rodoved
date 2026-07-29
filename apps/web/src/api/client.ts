@@ -55,6 +55,11 @@ export async function listResponses(filters: SurveyFilters): Promise<SurveyRespo
   return result.responses;
 }
 
+export async function listDeletedResponses(): Promise<SurveyResponse[]> {
+  const result = await request<{ responses: SurveyResponse[] }>("/api/responses/trash");
+  return result.responses;
+}
+
 export async function createResponse(input: SurveyResponseInput): Promise<SurveyResponse> {
   const result = await request<{ response: SurveyResponse }>("/api/responses", {
     method: "POST",
@@ -93,6 +98,13 @@ export async function deleteResponse(id: string): Promise<void> {
   await request<void>(`/api/responses/${id}`, {
     method: "DELETE"
   });
+}
+
+export async function restoreResponse(id: string): Promise<SurveyResponse> {
+  const result = await request<{ response: SurveyResponse }>(`/api/responses/${id}/restore`, {
+    method: "POST"
+  });
+  return result.response;
 }
 
 export async function deleteFakeResponses(): Promise<number> {
@@ -156,8 +168,16 @@ export async function getAnalyticsSummary(filters: SurveyFilters): Promise<Analy
   return result.summary;
 }
 
-export async function exportResponsesCsv(filters: SurveyFilters): Promise<void> {
-  const query = buildFilterQuery(filters);
+export async function exportResponsesCsv(
+  filters: SurveyFilters,
+  options: { includeContacts?: boolean } = {}
+): Promise<void> {
+  const params = new URLSearchParams(buildFilterQuery(filters).slice(1));
+  if (options.includeContacts) {
+    params.set("includeContacts", "true");
+  }
+  const queryString = params.toString();
+  const query = queryString ? `?${queryString}` : "";
   const response = await fetch(`${apiBase}/api/responses/export.csv${query}`, {
     credentials: "include"
   });
@@ -170,7 +190,9 @@ export async function exportResponsesCsv(filters: SurveyFilters): Promise<void> 
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "rodoved-responses.csv";
+  link.download = options.includeContacts
+    ? "rodoved-responses-with-contacts.csv"
+    : "rodoved-responses-without-name-phone.csv";
   document.body.append(link);
   link.click();
   link.remove();

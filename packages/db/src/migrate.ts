@@ -68,6 +68,18 @@ ALTER TABLE responses ADD COLUMN contact_name TEXT;
 ALTER TABLE responses ADD COLUMN contact_phone TEXT;
 `;
 
+export const responseConsentMigrationSql = `
+ALTER TABLE responses ADD COLUMN consent_to_data_processing INTEGER
+  CHECK (consent_to_data_processing IN (0, 1));
+ALTER TABLE responses ADD COLUMN consent_to_events INTEGER
+  CHECK (consent_to_events IN (0, 1));
+`;
+
+export const responseTrashMigrationSql = `
+ALTER TABLE responses ADD COLUMN deleted_at TEXT;
+CREATE INDEX IF NOT EXISTS responses_deleted_at_idx ON responses (deleted_at);
+`;
+
 const migrations = [
   {
     id: "0001_initial",
@@ -88,6 +100,14 @@ const migrations = [
   {
     id: "0005_response_contacts",
     sql: responseContactsMigrationSql
+  },
+  {
+    id: "0008_response_consents",
+    sql: responseConsentMigrationSql
+  },
+  {
+    id: "0010_response_trash",
+    sql: responseTrashMigrationSql
   }
 ] as const;
 

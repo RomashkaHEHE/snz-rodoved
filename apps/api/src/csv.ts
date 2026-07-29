@@ -9,6 +9,7 @@ import {
 } from "@snz-rodoved/shared";
 
 interface CsvColumn {
+  contact?: boolean;
   header: string;
   value: (response: SurveyResponse) => string;
 }
@@ -27,8 +28,12 @@ const columns: CsvColumn[] = [
     value: (response) => formatResearchPeriod(response)
   },
   { header: "Свободный текст", value: (response) => response.freeText ?? "" },
-  { header: "Имя", value: (response) => response.contactName ?? "" },
-  { header: "Номер телефона", value: (response) => response.contactPhone ?? "" },
+  { contact: true, header: "Имя", value: (response) => response.contactName ?? "" },
+  { contact: true, header: "Номер телефона", value: (response) => response.contactPhone ?? "" },
+  {
+    header: "Согласие на обработку данных",
+    value: (response) => formatConsent(response.consentToDataProcessing)
+  },
   ...answerQuestions.flatMap<CsvColumn>((question) => {
     const questionColumn: CsvColumn = {
       header: `${question.number}. ${question.label}`,
@@ -59,11 +64,21 @@ function formatResearchPeriod(response: SurveyResponse): string {
   return String(response.researchPeriodStart ?? response.researchPeriodEnd ?? "");
 }
 
-export function buildResponsesCsv(responses: SurveyResponse[]): string {
+function formatConsent(value: boolean | undefined): string {
+  return value === undefined ? "Не зафиксировано" : value ? "Да" : "Нет";
+}
+
+export function buildResponsesCsv(
+  responses: SurveyResponse[],
+  options: { includeContacts?: boolean } = {}
+): string {
+  const selectedColumns = options.includeContacts
+    ? columns
+    : columns.filter((column) => !column.contact);
   const rows = [
-    columns.map((column) => escapeCsvCell(column.header)).join(";"),
+    selectedColumns.map((column) => escapeCsvCell(column.header)).join(";"),
     ...responses.map((response) =>
-      columns.map((column) => escapeCsvCell(column.value(response))).join(";")
+      selectedColumns.map((column) => escapeCsvCell(column.value(response))).join(";")
     )
   ];
 

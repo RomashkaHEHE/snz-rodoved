@@ -8,6 +8,7 @@ import {
   answerValues,
   genderLabels,
   genderValues,
+  isValidContactPhone,
   responseSourceLabels,
   residenceLabels,
   residenceValues,
@@ -39,9 +40,14 @@ export function ResponseForm({ editing, onSaved, onCancelEdit }: ResponseFormPro
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving(true);
     setStatus(null);
 
+    if (form.contactPhone && !isValidContactPhone(form.contactPhone)) {
+      setStatus("Укажите номер телефона: от 10 до 15 цифр.");
+      return;
+    }
+
+    setSaving(true);
     try {
       if (editing) {
         await updateResponse(editing.id, form);
@@ -302,7 +308,8 @@ function toFormValue(editing: SurveyResponse | null): SurveyResponseInput {
     researchPeriodEnd: editing.researchPeriodEnd,
     freeText: editing.freeText,
     contactName: editing.contactName,
-    contactPhone: editing.contactPhone
+    contactPhone: editing.contactPhone,
+    consentToDataProcessing: editing.consentToDataProcessing
   };
 }
 
